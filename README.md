@@ -202,7 +202,7 @@ Embed code (Light):
  - Why did you make Pi-Apps Go?
 > I have been wanting to improve the speed of Pi-Apps considering I have been seeing slow downs on my Pi Zero 2W because it was written in Bash.
 
-> There have been also projects such as [Pi-Apps Recreates](https://github.com/Pi-Apps-Recreates] which brang x86 support to Pi-Apps, but it stopped being updated in ~2023, so it's the time for a modern replacement.
+> There have been also projects such as [Pi-Apps Recreates](https://github.com/Pi-Apps-Recreates) which brang [x86 support](https://github.com/Pi-Apps-Recreates/pi-apps-x86) to Pi-Apps, but it stopped being updated in ~2023, so it's the time for a modern replacement.
 
 > So one day I realized: Why not make a modern rewrite of Pi-Apps in Go because the language started getting traction in being used in backend development? This would speed up significantly since Go can compile to a native binary which can speed the thing up. 
 
