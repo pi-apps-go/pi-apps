@@ -1,0 +1,40 @@
+name: Update_Wiki_Scripts
+
+# Controls when the workflow will run
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - 'etc/categories'
+      - 'apps/**/packages'
+      - 'apps/**/install'
+      - 'apps/**/install-32'
+      - 'apps/**/install-64'
+      - 'apps/**/description'
+      - 'apps/**/credits'
+      - 'apps/**/website'
+      - '.github/workflows/update-wiki.sh'
+      - '.github/workflows/update_wiki.yml'
+  # run at 4:00 UTC every day
+  schedule:
+     - cron: '0 4 * * *'
+  
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  update-wiki:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      - name: "Trigger analytics repo actions"
+        run: |
+          curl -XPOST -u "Botspot:${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}" -H "Accept: application/vnd.github.everest-preview+json" -H "Content-Type: application/json" https://api.github.com/repos/Botspot/pi-apps-analytics/dispatches --data '{"event_type": "update analytics"}'
+      
+      - name: "Trigger website repo actions"
+        run: |
+          curl -XPOST -u "Botspot:${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}" -H "Accept: application/vnd.github.everest-preview+json" -H "Content-Type: application/json" https://api.github.com/repos/Pi-Apps-Coders/website/dispatches --data '{"event_type": "update applist"}'
+   

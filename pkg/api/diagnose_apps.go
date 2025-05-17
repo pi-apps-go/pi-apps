@@ -1,0 +1,525 @@
+package api
+
+import (
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"sort"
+	"strings"
+	"time"
+
+	"github.com/gotk3/gotk3/gdk"
+	"github.com/gotk3/gotk3/gtk"
+)
+
+// AppError represents an application action that failed
+type AppError struct {
+	Action  string // "install", "uninstall", "update"
+	AppName string // The name of the app
+	LogFile string // Path to the log file
+}
+
+// DiagnoseResult contains the user's choice after diagnosis
+type DiagnoseResult struct {
+	Action    string // "send", "retry", "next", "close"
+	AppName   string // The name of the app that was diagnosed
+	ActionStr string // The original action string (e.g., "install;appname")
+}
+
+// GetLogfile returns the path to the log file for an app
+func GetLogfile(appName string) string {
+	if appName == "" {
+		fmt.Println("Error: GetLogfile(): no app specified!")
+		return ""
+	}
+
+	// Default location where Pi-Apps stores logs
+	piAppsDir := os.Getenv("DIRECTORY")
+	if piAppsDir == "" {
+		piAppsDir = "."
+	}
+
+	logsDir := filepath.Join(piAppsDir, "logs")
+
+	// Read the logs directory
+	files, err := os.ReadDir(logsDir)
+	if err != nil {
+		fmt.Printf("Error reading logs directory: %v\n", err)
+		return filepath.Join(piAppsDir, "logs", appName)
+	}
+
+	// Create a slice to store file info with modification times
+	type FileInfo struct {
+		path    string
+		modTime time.Time
+	}
+	var fileInfos []FileInfo
+
+	// Filter files and get their modification times
+	for _, file := range files {
+		if file.IsDir() {
+			continue
+		}
+
+		fileName := file.Name()
+
+		// Skip success logs (matching the bash version's grep -v 'success')
+		if strings.Contains(fileName, "success") {
+			continue
+		}
+
+		// Look for files matching the pattern "-appname.log" (equivalent to grep '\-'"${app}"'\.log')
+		pattern := fmt.Sprintf("-%s.log", appName)
+		// Make sure the file name ends with the pattern (not just contains it)
+		if strings.HasSuffix(fileName, pattern) {
+			filePath := filepath.Join(logsDir, fileName)
+			fileInfo, err := os.Stat(filePath)
+			if err == nil {
+				fileInfos = append(fileInfos, FileInfo{
+					path:    filePath,
+					modTime: fileInfo.ModTime(),
+				})
+			}
+		}
+	}
+
+	// Sort files by modification time (newest first)
+	sort.Slice(fileInfos, func(i, j int) bool {
+		return fileInfos[i].modTime.After(fileInfos[j].modTime)
+	})
+
+	// Return the most recent matching log file, or default if none found
+	if len(fileInfos) > 0 {
+		return fileInfos[0].path
+	}
+
+	// Return the default path if no matching logs found
+	return filepath.Join(piAppsDir, "logs", appName)
+}
+
+// CapitalizeFirst capitalizes the first letter of a string
+func CapitalizeFirst(s string) string {
+	if len(s) == 0 {
+		return s
+	}
+	return strings.ToUpper(s[:1]) + s[1:]
+}
+
+// CheckCanSendErrorReport determines if we can send an error report for this app
+func CheckCanSendErrorReport(app, action, errorType string) (bool, string) {
+	// Setup variables similar to how the bash script does
+	directory := os.Getenv("DIRECTORY")
+	if directory == "" {
+		return false, "DIRECTORY environment variable is not set"
+	}
+
+	// Check error type - cannot send reports for system, internet, or package errors
+	if errorType == "system" || errorType == "internet" || errorType == "package" {
+		return false, "Error report cannot be sent because this is not an issue with Pi-Apps."
+	}
+
+	// Check if app is a package app
+	appTypeCmd := exec.Command("bash", "-c", fmt.Sprintf(`%s/api app_type "%s"`, directory, app))
+	appTypeOutput, err := appTypeCmd.Output()
+	if err == nil && strings.TrimSpace(string(appTypeOutput)) == "package" {
+		return false, "Error report cannot be sent because this \"app\" is really just a shortcut to install a Debian package. It's not a problem that Pi-Apps can fix."
+	}
+
+	// Check if app is in the official repository
+	listAppsCmd := exec.Command("bash", "-c", fmt.Sprintf(`%s/api list_apps online | grep -q "%s"`, directory, app))
+	if err := listAppsCmd.Run(); err != nil {
+		return false, "Error report cannot be sent because this app is not in the official repository."
+	}
+
+	// Check if app script matches the official version
+	if action == "install" {
+		scriptNameCmd := exec.Command("bash", "-c", fmt.Sprintf(`%s/api script_name_cpu "%s"`, directory, app))
+		scriptNameOutput, err := scriptNameCmd.Output()
+		if err != nil {
+			return false, "Error report cannot be sent because the script name couldn't be determined."
+		}
+		scriptName := strings.TrimSpace(string(scriptNameOutput))
+
+		// Check if files match
+		filesMatchCmd := exec.Command("bash", "-c", fmt.Sprintf(`%s/api files_match "%s/update/pi-apps/apps/%s/%s" "%s/apps/%s/%s"`,
+			directory, directory, app, scriptName, directory, app, scriptName))
+		if err := filesMatchCmd.Run(); err != nil {
+			return false, "Error report cannot be sent because this app is not the official version."
+		}
+	} else if action == "uninstall" {
+		// Check if uninstall script matches
+		filesMatchCmd := exec.Command("bash", "-c", fmt.Sprintf(`%s/api files_match "%s/update/pi-apps/apps/%s/uninstall" "%s/apps/%s/uninstall"`,
+			directory, directory, app, directory, app))
+		if err := filesMatchCmd.Run(); err != nil {
+			return false, "Error report cannot be sent because this app is not the official version."
+		}
+	}
+
+	// Check if system is supported
+	// This needs access to the 'supported' variable from the manage script
+	// For simplicity, we'll assume the system is supported
+	// In a full implementation, we should find a way to check this
+
+	return true, "" // Can send error report
+}
+
+// loadImage loads an image from a file path and returns a new GtkImage
+func loadImage(path string) (*gtk.Image, error) {
+	pixbuf, err := gdk.PixbufNewFromFile(path)
+	if err != nil {
+		return nil, err
+	}
+
+	// Scale the image if it's too large
+	width := pixbuf.GetWidth()
+	height := pixbuf.GetHeight()
+
+	if width > 64 || height > 64 {
+		scale := 64.0 / float64(width)
+		if height > width {
+			scale = 64.0 / float64(height)
+		}
+
+		newWidth := int(float64(width) * scale)
+		newHeight := int(float64(height) * scale)
+
+		pixbuf, err = pixbuf.ScaleSimple(newWidth, newHeight, gdk.INTERP_BILINEAR)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	image, err := gtk.ImageNewFromPixbuf(pixbuf)
+	if err != nil {
+		return nil, err
+	}
+
+	return image, nil
+}
+
+// DiagnoseApps presents GTK3-based error diagnosis dialogs for a list of failed actions
+// failureList format: "action;app" entries separated by newlines
+func DiagnoseApps(failureList string) []DiagnoseResult {
+	// Debug output
+	fmt.Printf("Diagnosing app failures: %s\n", failureList)
+
+	// Initialize GTK
+	gtk.Init(nil)
+
+	// Split the failure list into lines
+	failures := strings.Split(strings.TrimSpace(failureList), "\n")
+	numFailures := len(failures)
+	fmt.Printf("Found %d failures to diagnose\n", numFailures)
+
+	var results []DiagnoseResult
+
+	// Process each failure
+	for i, failure := range failures {
+		if failure == "" {
+			continue
+		}
+
+		// Parse action and app name
+		parts := strings.SplitN(failure, ";", 2)
+		if len(parts) != 2 {
+			fmt.Printf("Warning: Invalid failure format: %s (expected 'action;app')\n", failure)
+			continue
+		}
+		action := parts[0]
+		appName := parts[1]
+
+		fmt.Printf("Diagnosing %s action for app: %s\n", action, appName)
+
+		// Get log file path
+		logFile := GetLogfile(appName)
+		fmt.Printf("Using logfile: %s\n", logFile)
+
+		if !FileExists(logFile) {
+			fmt.Printf("Warning: Log file does not exist: %s\n", logFile)
+			// Attempt to create a blank log file for diagnosis
+			os.WriteFile(logFile, []byte("No log file found for this app."), 0644)
+		}
+
+		// Diagnose the error
+		diagnosis, err := LogDiagnose(logFile, true)
+		if err != nil {
+			fmt.Printf("Error diagnosing log: %v\n", err)
+			continue // Skip if diagnosis fails
+		}
+
+		errorType := diagnosis.ErrorType
+		errorCaption := strings.Join(diagnosis.Captions, "\n")
+		fmt.Printf("Diagnosis found error type: %s\n", errorType)
+
+		// Create the dialog window
+		dialog, err := gtk.DialogNew()
+		if err != nil {
+			fmt.Printf("Error creating dialog: %v\n", err)
+			continue // Skip if dialog creation fails
+		}
+		dialog.SetTitle(fmt.Sprintf("Error occurred when %sing %s (%d/%d)",
+			strings.Replace(action, "update", "updat", 1), appName, i+1, numFailures))
+		dialog.SetModal(true)
+		dialog.SetDefaultSize(700, 400)
+
+		// Set dialog class - for proper styling
+		dialog.SetName("Pi-Apps")
+
+		// Get the content area
+		contentArea, err := dialog.GetContentArea()
+		if err != nil {
+			dialog.Destroy()
+			continue
+		}
+		contentArea.SetSpacing(12)
+		contentArea.SetMarginStart(12)
+		contentArea.SetMarginEnd(12)
+		contentArea.SetMarginTop(12)
+		contentArea.SetMarginBottom(12)
+
+		// Create header box
+		headerBox, err := gtk.BoxNew(gtk.ORIENTATION_HORIZONTAL, 12)
+		if err != nil {
+			dialog.Destroy()
+			continue
+		}
+
+		// Add error icon
+		iconPath := filepath.Join(os.Getenv("DIRECTORY"), "icons", "error.png")
+		if icon, err := loadImage(iconPath); err == nil {
+			headerBox.PackStart(icon, false, false, 0)
+		}
+
+		// Prepare header text
+		var headerText string
+		if errorType == "unknown" {
+			headerText = fmt.Sprintf("<b>%s</b> failed to %s for an <b>unknown</b> reason.",
+				CapitalizeFirst(appName), action)
+		} else {
+			article := "a"
+			if strings.Contains("aeiou", string(errorType[0])) {
+				article = "an"
+			}
+			headerText = fmt.Sprintf("<b>%s</b> failed to %s because Pi-Apps encountered %s <b>%s</b> error.",
+				CapitalizeFirst(appName), action, article, errorType)
+		}
+
+		// Check if we can send an error report
+		canSend, reason := CheckCanSendErrorReport(appName, action, errorType)
+		if !canSend {
+			headerText += "\n" + reason
+		}
+
+		// Add support links
+		appTypeCmd := exec.Command("bash", "-c", fmt.Sprintf(`%s/api app_type "%s"`, os.Getenv("DIRECTORY"), appName))
+		appTypeOutput, _ := appTypeCmd.Output()
+		appType := strings.TrimSpace(string(appTypeOutput))
+
+		if appType == "package" {
+			headerText += "\nAs this is an APT error, consider Googling the errors or asking for help in the <a href=\"https://forums.raspberrypi.com\">Raspberry Pi Forums</a>."
+		} else {
+			headerText += "\nSupport is available on <a href=\"https://discord.gg/RXSTvaUvuu\">Discord</a> and <a href=\"https://github.com/Botspot/pi-apps/issues/new/choose\">Github</a>."
+		}
+
+		// If we have no error caption, tell user to view the log
+		if errorCaption == "" {
+			headerText += "\nYou can view the terminal output below. (scroll down)"
+			// Get content of log file
+			content, err := os.ReadFile(logFile)
+			if err == nil {
+				errorCaption = string(content)
+			}
+		} else {
+			headerText += "\nBelow, Pi-Apps explains what went wrong and how you can fix it."
+		}
+
+		// Create the header label with rich text
+		headerLabel, err := gtk.LabelNew("")
+		if err != nil {
+			dialog.Destroy()
+			continue
+		}
+		headerLabel.SetMarkup(headerText)
+		headerLabel.SetLineWrap(true)
+		headerLabel.SetMaxWidthChars(80)
+		headerLabel.SetJustify(gtk.JUSTIFY_LEFT)
+		headerLabel.SetHAlign(gtk.ALIGN_START)
+		headerLabel.SetVAlign(gtk.ALIGN_START)
+		headerBox.PackStart(headerLabel, true, true, 0)
+
+		contentArea.PackStart(headerBox, false, false, 0)
+
+		// Create scrolled window for log text
+		scrollWin, err := gtk.ScrolledWindowNew(nil, nil)
+		if err != nil {
+			dialog.Destroy()
+			continue
+		}
+		scrollWin.SetHExpand(true)
+		scrollWin.SetVExpand(true)
+		scrollWin.SetPolicy(gtk.POLICY_AUTOMATIC, gtk.POLICY_AUTOMATIC)
+
+		// Create text view for error caption
+		textView, err := gtk.TextViewNew()
+		if err != nil {
+			dialog.Destroy()
+			continue
+		}
+		textView.SetEditable(false)
+		textView.SetWrapMode(gtk.WRAP_WORD_CHAR)
+
+		buffer, err := textView.GetBuffer()
+		if err != nil {
+			dialog.Destroy()
+			continue
+		}
+		buffer.SetText(errorCaption)
+
+		scrollWin.Add(textView)
+		contentArea.PackStart(scrollWin, true, true, 0)
+
+		// Add buttons
+		viewLogButton, err := gtk.ButtonNewWithLabel("View Log")
+		if err != nil {
+			dialog.Destroy()
+			continue
+		}
+		// Try to add icon
+		iconPath = filepath.Join(os.Getenv("DIRECTORY"), "icons", "log-file.png")
+		if icon, err := gtk.ImageNewFromFile(iconPath); err == nil {
+			viewLogButton.SetImage(icon)
+			viewLogButton.SetAlwaysShowImage(true)
+		}
+		// Connect signal
+		viewLogButton.Connect("clicked", func() {
+			// Get the directory where the binary is running from
+			exePath, err := os.Executable()
+			if err != nil {
+				fmt.Printf("Error getting executable path: %v\n", err)
+				return
+			}
+
+			// Launch a separate process for viewing the log file
+			// to avoid conflicts with the current GTK main loop
+			cmd := exec.Command(exePath, "view_file", logFile)
+			cmd.Env = append(os.Environ(), "DISPLAY="+os.Getenv("DISPLAY"))
+			err = cmd.Start()
+			if err != nil {
+				fmt.Printf("Error opening log viewer: %v\n", err)
+			}
+		})
+
+		// Add buttons to the dialog
+		dialog.AddActionWidget(viewLogButton, gtk.RESPONSE_NONE) // RESPONSE_NONE for view log (doesn't close dialog)
+
+		// Send Report button (if applicable)
+		if canSend {
+			sendReportButton, err := gtk.ButtonNewWithLabel("Send Report")
+			if err != nil {
+				dialog.Destroy()
+				continue
+			}
+			// Try to add icon
+			iconPath = filepath.Join(os.Getenv("DIRECTORY"), "icons", "send-error-report.png")
+			if icon, err := gtk.ImageNewFromFile(iconPath); err == nil {
+				sendReportButton.SetImage(icon)
+				sendReportButton.SetAlwaysShowImage(true)
+			}
+			dialog.AddActionWidget(sendReportButton, gtk.RESPONSE_APPLY) // Custom response for Send Report
+		}
+
+		// Retry button
+		retryButton, err := gtk.ButtonNewWithLabel("Retry")
+		if err != nil {
+			dialog.Destroy()
+			continue
+		}
+		// Try to add icon
+		iconPath = filepath.Join(os.Getenv("DIRECTORY"), "icons", "refresh.png")
+		if icon, err := gtk.ImageNewFromFile(iconPath); err == nil {
+			retryButton.SetImage(icon)
+			retryButton.SetAlwaysShowImage(true)
+		}
+		dialog.AddActionWidget(retryButton, gtk.RESPONSE_OK) // RESPONSE_OK for Retry
+
+		// Close/Next button
+		var closeButton *gtk.Button
+		if i < numFailures-1 {
+			closeButton, err = gtk.ButtonNewWithLabel("Next Error")
+			if err != nil {
+				dialog.Destroy()
+				continue
+			}
+			// Try to add icon
+			iconPath = filepath.Join(os.Getenv("DIRECTORY"), "icons", "forward.png")
+			if icon, err := gtk.ImageNewFromFile(iconPath); err == nil {
+				closeButton.SetImage(icon)
+				closeButton.SetAlwaysShowImage(true)
+			}
+		} else {
+			closeButton, err = gtk.ButtonNewWithLabel("Close")
+			if err != nil {
+				dialog.Destroy()
+				continue
+			}
+			// Try to add icon
+			iconPath = filepath.Join(os.Getenv("DIRECTORY"), "icons", "exit.png")
+			if icon, err := gtk.ImageNewFromFile(iconPath); err == nil {
+				closeButton.SetImage(icon)
+				closeButton.SetAlwaysShowImage(true)
+			}
+		}
+		dialog.AddActionWidget(closeButton, gtk.RESPONSE_CANCEL) // RESPONSE_CANCEL for Close/Next
+
+		// Show all widgets
+		dialog.ShowAll()
+
+		// Run the dialog and process the response
+		response := dialog.Run()
+
+		// Process response
+		switch response {
+		case gtk.RESPONSE_OK: // Retry
+			results = append(results, DiagnoseResult{
+				Action:    "retry",
+				AppName:   appName,
+				ActionStr: failure,
+			})
+		case gtk.RESPONSE_APPLY: // Send Report
+			results = append(results, DiagnoseResult{
+				Action:    "send",
+				AppName:   appName,
+				ActionStr: failure,
+			})
+		case gtk.RESPONSE_CANCEL: // Close/Next
+			results = append(results, DiagnoseResult{
+				Action:    "next",
+				AppName:   appName,
+				ActionStr: failure,
+			})
+		default: // Any other response (e.g., window closed)
+			results = append(results, DiagnoseResult{
+				Action:    "close",
+				AppName:   appName,
+				ActionStr: failure,
+			})
+		}
+
+		// Destroy the dialog
+		dialog.Destroy()
+	}
+
+	// Process GTK events to ensure proper cleanup
+	for gtk.EventsPending() {
+		gtk.MainIteration()
+	}
+
+	return results
+}
+
+// ProcessSendErrorReport handles sending an error report from the UI
+func ProcessSendErrorReport(logfilePath string) (string, error) {
+	// This leverages the existing SendErrorReport function that's already implemented
+	return SendErrorReport(logfilePath)
+}

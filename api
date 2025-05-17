@@ -1,0 +1,661 @@
+#!/bin/bash
+
+# bash-go-api: Compatibility layer between Pi-Apps bash scripts and Go API implementation
+# This script defines the same functions as the original Pi-Apps API but redirects calls to the Go implementation
+
+# =================================================
+# COMPATIBILITY NOTICE
+# =================================================
+# This Go implementation introduces several new functions that don't exist in the original Pi-Apps API:
+#   - file_exists: Checks if a file exists
+#   - dir_exists: Checks if a directory exists
+#   - ensure_dir: Creates a directory if it doesn't exist
+#   - copy_file: Copies a file from one location to another
+#
+# Using these functions in your scripts will make them incompatible with older versions of Pi-Apps.
+# For maximum compatibility, consider using bash built-ins or standard commands instead:
+#   - Instead of file_exists: [ -f "/path/to/file" ]
+#   - Instead of dir_exists: [ -d "/path/to/directory" ]
+#   - Instead of ensure_dir: mkdir -p "/path/to/directory"
+#   - Instead of copy_file: cp "/source/file" "/destination/file"
+# =================================================
+
+# Path to the Go API binary
+GO_API_BIN="$(dirname "$(readlink -f "$0")")/api-go"
+
+# Set debug mode if enabled in the original environment
+if [ "$pi_apps_debug" = true ]; then
+    GO_API_ARGS="--debug"
+else
+    GO_API_ARGS=""
+fi
+
+# Output functions
+error() {
+    "$GO_API_BIN" $GO_API_ARGS error "$1"
+    # No need to explicitly exit, as the Go implementation already does this
+}
+
+warning() {
+    "$GO_API_BIN" $GO_API_ARGS warning "$1"
+}
+
+status() {
+    if [[ "$1" == '-'* ]] && [ ! -z "$2" ]; then
+        "$GO_API_BIN" $GO_API_ARGS status "$1" "$2"
+    else
+        "$GO_API_BIN" $GO_API_ARGS status "$1"
+    fi
+}
+
+status_green() {
+    "$GO_API_BIN" $GO_API_ARGS status_green "$1"
+}
+
+debug() {
+    [ "$pi_apps_debug" = true ] && "$GO_API_BIN" $GO_API_ARGS debug "$1"
+}
+
+generate_logo() {
+    "$GO_API_BIN" $GO_API_ARGS generate_logo
+}
+
+add_english() {
+    "$GO_API_BIN" $GO_API_ARGS add_english
+}
+
+# Package management functions
+package_info() {
+    "$GO_API_BIN" $GO_API_ARGS package_info "$1"
+}
+
+package_installed() {
+    "$GO_API_BIN" $GO_API_ARGS package_installed "$1"
+    return $?  # Preserve exit code
+}
+
+package_available() {
+    local package="$1"
+    local dpkg_arch="$2"
+    
+    if [ -z "$dpkg_arch" ]; then
+        "$GO_API_BIN" $GO_API_ARGS package_available "$package"
+    else
+        "$GO_API_BIN" $GO_API_ARGS package_available "$package" "$dpkg_arch"
+    fi
+    
+    return $?  # Preserve exit code
+}
+
+package_dependencies() {
+    "$GO_API_BIN" $GO_API_ARGS package_dependencies "$1"
+}
+
+package_installed_version() {
+    "$GO_API_BIN" $GO_API_ARGS package_installed_version "$1"
+}
+
+package_latest_version() {
+    if [ "$2" = "-t" ] && [ ! -z "$3" ]; then
+        "$GO_API_BIN" $GO_API_ARGS package_latest_version "$1" "-t" "$3"
+    else
+        "$GO_API_BIN" $GO_API_ARGS package_latest_version "$1"
+    fi
+}
+
+package_is_new_enough() {
+    "$GO_API_BIN" $GO_API_ARGS package_is_new_enough "$1" "$2"
+    return $?  # Preserve exit code
+}
+
+# File operations
+download_file() {
+    local url="$1"
+    local destination="$2"
+    
+    if [ -z "$url" ]; then
+        error "download_file: No URL specified!"
+        return 1
+    fi
+    
+    if [ -z "$destination" ]; then
+        error "download_file: No destination specified!"
+        return 1
+    fi
+    
+    # If the GO_API_USE_WGET environment variable is set to "true", use the wget function
+    if [ "$GO_API_USE_WGET" = "true" ]; then
+        # Call our wget function to handle the download
+        wget -q "$url" -O "$destination"
+        return $?
+    else
+        # Otherwise, use the Go API implementation
+        "$GO_API_BIN" $GO_API_ARGS download_file "$url" "$destination"
+        return $?
+    fi
+}
+
+# NOTE: NEW FUNCTION - Not available in the original Pi-Apps API
+# Using this function will make your script incompatible with older versions of Pi-Apps
+file_exists() {
+    "$GO_API_BIN" $GO_API_ARGS file_exists "$1"
+    return $?  # Preserve exit code
+}
+
+# NOTE: NEW FUNCTION - Not available in the original Pi-Apps API
+# Using this function will make your script incompatible with older versions of Pi-Apps
+dir_exists() {
+    "$GO_API_BIN" $GO_API_ARGS dir_exists "$1"
+    return $?  # Preserve exit code
+}
+
+# NOTE: NEW FUNCTION - Not available in the original Pi-Apps API
+# Using this function will make your script incompatible with older versions of Pi-Apps
+ensure_dir() {
+    "$GO_API_BIN" $GO_API_ARGS ensure_dir "$1"
+    return $?  # Preserve exit code
+}
+
+# NOTE: NEW FUNCTION - Not available in the original Pi-Apps API
+# Using this function will make your script incompatible with older versions of Pi-Apps
+copy_file() {
+    "$GO_API_BIN" $GO_API_ARGS copy_file "$1" "$2"
+    return $?  # Preserve exit code
+}
+
+# Log operations
+log_diagnose() {
+    local logfile="$1"
+    local allowwrite=""
+    
+    if [ "$2" = "allowwrite" ]; then
+        allowwrite="--allow-write"
+    fi
+    
+    "$GO_API_BIN" $GO_API_ARGS log_diagnose "$logfile" $allowwrite
+    # Preserve exit code from the Go implementation
+    return $?
+}
+
+# View log file with GTK3 interface
+view_log() {
+    local logfile="$1"
+    
+    if [ -z "$logfile" ]; then
+        error "view_log: No log file specified!"
+        return 1
+    fi
+    
+    if [ ! -f "$logfile" ]; then
+        warning "view_log: Log file does not exist: $logfile"
+        return 1
+    fi
+    
+    "$GO_API_BIN" $GO_API_ARGS view_log "$logfile"
+    return $?
+}
+
+# General file viewer - for compatibility with original API
+view_file() {
+    local file="$1"
+    
+    if [ -z "$file" ]; then
+        error "view_file: No file specified!"
+        return 1
+    fi
+    
+    if [ ! -f "$file" ]; then
+        warning "view_file: File does not exist: $file"
+        return 1
+    fi
+    
+    "$GO_API_BIN" $GO_API_ARGS view_file "$file"
+    return $?
+}
+
+# Device information
+get_device_info() {
+    "$GO_API_BIN" $GO_API_ARGS get_device_info
+    return $?
+}
+
+# APT repository management functions
+anything_installed_from_uri_suite_component() {
+    local uri="$1"
+    local suite="$2"
+    local component="$3"
+    
+    if [ -z "$uri" ]; then
+        error "anything_installed_from_uri_suite_component: A repository uri must be specified."
+        return 1
+    fi
+    
+    if [ -z "$suite" ]; then
+        error "anything_installed_from_uri_suite_component: A repository suite must be specified."
+        return 1
+    fi
+    
+    "$GO_API_BIN" $GO_API_ARGS anything_installed_from_uri_suite_component "$uri" "$suite" "$component"
+    return $?
+}
+
+remove_repofile_if_unused() {
+    local file="$1"
+    local testmode="$2"
+    local key="$3"
+    
+    if [ -z "$file" ]; then
+        error "remove_repofile_if_unused: no sources.list.d file specified!"
+        return 1
+    fi
+    
+    "$GO_API_BIN" $GO_API_ARGS remove_repofile_if_unused "$file" "$testmode" "$key"
+    return $?
+}
+
+# Local APT repository functions
+repo_add() {
+    if [ $# -lt 1 ]; then
+        error "repo_add: no files specified!"
+        return 1
+    fi
+    
+    "$GO_API_BIN" $GO_API_ARGS repo_add "$@"
+    return $?
+}
+
+repo_refresh() {
+    "$GO_API_BIN" $GO_API_ARGS repo_refresh
+    return $?
+}
+
+# Remove the local apt repository
+repo_rm() {
+    "$GO_API_BIN" $GO_API_ARGS repo_rm
+    return $?
+}
+
+# Convert an app name to a package name
+app_to_pkgname() {
+    local app="$1"
+    
+    if [ -z "$app" ]; then
+        error "app_to_pkgname(): no app-name specified"
+        return 1
+    fi
+    
+    "$GO_API_BIN" $GO_API_ARGS app_to_pkgname "$app"
+    return $?
+}
+
+# APT utility functions
+apt_lock_wait() {
+    "$GO_API_BIN" $GO_API_ARGS apt_lock_wait
+    return $?
+}
+
+apt_update() {
+    # Pass all arguments to the Go API implementation
+    "$GO_API_BIN" $GO_API_ARGS apt_update "$@"
+    return $?
+}
+
+less_apt() {
+    # This function receives input from stdin, filters it, and outputs the result
+    local input
+    if [ -p /dev/stdin ]; then
+        input=$(cat)
+        echo "$input" | "$GO_API_BIN" $GO_API_ARGS less_apt
+    else
+        "$GO_API_BIN" $GO_API_ARGS less_apt "$1"
+    fi
+    return $?
+}
+
+# Download functionality - implement the original wget function for compatibility
+wget() { 
+    # Pass all arguments to the Go implementation
+    "$GO_API_BIN" $GO_API_ARGS wget "$@"
+    return $?
+}
+
+# Git clone functionality
+git_clone() {
+    # Pass all arguments to the Go implementation
+    "$GO_API_BIN" $GO_API_ARGS git_clone "$@"
+    return $?
+}
+
+# Chmod with status output
+chmod() {
+    # Pass all arguments to the Go implementation
+    "$GO_API_BIN" $GO_API_ARGS chmod "$@"
+    return $?
+}
+
+# Unzip with status output
+unzip() {
+    # Pass all arguments to the Go implementation
+    "$GO_API_BIN" $GO_API_ARGS unzip "$@"
+    return $?
+}
+
+# nproc that considers available memory
+nproc() {
+    # Pass request to the Go implementation
+    "$GO_API_BIN" $GO_API_ARGS nproc
+    return $?
+}
+
+# Check if process with given PID exists
+process_exists() {
+    local pid="$1"
+    
+    if [ -z "$pid" ]; then
+        error "process_exists: No PID specified"
+        return 1
+    fi
+    
+    "$GO_API_BIN" $GO_API_ARGS process_exists "$pid"
+    return $?
+}
+
+# Ensure a kernel module is loaded and configured to load on startup
+enable_module() {
+    local module="$1"
+    
+    if [ -z "$module" ]; then
+        error "enable_module: No module name specified"
+        return 1
+    fi
+    
+    "$GO_API_BIN" $GO_API_ARGS enable_module "$module"
+    return $?
+}
+
+# Run command with elevated privileges
+sudo_popup() {
+    if [ $# -lt 1 ]; then
+        error "sudo_popup: No command specified"
+        return 1
+    fi
+    
+    local command="$1"
+    shift
+    
+    "$GO_API_BIN" $GO_API_ARGS sudo_popup "$command" "$@"
+    return $?
+}
+
+# Package installation functions
+install_packages() {
+    local app="$1"
+    shift
+    
+    if [ -z "$app" ]; then
+        error "install_packages function can only be used by apps to install packages. (the \$app variable was not set)"
+        return 1
+    fi
+    
+    "$GO_API_BIN" $GO_API_ARGS install_packages "$app" "$@"
+    return $?
+}
+
+# Package purging function
+purge_packages() {
+    local app="$1"
+    
+    if [ -z "$app" ]; then
+        error "purge_packages function can only be used by apps to install packages. (the \$app variable was not set)"
+        return 1
+    fi
+    
+    # Check if script_input is set to "update"
+    if [ "$script_input" == "update" ]; then
+        "$GO_API_BIN" $GO_API_ARGS purge_packages "$app" "--update"
+    else
+        "$GO_API_BIN" $GO_API_ARGS purge_packages "$app"
+    fi
+    return $?
+}
+
+# Package icon finder
+get_icon_from_package() {
+    if [ -z "$1" ]; then
+        error "get_icon_from_package(): requires an apt package name"
+        return 1
+    fi
+    
+    "$GO_API_BIN" $GO_API_ARGS get_icon_from_package "$@"
+    return $?
+}
+
+# PPA installer for Ubuntu-based distros
+ubuntu_ppa_installer() {
+    local ppa_name="$1"
+    
+    if [ -z "$ppa_name" ]; then
+        error "ubuntu_ppa_installer(): This function is used to add a ppa to a ubuntu based install but a required input argument was missing."
+        return 1
+    fi
+    
+    "$GO_API_BIN" $GO_API_ARGS ubuntu_ppa_installer "$ppa_name"
+    return $?
+}
+
+# PPA installer for Debian-based distros
+debian_ppa_installer() {
+    local ppa_name="$1"
+    local ppa_dist="$2"
+    local key="$3"
+    
+    if [ -z "$ppa_name" ] || [ -z "$ppa_dist" ] || [ -z "$key" ]; then
+        error "debian_ppa_installer(): This function is used to add a ppa to a debian based install but a required input argument was missing."
+        return 1
+    fi
+    
+    "$GO_API_BIN" $GO_API_ARGS debian_ppa_installer "$ppa_name" "$ppa_dist" "$key"
+    return $?
+}
+
+# External repository management
+add_external_repo() {
+    local reponame="$1"
+    local pubkeyurl="$2"
+    local uris="$3"
+    local suites="$4"
+    local components="$5"
+    
+    # Check if all needed vars are set  
+    [ -z "$reponame" ] && error "add_external_repo: reponame not set"
+    [ -z "$uris" ] && error "add_external_repo: uris not set"
+    [ -z "$suites" ] && error "add_external_repo: suites not set"
+    [ -z "$pubkeyurl" ] && error "add_external_repo: pubkeyurl not set"
+    
+    # Build the arguments array
+    local args=("$reponame" "$pubkeyurl" "$uris" "$suites")
+    
+    # Add components if provided
+    if [ ! -z "$components" ]; then
+        args+=("$components")
+    else
+        args+=("")
+    fi
+    
+    # Add any additional options
+    local i=6
+    while [ $i -le $# ]; do
+        args+=("${!i}")
+        i=$((i+1))
+    done
+    
+    "$GO_API_BIN" $GO_API_ARGS add_external_repo "${args[@]}"
+    return $?
+}
+
+rm_external_repo() {
+    local reponame="$1"
+    local force="$2"
+    
+    [ -z "$reponame" ] && error "rm_external_repo: reponame not provided"
+    
+    if [ "$force" == "force" ]; then
+        "$GO_API_BIN" $GO_API_ARGS rm_external_repo "$reponame" "force"
+    else
+        "$GO_API_BIN" $GO_API_ARGS rm_external_repo "$reponame"
+    fi
+    return $?
+}
+
+# Adoptium repository installer
+adoptium_installer() {
+    "$GO_API_BIN" $GO_API_ARGS adoptium_installer
+    return $?
+}
+
+# Python package management with pipx
+pipx_install() {
+    if [ $# -lt 1 ]; then
+        error "pipx_install: requires at least one package name"
+        return 1
+    fi
+    
+    "$GO_API_BIN" $GO_API_ARGS pipx_install "$@"
+    return $?
+}
+
+pipx_uninstall() {
+    if [ $# -lt 1 ]; then
+        error "pipx_uninstall: requires at least one package name"
+        return 1
+    fi
+    
+    "$GO_API_BIN" $GO_API_ARGS pipx_uninstall "$@"
+    return $?
+}
+
+# App management functions
+remove_deprecated_app() {
+    local app="$1"
+    local removal_arch="$2"
+    local message="$3"
+    
+    [ -z "$app" ] && error "remove_deprecated_app(): requires a pi-apps app name"
+    
+    "$GO_API_BIN" $GO_API_ARGS remove_deprecated_app "$app" "$removal_arch" "$message"
+    return $?
+}
+
+terminal_manage() {
+    local action="$1"
+    local app="$2"
+    
+    [ -z "$action" ] && error "terminal_manage(): Must specify an action: either 'install' or 'uninstall' or 'update' or 'refresh'"
+    
+    "$GO_API_BIN" $GO_API_ARGS terminal_manage "$action" "$app"
+    return $?
+}
+
+terminal_manage_multi() {
+    local queue="$1"
+    
+    "$GO_API_BIN" $GO_API_ARGS terminal_manage_multi "$queue"
+    return $?
+}
+
+# User interface function for dialogs
+userinput_func() {
+    [ -z "$1" ] && error "userinput_func(): requires a description"
+    [ -z "$2" ] && error "userinput_func(): requires at least one output selection option"
+    
+    # Call the Go implementation and capture the output
+    output=$("$GO_API_BIN" $GO_API_ARGS userinput_func "$@")
+    return $?
+}
+
+# App diagnostics
+diagnose_apps() {
+    local failure_list="$1"
+    
+    "$GO_API_BIN" $GO_API_ARGS diagnose_apps "$failure_list"
+    return $?
+}
+
+# If script is executed directly (not sourced), handle command line arguments
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    # If called with arguments, pass them to the Go API
+    if [ $# -gt 0 ]; then
+        "$GO_API_BIN" $GO_API_ARGS "$@"
+        exit $?
+    else
+        # Display usage if no arguments provided
+        echo "Usage: $(basename "$0") <command> [options]"
+        echo "This is a compatibility wrapper for the Pi-Apps Go API."
+        echo "Run '$(basename "$0") --help' for more information."
+        exit 1
+    fi
+fi
+
+# =================================================
+# COMPATIBILITY HELPER FUNCTIONS
+# =================================================
+# The following functions can be included in your scripts to make them
+# compatible with both the original Bash API and the new Go API.
+# Simply include these functions in your script to ensure compatibility.
+
+# Compatibility wrapper for file_exists
+compat_file_exists() {
+    local file="$1"
+    if type file_exists >/dev/null 2>&1; then
+        # New API with file_exists function
+        file_exists "$file"
+        return $?
+    else
+        # Original Bash API without file_exists function
+        [ -f "$file" ]
+        return $?
+    fi
+}
+
+# Compatibility wrapper for dir_exists
+compat_dir_exists() {
+    local dir="$1"
+    if type dir_exists >/dev/null 2>&1; then
+        # New API with dir_exists function
+        dir_exists "$dir"
+        return $?
+    else
+        # Original Bash API without dir_exists function
+        [ -d "$dir" ]
+        return $?
+    fi
+}
+
+# Compatibility wrapper for ensure_dir
+compat_ensure_dir() {
+    local dir="$1"
+    if type ensure_dir >/dev/null 2>&1; then
+        # New API with ensure_dir function
+        ensure_dir "$dir"
+        return $?
+    else
+        # Original Bash API without ensure_dir function
+        mkdir -p "$dir"
+        return $?
+    fi
+}
+
+# Compatibility wrapper for copy_file
+compat_copy_file() {
+    local src="$1"
+    local dst="$2"
+    if type copy_file >/dev/null 2>&1; then
+        # New API with copy_file function
+        copy_file "$src" "$dst"
+        return $?
+    else
+        # Original Bash API without copy_file function
+        cp "$src" "$dst"
+        return $?
+    fi
+}

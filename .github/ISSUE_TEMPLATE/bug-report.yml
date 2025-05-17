@@ -1,0 +1,60 @@
+name: Bug Report
+description:  App failing to install? App still around after uninstalling? Something not working as expected? Some other problem?
+labels: ["bug"]
+body:
+  - type: checkboxes
+    attributes:
+      label: Confirmations
+      options:
+      - label: I searched for similar bug reports in https://github.com/pi-apps-go/pi-apps/issues and found none were relevant.
+        required: true
+      - label: I tried updating Pi-Apps Go and the issue is still not fixed. [How to update Pi-Apps Go?](https://pi-apps-go.io/wiki/getting-started/updating-pi-apps/)
+        required: false
+      - label: 'IMPORTANT: I promise to respond to comments on this issue and write a good bug report https://www.softwaretestinghelp.com/how-to-write-good-bug-report/'
+        required: true
+  - type: input
+    id: desc
+    attributes:
+      label: What happened?
+      description: Briefly explain what happened.
+      placeholder: "Ex. 'App' won't install, 'App' unable to launch after update"
+    validations:
+      required: true
+  - type: textarea
+    id: desc-long
+    attributes:
+      label: Description
+      description: A clear and concise description of what the bug is and any personal attempts you made to fix it.
+      placeholder: Tell us more!
+    validations: 
+      required: true
+  - type: textarea
+    id: os
+    attributes:
+      label: What are your system specs (run the following command in your terminal)?
+      description: ~/pi-apps/api get_device_info
+      placeholder: |
+        OS: Debian GNU/Linux 12 (bookworm)
+        OS architecture: 64-bit
+        Last updated Pi-Apps on: 1/1/2024
+        Latest Pi-Apps version: 1/1/2024
+        Kernel: aarch64 6.1.0-rpi7-rpi-v8
+        Device model: Raspberry Pi 5 Model B Rev 1.0
+        SOC identifier: bcm2712
+        Cpu name: Cortex-A76
+        Ram size: 7.94 GB
+        Raspberry Pi OS image version: 2023-12-05
+        Language: en_US.UTF-8
+      render: bash
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: (Recommended) Error log? Terminal output? Debug messages?
+      description: Please provide error log or terminal output, if available.
+      placeholder: Paste your terminal output/error log here
+      render: bash
+    validations:
+      required: false
+
