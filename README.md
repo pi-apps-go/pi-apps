@@ -1,11 +1,11 @@
 <p align="center">
     <a href="https://pi-apps.io">
-        <img src="https://github.com/pi-apps-go/pi-apps/blob/master/icons/proglogo.png?raw=true" alt="Pi-Apps logo">
+        <img src="https://github.com/pi-apps-go/pi-apps/blob/main/icons/proglogo.png?raw=true" alt="Pi-Apps logo">
     </a>
 </p>
 <p align="center">The most popular app store for Raspberry Pi computers. 100% free, open-source but rewritten in Go for faster performance.
 <p align="center">
-  <a href="https://github.com/pi-apps-go/pi-apps/blob/master/CHANGELOG.md">
+  <a href="https://github.com/pi-apps-go/pi-apps/blob/main/CHANGELOG.md">
     View changelog</a>
   |
   <a href="https://pi-apps-go.io/wiki/getting-started/apps-list/">
@@ -30,7 +30,7 @@
     <a href="https://github.com/pi-apps-go/pi-apps/pulls"><img src="https://img.shields.io/github/issues-pr/pi-apps-go/pi-apps" alt="prs"></a>
     <a href="https://github.com/pi-apps-go/pi-apps/issues?q=is%3Aopen+is%3Aissue+label%3Abug"><img src="https://img.shields.io/github/issues/pi-apps-go/pi-apps/bug?color=red&label=bugs"></a>
     <a href="https://github.com/pi-apps-go/pi-apps/issues?q=is%3Aopen+is%3Aissue+label%3A%22App+Request%22"><img src="https://img.shields.io/github/issues/pi-apps-go/pi-apps/App%20Request?color=Green&label=app%20requests"></a>
-    <a href="https://github.com/pi-apps-go/pi-apps/blob/master/COPYING"><img src="https://img.shields.io/github/license/pi-apps-go/pi-apps" alt="license"></a>
+    <a href="https://github.com/pi-apps-go/pi-apps/blob/main/COPYING"><img src="https://img.shields.io/github/license/pi-apps-go/pi-apps" alt="license"></a>
     <a href="https://discord.gg/RXSTvaUvuu"><img src="https://img.shields.io/discord/770629697909424159.svg?color=7289da&label=Discord%20server&logo=discord" alt="Join the Discord server"></a>
 
 <p align="center"><strong> Original made with &#10084; by <a href="https://github.com/Botspot">Botspot</a></strong>, <strong><a href="https://github.com/theofficialgman">theofficialgman</a></strong>, and <a href="https://github.com/pi-apps-go/pi-apps/graphs/contributors">contributors</a>, while rewrite with <strong><a href="https://github.com/matu6968">matu6968</a></strong>
@@ -40,7 +40,7 @@
 </p>
 
 ## Introduction
-Let's be honest: **Linux is harder to master than Windows.** Sometimes it's not user-friendly, and following an outdated tutorial may break your Raspberry Pi's operating system.  
+Let's be honest: **Linux is harder to main than Windows.** Sometimes it's not user-friendly, and following an outdated tutorial may break your Raspberry Pi's operating system.  
 There is no centralized software repository, except for the `apt` repositories which lack many desktop applications.  
 Surely there is a better way! **There is.**  
 Introducing Pi-Apps Go, a Go based app store with a well-maintained collection of app installation-scripts that you can run with **one click**.  
@@ -50,7 +50,7 @@ Original Pi-Apps serves **over 1,000,000 people** and hosts [over 200 apps](http
 ## Install Pi-Apps Go
 Open a terminal and run this command:
 ```bash
-wget -qO- https://raw.githubusercontent.com/pi-apps-go/pi-apps/master/install | bash
+wget -qO- https://raw.githubusercontent.com/pi-apps-go/pi-apps/main/install | bash
 ```
 <img src="icons/screenshots/main%20window.png?raw=true" align="right" height="270px"/>
 
@@ -74,7 +74,7 @@ wget -qO- https://raw.githubusercontent.com/pi-apps-go/pi-apps/master/install | 
 - <img src="https://pi-apps.io/img/other-icons/arch-icon.svg" height="14"> [Arch Linux](https://archlinuxarm.org) (Official Releases **ONLY**, requires Arch Linux support plugin during installation): <span style="color:var(--warn-dark);">Support is in progress</span>
 
 # Supported devices for the future:
-#### [**Pine64**](https://www.pine64.org/), [**Orange Pi**](http://www.orangepi.org/), [**Radxa**](https://rockpi.org/), [**Banana Pi**](https://banana-pi.org/), and other **RISC-V** Devices
+#### [**Pine64**](https://www.pine64.org/), [**Orange Pi**](http://www.orangepi.org/), [**Radxa**](https://rockpi.org/), [**Banana Pi**](https://banana-pi.org/), [**Milk-V**](https://milkv.io/), [**SiFive**](https://www.sifive.com/), [**StarFive**](https://www.starfivetech.com/) and other **RISC-V** Devices
 - <img src="https://pi-apps.io/img/other-icons/debian-icon.svg" height="14"> [Debian Trixie](https://www.debian.org/distrib/) (Official Releases from Debian **ONLY**): <span style="color:var(--warn-dark);">Support is planned for the future, currently unsupported</span>
 - <img src="https://pi-apps.io/img/other-icons/ubuntu-icon.svg" height="14"> [Ubuntu Noble](https://ubuntu.com/download/risc-v) (Official Releases from Canonical **ONLY**): <span style="color:var(--warn-dark);">Support is planned for the future, currently unsupported</span>
 - <img src="https://pi-apps.io/img/other-icons/arch-icon.svg" height="14"> [Arch Linux](https://archriscv.felixc.at/) (requires Arch Linux support plugin during installation): <span style="color:var(--warn-dark);">Support is planned for the future, currently unsupported</span>
@@ -84,7 +84,7 @@ wget -qO- https://raw.githubusercontent.com/pi-apps-go/pi-apps/master/install | 
 - <img src="https://pi-apps.io/img/other-icons/arch-icon.svg" height="14"> [Arch Linux](https://archlinux.org) (requires Arch Linux support plugin during installation): <span style="color:var(--warn-dark);">Support is in progress</span>
 
 # Supported operating systems for the future:
-- <img src="https://pi-apps.io/img/other-icons/fedora-icon.svg" height="14"> [Fedora](https://fedora.org): <span style="color:var(--warn-dark);">Support is planned for the future, currently unsupported</span>
+- <img src="https://pi-apps.io/img/other-icons/fedora-icon.svg" height="14"> [Fedora](https://fedoraproject.org): <span style="color:var(--warn-dark);">Support is planned for the future, currently unsupported</span>
 - <img src="https://pi-apps.io/img/other-icons/rhel-icon.svg" height="14"> [RHEL](https://redhat.com/rhel/): <span style="color:var(--warn-dark);">Support is planned for the future, currently unsupported</span>
 - <img src="https://pi-apps.io/img/other-icons/rocky-linux-icon.svg" height="14"> [Rocky Linux](https://rockylinux.org): <span style="color:var(--warn-dark);">Support is planned for the future, currently unsupported</span>
 
@@ -123,7 +123,7 @@ This will not uninstall any apps that you installed through Pi-Apps.
 ## To update Pi-Apps Go
 - Pi-apps will automatically check for updates on boot and display a notification to update.
 - To manually run the updater, use this command: `~/pi-apps/updater gui`
-- It also supports a cli interface: `~/pi-apps/updater cli`
+- It also supports a CLI interface: `~/pi-apps/updater cli`
 
 ## What do others say about Pi-Apps?
 > Message from a **[pi-top](https://pi-top.com)** employee: "Happy to say that I recommend pi-apps to almost every school I work with when they start using Raspberry Pi"
@@ -187,25 +187,28 @@ You don't need to be a programmer to help!
 ## Badge
 If your application is on Pi-Apps/Pi-Apps Go, please consider adding this pretty badge/hyperlink to your README (dark and light modes available):  
 
-[![badge](https://github.com/pi-apps-go/pi-apps/blob/master/icons/badge.png?raw=true)](https://github.com/pi-apps-go/pi-apps)  [![badge](https://github.com/pi-apps-go/pi-apps/blob/master/icons/badge-light.png?raw=true)](https://github.com/pi-apps-go/pi-apps)
+[![badge](https://github.com/pi-apps-go/pi-apps/blob/main/icons/badge.png?raw=true)](https://github.com/pi-apps-go/pi-apps)  [![badge](https://github.com/pi-apps-go/pi-apps/blob/main/icons/badge-light.png?raw=true)](https://github.com/pi-apps-go/pi-apps)
 
 Embed code (Dark):
 ```
-[![badge](https://github.com/pi-apps-go/pi-apps/blob/master/icons/badge.png?raw=true)](https://github.com/pi-apps-go/pi-apps)
+[![badge](https://github.com/pi-apps-go/pi-apps/blob/main/icons/badge.png?raw=true)](https://github.com/pi-apps-go/pi-apps)
 ```
 Embed code (Light):
 ```
-[![badge](https://github.com/pi-apps-go/pi-apps/blob/master/icons/badge-light.png?raw=true)](https://github.com/pi-apps-go/pi-apps)
+[![badge](https://github.com/pi-apps-go/pi-apps/blob/main/icons/badge-light.png?raw=true)](https://github.com/pi-apps-go/pi-apps)
 ```
 
 ### Q&A with matu6968
  - Why did you make Pi-Apps Go?
 > I have been wanting to improve the speed of Pi-Apps considering I have been seeing slow downs on my Pi Zero 2W because it was written in Bash.
+
 > There have been also projects such as [Pi-Apps Recreates](https://github.com/Pi-Apps-Recreates] which brang x86 support to Pi-Apps, but it stopped being updated in ~2023, so it's the time for a modern replacement.
+
 > So one day I realized: Why not make a modern rewrite of Pi-Apps in Go because the language started getting traction in being used in backend development? This would speed up significantly since Go can compile to a native binary which can speed the thing up. 
 
  - How long did it take to program this?
-> For now you would think it's still under development. 🤪 
+> For now you would think it's still under development. 🤪
+
 > It still is, Pi-Apps Go took around 3 days to re-implement the entire API script from bash to Go (with some features still being missing), and ever since then it has been continually, and exponentially, improving. I started to re-implement the GUI portions of Pi-Apps (such as the manage script) and for now it's still under development.
 
  - Is Pi-Apps Go free?
