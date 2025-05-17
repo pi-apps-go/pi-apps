@@ -3,7 +3,9 @@ package api
 import (
 	"bufio"
 	"bytes"
+	"crypto/sha1"
 	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"net/http"
@@ -12,6 +14,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -1918,37 +1921,68 @@ func GetDeviceInfo() (string, error) {
 
 	// Get hashed machine-id
 	if _, err := os.Stat("/etc/machine-id"); err == nil {
-		machineIDOutput, err := runCommand("sh", "-c", "cat /etc/machine-id | sha1sum | awk '{print $1}' | head -1")
-		if err == nil && machineIDOutput != "" {
-			info.WriteString("Machine-id (hashed): " + strings.TrimSpace(machineIDOutput) + "\n")
+		machineIDBytes, err := os.ReadFile("/etc/machine-id")
+		if err == nil {
+			hasher := sha1.New()
+			hasher.Write(machineIDBytes)
+			hash := hex.EncodeToString(hasher.Sum(nil))
+			info.WriteString("Machine-id (hashed): " + hash + "\n")
 		}
 	}
 
 	// Get hashed serial-number
 	if _, err := os.Stat("/sys/firmware/devicetree/base/serial-number"); err == nil {
-		serialOutput, err := runCommand("sh", "-c", "cat /sys/firmware/devicetree/base/serial-number | sha1sum | awk '{print $1}' | head -1")
-		if err == nil && serialOutput != "" {
-			info.WriteString("Serial-number (hashed): " + strings.TrimSpace(serialOutput) + "\n")
+		serialBytes, err := os.ReadFile("/sys/firmware/devicetree/base/serial-number")
+		if err == nil {
+			hasher := sha1.New()
+			hasher.Write(serialBytes)
+			hash := hex.EncodeToString(hasher.Sum(nil))
+			info.WriteString("Serial-number (hashed): " + hash + "\n")
 		}
 	}
 
 	// Get CPU name
-	cpuOutput, err := runCommand("sh", "-c", "lscpu | awk '/Model name:/ {print $3}'")
-	if err == nil && cpuOutput != "" {
-		info.WriteString("CPU name: " + strings.TrimSpace(cpuOutput) + "\n")
+	if cpuInfo, err := os.ReadFile("/proc/cpuinfo"); err == nil {
+		scanner := bufio.NewScanner(bytes.NewReader(cpuInfo))
+		for scanner.Scan() {
+			line := scanner.Text()
+			if strings.HasPrefix(line, "model name") {
+				parts := strings.Split(line, ":")
+				if len(parts) > 1 {
+					info.WriteString("CPU name: " + strings.TrimSpace(parts[1]) + "\n")
+					break
+				}
+			}
+		}
 	}
 
 	// Get RAM size
-	ramOutput, err := runCommand("sh", "-c", "echo \"scale=2 ; $(awk '/MemTotal/ {print $2}' /proc/meminfo) / 1024000\" | bc")
-	if err == nil && ramOutput != "" {
-		info.WriteString("RAM size: " + strings.TrimSpace(ramOutput) + " GB\n")
+	if memInfo, err := os.ReadFile("/proc/meminfo"); err == nil {
+		scanner := bufio.NewScanner(bytes.NewReader(memInfo))
+		for scanner.Scan() {
+			line := scanner.Text()
+			if strings.HasPrefix(line, "MemTotal") {
+				parts := strings.Fields(line)
+				if len(parts) > 1 {
+					memKB, _ := strconv.ParseFloat(parts[1], 64)
+					memGB := memKB / 1024000.0
+					info.WriteString(fmt.Sprintf("RAM size: %.2f GB\n", memGB))
+					break
+				}
+			}
+		}
 	}
 
 	// Get Raspberry Pi OS image version
-	if _, err := os.Stat("/etc/rpi-issue"); err == nil {
-		rpiOutput, err := runCommand("sh", "-c", "cat /etc/rpi-issue | grep 'Raspberry Pi reference' | sed 's/Raspberry Pi reference //g'")
-		if err == nil && rpiOutput != "" {
-			info.WriteString("Raspberry Pi OS image version: " + strings.TrimSpace(rpiOutput) + "\n")
+	if rpiIssue, err := os.ReadFile("/etc/rpi-issue"); err == nil {
+		scanner := bufio.NewScanner(bytes.NewReader(rpiIssue))
+		for scanner.Scan() {
+			line := scanner.Text()
+			if strings.Contains(line, "Raspberry Pi reference") {
+				version := strings.TrimPrefix(line, "Raspberry Pi reference ")
+				info.WriteString("Raspberry Pi OS image version: " + strings.TrimSpace(version) + "\n")
+				break
+			}
 		}
 	}
 

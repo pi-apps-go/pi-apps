@@ -21,10 +21,10 @@ build-pi-apps-debug:
 	go build -o bin/pi-apps -ldflags "-X main.Version=$(VERSION)" ./cmd/pi-apps
 
 build-manage:
-	go build -o bin/manage -ldflags "-X main.Version=$(VERSION) -w -s" -trimpath ./cmd/api/manage/main.go
+	go build -o bin/manage -ldflags "-X main.Version=$(VERSION) -w -s" -trimpath ./cmd/manage/main.go
 
 build-manage-debug:
-	go build -o bin/manage -ldflags "-X main.Version=$(VERSION)" ./cmd/api/manage/main.go
+	go build -o bin/manage -ldflags "-X main.Version=$(VERSION)" ./cmd/manage/main.go
 
 clean:
 	rm -rf bin/
