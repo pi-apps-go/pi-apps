@@ -22,6 +22,8 @@ func main() {
 	multiFlag := flag.Bool("multi", false, "Enable multi-install/uninstall mode")
 	forceFlag := flag.Bool("force", false, "Force the operation (skip validation)")
 	testUnsupportedFlag := flag.Bool("test-unsupported", false, "Test unsupported system warning")
+	refreshFlag := flag.Bool("refresh", false, "Refresh the specified apps")
+	updateFileFlag := flag.Bool("update-file", false, "Update the specified files")
 
 	// Custom error handling for undefined flags
 	flag.Usage = printUsage
@@ -53,7 +55,7 @@ func main() {
 		// Display warning message with GUI only if GUI flag is set
 		gui.DisplayUnsupportedSystemWarning("Your system is actually fine, this is just a drill :)\nThis would be a example of this error in the Go reimplementation if it did happen.", *guiFlag)
 		// Exit after displaying warning if no operation flags are set
-		if !*installFlag && !*uninstallFlag && !*updateFlag && !*updateSelfFlag && !*installIfNotInstalledFlag {
+		if !*installFlag && !*uninstallFlag && !*updateFlag && !*updateSelfFlag && !*installIfNotInstalledFlag && !*refreshFlag && !*updateFileFlag {
 			os.Exit(0)
 		}
 		// Skip the regular system support check below since we've already shown a warning
@@ -85,14 +87,14 @@ func main() {
 	}
 
 	// If no flags are provided, print usage and exit
-	if !*installFlag && !*uninstallFlag && !*updateFlag && !*updateSelfFlag && !*installIfNotInstalledFlag {
+	if !*installFlag && !*uninstallFlag && !*updateFlag && !*updateSelfFlag && !*installIfNotInstalledFlag && !*refreshFlag && !*updateFileFlag {
 		api.ErrorNoExit("Error: You need to specify an operation, and in most cases, which app to operate on.")
 		printUsage()
 		os.Exit(0)
 	}
 
 	// Check if at least one app is specified for app-specific operations
-	if (*installFlag || *uninstallFlag || *updateFlag || *installIfNotInstalledFlag) && len(args) == 0 {
+	if (*installFlag || *uninstallFlag || *updateFlag || *installIfNotInstalledFlag || *refreshFlag || *updateFileFlag) && len(args) == 0 {
 		api.Error("Error: You must specify at least one app")
 	}
 
@@ -132,6 +134,20 @@ func main() {
 		} else if *updateFlag {
 			queue = append(queue, gui.QueueItem{
 				Action:   "update",
+				AppName:  appName,
+				Status:   "waiting",
+				IconPath: iconPath,
+			})
+		} else if *refreshFlag {
+			queue = append(queue, gui.QueueItem{
+				Action:   "refresh",
+				AppName:  appName,
+				Status:   "waiting",
+				IconPath: iconPath,
+			})
+		} else if *updateFileFlag {
+			queue = append(queue, gui.QueueItem{
+				Action:   "update-file",
 				AppName:  appName,
 				Status:   "waiting",
 				IconPath: iconPath,
@@ -222,6 +238,12 @@ func main() {
 			case "update":
 				api.Status("Updating \u001b[1m" + queue[i].AppName + "\u001b[22m...")
 				err = api.UpdateApp(queue[i].AppName)
+			case "refresh":
+				api.Status("Refreshing \u001b[1m" + queue[i].AppName + "\u001b[22m...")
+				err = api.RefreshApp(queue[i].AppName)
+			case "update-file":
+				api.Status("Updating file \u001b[1m" + queue[i].AppName + "\u001b[22m...")
+				err = api.UpdateFile(queue[i].AppName)
 			}
 
 			// Update status based on result
@@ -230,6 +252,17 @@ func main() {
 				queue[i].Status = "failure"
 				// Add error message to the queue item so it can be displayed in the summary
 				queue[i].ErrorMessage = err.Error()
+
+				// If GUI is enabled, show error dialog and ask for retry
+				if *guiFlag {
+					if gui.ShowErrorDialogWithRetry(queue[i].AppName, queue[i].Action, err.Error()) {
+						// User chose to retry, reset status and continue
+						queue[i].Status = "waiting"
+						queue[i].ErrorMessage = ""
+						i-- // Retry this item
+						continue
+					}
+				}
 			} else {
 				queue[i].Status = "success"
 				api.StatusGreen(queue[i].Action + " completed successfully for " + queue[i].AppName)
@@ -264,6 +297,12 @@ func main() {
 			case "update":
 				api.Status("Updating " + queue[i].AppName + "...")
 				err = api.UpdateApp(queue[i].AppName)
+			case "refresh":
+				api.Status("Refreshing " + queue[i].AppName + "...")
+				err = api.RefreshApp(queue[i].AppName)
+			case "update-file":
+				api.Status("Updating file " + queue[i].AppName + "...")
+				err = api.UpdateFile(queue[i].AppName)
 			}
 
 			// Check result
@@ -300,6 +339,8 @@ func printUsage() {
 	fmt.Println("  -multi                    Enable multi-install/uninstall mode")
 	fmt.Println("  -force                    Force the operation (skip validation)")
 	fmt.Println("  -test-unsupported         Test unsupported system warning")
+	fmt.Println("  -refresh                  Refresh the specified apps")
+	fmt.Println("  -update-file              Update the specified files")
 	fmt.Println()
 	fmt.Println("Examples:")
 	fmt.Println("  manage -install Firefox LibreOffice")

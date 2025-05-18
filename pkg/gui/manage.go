@@ -630,7 +630,7 @@ func ShowSummaryDialog(completedQueue []QueueItem) error {
 	textRenderer.SetProperty("ypad", 10)    // Increased vertical padding for rows with larger icons
 	textRenderer.SetProperty("xalign", 0.0) // Left-align text
 	// Enable word wrapping for sponsor messages
-	textRenderer.SetProperty("wrap-mode", "word-char")
+	textRenderer.SetProperty("wrap-mode", 2) // 2 = PANGO_WRAP_WORD_CHAR
 	textRenderer.SetProperty("wrap-width", 300)
 
 	column, err = gtk.TreeViewColumnNew()
@@ -937,7 +937,7 @@ func addQueueItemToPixbufListStore(listStore *gtk.ListStore, item QueueItem) {
 
 	// Apply bold formatting to app names for completed installations/uninstalls
 	if isCompletedInstallOrUninstall {
-		appNameDisplay = fmt.Sprintf("<b>%s</b>", item.AppName)
+		appNameDisplay = fmt.Sprintf("<span size='large'><b>%s</b></span>", item.AppName)
 	}
 
 	iter := listStore.Append()
@@ -1076,6 +1076,61 @@ func showErrorDialog(message string) {
 	// Use our custom dialog runner
 	_, _ = runGtkDialog(dialog)
 	dialog.Destroy()
+}
+
+// ShowErrorDialogWithRetry shows an error dialog with retry option
+// Returns true if user chose to retry, false if they chose to skip
+func ShowErrorDialogWithRetry(appName, action, message string) bool {
+	// If we can't use GTK, print error to console and return false
+	if !canUseGTK() {
+		fmt.Printf("\nERROR: %s\n", message)
+		return false
+	}
+
+	// Make sure GTK is initialized
+	if !ensureGTKInitialized() {
+		fmt.Printf("\nERROR: %s\n", message)
+		return false
+	}
+
+	dialog, err := gtk.DialogNew()
+	if err != nil {
+		return false
+	}
+	dialog.SetTitle("Error")
+
+	// Add buttons
+	dialog.AddButton("Skip", gtk.RESPONSE_CANCEL)
+	dialog.AddButton("Retry", gtk.RESPONSE_OK)
+
+	// Get content area
+	contentArea, err := dialog.GetContentArea()
+	if err != nil {
+		dialog.Destroy()
+		return false
+	}
+
+	// Add message with markup support
+	label, err := gtk.LabelNew("")
+	if err != nil {
+		dialog.Destroy()
+		return false
+	}
+
+	// Format the error message with app name and action
+	formattedMessage := fmt.Sprintf("Failed to %s <b>%s</b>:\n%s", action, appName, message)
+	label.SetMarkup(formattedMessage) // Use SetMarkup for rich text formatting
+	contentArea.Add(label)
+
+	// Use our custom dialog runner
+	response, err := runGtkDialog(dialog)
+	dialog.Destroy()
+
+	if err != nil {
+		return false
+	}
+
+	return response == gtk.RESPONSE_OK
 }
 
 // showConfirmDialog shows a confirmation dialog and returns true if user confirms

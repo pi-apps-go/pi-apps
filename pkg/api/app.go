@@ -253,3 +253,99 @@ func TerminalManageMulti(queue string) error {
 
 	return nil
 }
+
+// RefreshApp refreshes an app by copying its files from the update directory to the main directory
+func RefreshApp(app string) error {
+	if app == "" {
+		return fmt.Errorf("refresh_app(): no app specified")
+	}
+
+	directory := os.Getenv("PI_APPS_DIR")
+	if directory == "" {
+		return fmt.Errorf("PI_APPS_DIR environment variable not set")
+	}
+
+	// Check if app exists in update directory
+	updateAppDir := filepath.Join(directory, "update", "pi-apps", "apps", app)
+	if !FileExists(updateAppDir) {
+		return fmt.Errorf("app '%s' not found in update directory", app)
+	}
+
+	// Check if app exists in main directory
+	mainAppDir := filepath.Join(directory, "apps", app)
+	if !FileExists(mainAppDir) {
+		return fmt.Errorf("app '%s' not found in main directory", app)
+	}
+
+	// Copy all files from update directory to main directory
+	err := filepath.Walk(updateAppDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		// Skip the root directory
+		if path == updateAppDir {
+			return nil
+		}
+
+		// Get relative path from update directory
+		relPath, err := filepath.Rel(updateAppDir, path)
+		if err != nil {
+			return fmt.Errorf("error getting relative path: %w", err)
+		}
+
+		// Construct destination path
+		destPath := filepath.Join(mainAppDir, relPath)
+
+		if info.IsDir() {
+			// Create directory if it doesn't exist
+			if err := os.MkdirAll(destPath, info.Mode()); err != nil {
+				return fmt.Errorf("error creating directory %s: %w", destPath, err)
+			}
+		} else {
+			// Copy file
+			if err := copyFile(path, destPath); err != nil {
+				return fmt.Errorf("error copying file %s: %w", path, err)
+			}
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return fmt.Errorf("error refreshing app: %w", err)
+	}
+
+	return nil
+}
+
+// UpdateFile updates a specific file in the Pi-Apps system
+func UpdateFile(filePath string) error {
+	if filePath == "" {
+		return fmt.Errorf("update_file(): no file specified")
+	}
+
+	directory := os.Getenv("PI_APPS_DIR")
+	if directory == "" {
+		return fmt.Errorf("PI_APPS_DIR environment variable not set")
+	}
+
+	// Check if file exists in update directory
+	updateFilePath := filepath.Join(directory, "update", "pi-apps", filePath)
+	if !FileExists(updateFilePath) {
+		return fmt.Errorf("file '%s' not found in update directory", filePath)
+	}
+
+	// Check if file exists in main directory
+	mainFilePath := filepath.Join(directory, filePath)
+	if !FileExists(mainFilePath) {
+		return fmt.Errorf("file '%s' not found in main directory", filePath)
+	}
+
+	// Copy file from update directory to main directory
+	if err := copyFile(updateFilePath, mainFilePath); err != nil {
+		return fmt.Errorf("error updating file: %w", err)
+	}
+
+	return nil
+}
