@@ -114,25 +114,25 @@ func CheckCanSendErrorReport(app, action, errorType string) (bool, string) {
 		return false, "DIRECTORY environment variable is not set"
 	}
 
-	// Check error type - cannot send reports for system, internet, or package errors
-	if errorType == "system" || errorType == "internet" || errorType == "package" {
-		return false, "Error report cannot be sent because this is not an issue with Pi-Apps."
-	}
-
-	// Check if app is a package app
+	// Check 1: Check if app is a package app
 	appTypeCmd := exec.Command("bash", "-c", fmt.Sprintf(`%s/api app_type "%s"`, directory, app))
 	appTypeOutput, err := appTypeCmd.Output()
 	if err == nil && strings.TrimSpace(string(appTypeOutput)) == "package" {
 		return false, "Error report cannot be sent because this \"app\" is really just a shortcut to install a Debian package. It's not a problem that Pi-Apps can fix."
 	}
 
-	// Check if app is in the official repository
+	// Check 2: Check error type - cannot send reports for system, internet, or package errors
+	if errorType == "system" || errorType == "internet" || errorType == "package" {
+		return false, "Error report cannot be sent because this is not an issue with Pi-Apps."
+	}
+
+	// Check 3: Check if app is in the official repository
 	listAppsCmd := exec.Command("bash", "-c", fmt.Sprintf(`%s/api list_apps online | grep -q "%s"`, directory, app))
 	if err := listAppsCmd.Run(); err != nil {
 		return false, "Error report cannot be sent because this app is not in the official repository."
 	}
 
-	// Check if app script matches the official version
+	// Check 4 & 5: Check if app script matches the official version
 	if action == "install" {
 		scriptNameCmd := exec.Command("bash", "-c", fmt.Sprintf(`%s/api script_name_cpu "%s"`, directory, app))
 		scriptNameOutput, err := scriptNameCmd.Output()
@@ -156,10 +156,14 @@ func CheckCanSendErrorReport(app, action, errorType string) (bool, string) {
 		}
 	}
 
-	// Check if system is supported
-	// This needs access to the 'supported' variable from the manage script
-	// For simplicity, we'll assume the system is supported
-	// In a full implementation, we should find a way to check this
+	// Check 6: Check if system is supported
+	supportStatus, err := IsSystemSupported()
+	if err != nil {
+		return false, fmt.Sprintf("Error checking system support: %v", err)
+	}
+	if !supportStatus.IsSupported {
+		return false, "Error report cannot be sent because your system is unsupported: " + supportStatus.Message
+	}
 
 	return true, "" // Can send error report
 }
