@@ -6,12 +6,21 @@ import (
 	"path/filepath"
 
 	"github.com/gotk3/gotk3/gdk"
+	"github.com/gotk3/gotk3/glib"
 	"github.com/gotk3/gotk3/gtk"
 )
 
 // ViewFile displays any text file in a GTK3 window
 // This replicates the functionality of the original bash script's view_file function
 func ViewFile(filePath string) error {
+
+	// Set application name based on file type
+	if isLogFile(filePath) {
+		glib.SetPrgname("Log file viewer")
+	} else {
+		glib.SetPrgname("Text file viewer")
+	}
+
 	// Initialize GTK
 	gtk.Init(nil)
 

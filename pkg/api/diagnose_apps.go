@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gotk3/gotk3/gdk"
+	"github.com/gotk3/gotk3/glib"
 	"github.com/gotk3/gotk3/gtk"
 )
 
@@ -227,6 +228,9 @@ func loadImage(path string) (*gtk.Image, error) {
 func DiagnoseApps(failureList string) []DiagnoseResult {
 	// Debug output
 	fmt.Printf("Diagnosing app failures: %s\n", failureList)
+
+	// Set program name
+	glib.SetPrgname("Pi-Apps")
 
 	// Initialize GTK
 	gtk.Init(nil)

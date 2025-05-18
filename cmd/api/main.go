@@ -284,6 +284,26 @@ func main() {
 			os.Exit(1)
 		}
 
+	case "view_log":
+		if len(args) < 1 {
+			fmt.Println("Error: No file specified")
+			fmt.Println("Usage: api view_log <file>")
+			os.Exit(1)
+		}
+
+		// Check if the file exists
+		if _, err := os.Stat(args[0]); os.IsNotExist(err) {
+			fmt.Printf("Error: File does not exist: %s\n", args[0])
+			os.Exit(1)
+		}
+
+		// Open file viewer
+		err := api.ViewLog(args[0])
+		if err != nil {
+			fmt.Printf("Error viewing file: %v\n", err)
+			os.Exit(1)
+		}
+
 	case "get_device_info":
 		// Call GetDeviceInfo and output the result
 		info, err := api.GetDeviceInfo()
