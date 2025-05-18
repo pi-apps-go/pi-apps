@@ -115,9 +115,11 @@ func CheckCanSendErrorReport(app, action, errorType string) (bool, string) {
 	}
 
 	// Check 1: Check if app is a package app
-	appTypeCmd := exec.Command("bash", "-c", fmt.Sprintf(`%s/api app_type "%s"`, directory, app))
-	appTypeOutput, err := appTypeCmd.Output()
-	if err == nil && strings.TrimSpace(string(appTypeOutput)) == "package" {
+	appType, err := AppType(app)
+	if err != nil {
+		return false, fmt.Sprintf("Error checking app type: %v", err)
+	}
+	if appType == "package" {
 		return false, "Error report cannot be sent because this \"app\" is really just a shortcut to install a Debian package. It's not a problem that Pi-Apps can fix."
 	}
 
@@ -127,31 +129,49 @@ func CheckCanSendErrorReport(app, action, errorType string) (bool, string) {
 	}
 
 	// Check 3: Check if app is in the official repository
-	listAppsCmd := exec.Command("bash", "-c", fmt.Sprintf(`%s/api list_apps online | grep -q "%s"`, directory, app))
-	if err := listAppsCmd.Run(); err != nil {
+	apps, err := ListApps("online")
+	if err != nil {
+		return false, fmt.Sprintf("Error checking official repository: %v", err)
+	}
+	found := false
+	for _, officialApp := range apps {
+		if officialApp == app {
+			found = true
+			break
+		}
+	}
+	if !found {
 		return false, "Error report cannot be sent because this app is not in the official repository."
 	}
 
 	// Check 4 & 5: Check if app script matches the official version
 	if action == "install" {
-		scriptNameCmd := exec.Command("bash", "-c", fmt.Sprintf(`%s/api script_name_cpu "%s"`, directory, app))
-		scriptNameOutput, err := scriptNameCmd.Output()
+		scriptName, err := ScriptNameCPU(app)
 		if err != nil {
 			return false, "Error report cannot be sent because the script name couldn't be determined."
 		}
-		scriptName := strings.TrimSpace(string(scriptNameOutput))
 
 		// Check if files match
-		filesMatchCmd := exec.Command("bash", "-c", fmt.Sprintf(`%s/api files_match "%s/update/pi-apps/apps/%s/%s" "%s/apps/%s/%s"`,
-			directory, directory, app, scriptName, directory, app, scriptName))
-		if err := filesMatchCmd.Run(); err != nil {
+		match, err := FilesMatch(
+			filepath.Join(directory, "update", "pi-apps", "apps", app, scriptName),
+			filepath.Join(directory, "apps", app, scriptName),
+		)
+		if err != nil {
+			return false, fmt.Sprintf("Error checking file match: %v", err)
+		}
+		if !match {
 			return false, "Error report cannot be sent because this app is not the official version."
 		}
 	} else if action == "uninstall" {
 		// Check if uninstall script matches
-		filesMatchCmd := exec.Command("bash", "-c", fmt.Sprintf(`%s/api files_match "%s/update/pi-apps/apps/%s/uninstall" "%s/apps/%s/uninstall"`,
-			directory, directory, app, directory, app))
-		if err := filesMatchCmd.Run(); err != nil {
+		match, err := FilesMatch(
+			filepath.Join(directory, "update", "pi-apps", "apps", app, "uninstall"),
+			filepath.Join(directory, "apps", app, "uninstall"),
+		)
+		if err != nil {
+			return false, fmt.Sprintf("Error checking file match: %v", err)
+		}
+		if !match {
 			return false, "Error report cannot be sent because this app is not the official version."
 		}
 	}
@@ -316,9 +336,7 @@ func DiagnoseApps(failureList string) []DiagnoseResult {
 		}
 
 		// Add support links
-		appTypeCmd := exec.Command("bash", "-c", fmt.Sprintf(`%s/api app_type "%s"`, os.Getenv("DIRECTORY"), appName))
-		appTypeOutput, _ := appTypeCmd.Output()
-		appType := strings.TrimSpace(string(appTypeOutput))
+		appType, _ := AppType(appName)
 
 		if appType == "package" {
 			headerText += "\nAs this is an APT error, consider Googling the errors or asking for help in the <a href=\"https://forums.raspberrypi.com\">Raspberry Pi Forums</a>."
