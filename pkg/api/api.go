@@ -140,6 +140,9 @@ func checkUnicodeSupport() bool {
 		"/usr/lib/aarch64-linux-gnu/libicudata.so",
 		"/usr/lib/arm-linux-gnueabihf/libicudata.so",
 		"/usr/lib/x86_64-linux-gnu/libicudata.so",
+		"/usr/lib/i686-linux-gnu/libicudata.so",
+		"/usr/lib/riscv64-linux-gnu/libicudata.so",
+		"/usr/lib/riscv32-linux-gnu/libicudata.so",
 	}
 
 	// Check for direct file existence first
@@ -165,6 +168,9 @@ func checkUnicodeSupport() bool {
 		"/usr/lib/aarch64-linux-gnu/libicudata.so.*",
 		"/usr/lib/arm-linux-gnueabihf/libicudata.so.*",
 		"/usr/lib/x86_64-linux-gnu/libicudata.so.*",
+		"/usr/lib/i686-linux-gnu/libicudata.so.*",
+		"/usr/lib/riscv64-linux-gnu/libicudata.so.*",
+		"/usr/lib/riscv32-linux-gnu/libicudata.so.*",
 	}
 
 	for _, pattern := range searchPaths {

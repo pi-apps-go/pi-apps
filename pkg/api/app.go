@@ -5,6 +5,10 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
+	"strings"
+	"syscall"
+	"unsafe"
 )
 
 // AppStatus returns the current status of an app: installed, uninstalled, etc.
@@ -70,13 +74,8 @@ func RemoveDeprecatedApp(app, removalArch, message string) error {
 		return fmt.Errorf("remove_deprecated_app: failed to get app status: %w", err)
 	}
 
-	// Get the system architecture
-	archCmd := exec.Command("getconf", "LONG_BIT")
-	archOutput, err := archCmd.Output()
-	if err != nil {
-		return fmt.Errorf("remove_deprecated_app: failed to get system architecture: %w", err)
-	}
-	arch := string(archOutput)
+	// Get the system architecture using unsafe.Sizeof
+	arch := fmt.Sprintf("%d", unsafe.Sizeof(uintptr(0))*8)
 
 	// Check if the app directory exists
 	appDir := filepath.Join(directory, "apps", app)
@@ -182,21 +181,27 @@ func TerminalManageMulti(queue string) error {
 			return fmt.Errorf("terminal_manage_multi: failed to read daemon pid file: %w", err)
 		}
 
-		pid := string(pidBytes)
+		pid, err := strconv.Atoi(strings.TrimSpace(string(pidBytes)))
+		if err != nil {
+			return fmt.Errorf("terminal_manage_multi: failed to parse daemon pid: %w", err)
+		}
 
-		// Check if the process exists
-		processCmd := exec.Command("ps", "-p", pid)
-		if err := processCmd.Run(); err == nil {
-			// Process exists, send the queue to the daemon and exit
-			daemonCmd := exec.Command(filepath.Join(directory, "manage"), "daemon", queue)
-			daemonCmd.Stdout = os.Stdout
-			daemonCmd.Stderr = os.Stderr
+		// Check if the process exists using os.FindProcess
+		process, err := os.FindProcess(pid)
+		if err == nil {
+			// Send signal 0 to check if process is running
+			if err := process.Signal(syscall.Signal(0)); err == nil {
+				// Process exists, send the queue to the daemon and exit
+				daemonCmd := exec.Command(filepath.Join(directory, "manage"), "daemon", queue)
+				daemonCmd.Stdout = os.Stdout
+				daemonCmd.Stderr = os.Stderr
 
-			if err := daemonCmd.Run(); err != nil {
-				return fmt.Errorf("terminal_manage_multi: failed to send queue to daemon: %w", err)
+				if err := daemonCmd.Run(); err != nil {
+					return fmt.Errorf("terminal_manage_multi: failed to send queue to daemon: %w", err)
+				}
+
+				return nil
 			}
-
-			return nil
 		}
 	}
 

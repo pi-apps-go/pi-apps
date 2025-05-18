@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -95,23 +94,30 @@ func ShlinkLink(app, trigger string) error {
 
 // getModel returns the device model and SOC_ID
 func getModel() (string, string) {
-	// First, try to get the model information
 	var model, socID string
 
-	// Initialize the model detection function
-	cmd := exec.Command("bash", "-c", `grep -m1 "^Model.*:" /proc/cpuinfo | sed 's/Model.*: //g'`)
-	modelOutput, err := cmd.Output()
-	if err == nil {
-		model = strings.TrimSpace(string(modelOutput))
-		model = strings.Trim(model, `"';`)
+	// Read /proc/cpuinfo file
+	cpuInfo, err := os.ReadFile("/proc/cpuinfo")
+	if err != nil {
+		return "", ""
 	}
 
-	// Get SOC_ID if available
-	socCmd := exec.Command("bash", "-c", `grep -m1 "^Hardware.*:" /proc/cpuinfo | sed 's/Hardware.*: //g'`)
-	socOutput, err := socCmd.Output()
-	if err == nil {
-		socID = strings.TrimSpace(string(socOutput))
-		socID = strings.Trim(socID, `"';`)
+	// Convert to string and split into lines
+	lines := strings.Split(string(cpuInfo), "\n")
+
+	// Find model and hardware info
+	for _, line := range lines {
+		if strings.HasPrefix(line, "Model") {
+			model = strings.TrimPrefix(line, "Model")
+			model = strings.TrimPrefix(model, ":")
+			model = strings.TrimSpace(model)
+			model = strings.Trim(model, `"';`)
+		} else if strings.HasPrefix(line, "Hardware") {
+			socID = strings.TrimPrefix(line, "Hardware")
+			socID = strings.TrimPrefix(socID, ":")
+			socID = strings.TrimSpace(socID)
+			socID = strings.Trim(socID, `"';`)
+		}
 	}
 
 	return model, socID
@@ -139,20 +145,27 @@ func getHashedFileContent(filePath string) string {
 
 // getOSName returns the OS name and version
 func getOSName() string {
-	idCmd := exec.Command("bash", "-c", `cat /etc/os-release | grep ^ID= | tr -d '"'\; | awk -F= '{print $2}' | head -1`)
-	idOutput, err := idCmd.Output()
+	// Read the os-release file
+	content, err := os.ReadFile("/etc/os-release")
 	if err != nil {
 		return ""
 	}
 
-	versionCmd := exec.Command("bash", "-c", `cat /etc/os-release | grep ^VERSION_ID= | tr -d '"'\; | awk -F= '{print $2}' | head -1`)
-	versionOutput, err := versionCmd.Output()
-	if err != nil {
-		return ""
-	}
+	// Convert to string and split into lines
+	lines := strings.Split(string(content), "\n")
 
-	osID := strings.TrimSpace(string(idOutput))
-	osVersion := strings.TrimSpace(string(versionOutput))
+	var osID, osVersion string
+
+	// Parse each line
+	for _, line := range lines {
+		if strings.HasPrefix(line, "ID=") {
+			osID = strings.TrimPrefix(line, "ID=")
+			osID = strings.Trim(osID, `"`)
+		} else if strings.HasPrefix(line, "VERSION_ID=") {
+			osVersion = strings.TrimPrefix(line, "VERSION_ID=")
+			osVersion = strings.Trim(osVersion, `"`)
+		}
+	}
 
 	osName := fmt.Sprintf("%s %s", osID, osVersion)
 	// Capitalize first letter
