@@ -85,6 +85,10 @@ wget -qO- https://raw.githubusercontent.com/pi-apps-go/pi-apps/main/install | ba
 - <img src="https://archlinux.org/static/favicon.png" height="14"> [Arch Linux](https://archlinux.org) (requires Arch Linux support plugin during installation): <span style="color:var(--warn-dark);">Support is in progress</span>
 
 # Supported operating systems for the future:
+#### Nintendo Switch <img src=https://pi-apps.io/img/other-icons/switch-icon.svg height="14">
+- <img src=https://pi-apps.io/img/other-icons/switchroot-icon.png height="14"> [Switchroot L4T Fedora 41](https://wiki.switchroot.org/wiki/linux/l4t-fedora-installation-guide-1): <span style="color:var(--success-dark);">Support is planned for the future, currently unsupported</span>
+
+#### Everything else:
 - <img src="https://fedoraproject.org/favicon.ico" height="14"> [Fedora](https://fedoraproject.org): <span style="color:var(--warn-dark);">Support is planned for the future, currently unsupported</span>
 - <img src="https://redhat.com/favicon.ico" height="14"> [RHEL](https://redhat.com/rhel/): <span style="color:var(--warn-dark);">Support is planned for the future, currently unsupported</span>
 - <img src="https://rockylinux.org/favicon.png" height="14"> [Rocky Linux](https://rockylinux.org): <span style="color:var(--warn-dark);">Support is planned for the future, currently unsupported</span>
