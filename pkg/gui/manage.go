@@ -3,8 +3,8 @@ package gui
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -13,6 +13,7 @@ import (
 	"github.com/gotk3/gotk3/gdk"
 	"github.com/gotk3/gotk3/glib"
 	"github.com/gotk3/gotk3/gtk"
+	"github.com/toqueteos/webbrowser"
 )
 
 // QueueItem represents an item in the installation/uninstallation queue
@@ -1371,20 +1372,12 @@ func getInstallScriptName(appName string) string {
 
 // is64BitOS checks if the OS is 64-bit
 func is64BitOS() bool {
-	cmd := exec.Command("uname", "-m")
-	output, err := cmd.Output()
-	if err != nil {
-		return false
-	}
-
-	arch := strings.TrimSpace(string(output))
-	return arch == "aarch64" || arch == "arm64" || strings.HasSuffix(arch, "64")
+	return runtime.GOARCH == "amd64" || runtime.GOARCH == "arm64" || runtime.GOARCH == "riscv64"
 }
 
 // openURL opens a URL in the default browser
 func openURL(url string) error {
-	cmd := exec.Command("xdg-open", url)
-	return cmd.Start()
+	return webbrowser.Open(url)
 }
 
 // CLI fallback functions
