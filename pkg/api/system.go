@@ -89,13 +89,15 @@ func IsSystemSupported() (*SystemSupportStatus, error) {
 	}
 
 	// Check for non-glibc C library (like musl)
+	// Note: This check is currently being marked as supported as there are plans for Alpine Linux to be supported in Pi-Apps.
 	if isMuslSystem() {
-		status.IsSupported = false
-		status.Message = "Pi-Apps is not supported on systems with non-glibc C libraries (like musl). Many apps, especially Electron-based ones, will fail to run properly without a glibc-based compatibility layer. Pi-Apps targets distributions that use glibc (Ubuntu, Debian, etc.)."
-		return status, nil
+		//status.IsSupported = false
+		Warning("While Pi-Apps Go is meant to be portable, you are running a system with non-glibc C library (like musl). Many apps, especially Electron-based ones, will fail to run properly without a glibc-based compatibility layer. Pi-Apps will automatically hide apps that are proven to be broken on non-glibc systems even with a glibc compatiblity layer.")
+		//return status, nil
 	}
 
 	// Check for Android environment
+	// Note: This check will dissapear once Pi-Apps Go will be proven portable and tested on Android.
 	if isAndroidSystem() {
 		status.IsSupported = false
 		status.Message = "Pi-Apps is not supported on Android. Some apps will work, but others won't."
