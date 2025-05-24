@@ -88,7 +88,7 @@ func RemoveDeprecatedApp(app, removalArch, message string) error {
 	}
 
 	// Get the app status
-	appStatus, err := AppStatus(app)
+	appStatus, err := GetAppStatus(app)
 	if err != nil {
 		return fmt.Errorf("remove_deprecated_app: failed to get app status: %w", err)
 	}

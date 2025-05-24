@@ -1,22 +1,36 @@
 #!/bin/bash
+# This file came from Pi-Apps and is being used in Pi-Apps Go.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #This script contains various dirty fixes to keep Pi-Apps running smoothly as it matures.
 #It repairs mistakes that some apps have made, as well as fixing other system issues. Some apps have been removed or renamed.
 
-#This script is executed by the updater script as well as the main Pi-Apps installation script.
+#This script is executed by the updater binary as well as the main Pi-Apps installation script.
 
 #This script uses the 'runonce' function - it avoids running any of these fixes more than once.
 #If a runonce entry is modified, then it will be run once more.
 
-#Set DIRECTORY variable if necessary
-if [ -z "$DIRECTORY" ];then
-  DIRECTORY="$(readlink -f "$(dirname "$(dirname "$0")")")"
+#Set Pi_APPS_DIR variable if necessary
+if [ -z "$PI_APPS_DIR" ];then
+  PI_APPS_DIR="$(readlink -f "$(dirname "$(dirname "$0")")")"
 fi
 
 #Get pi-apps api functions if necessary
 if ! command -v runonce >/dev/null ;then
   set -a #make all functions in the api available to subprocesses
-  source "${DIRECTORY}/api"
+  source "${PI_APPS_DIR}/api"
 fi
 
 #add ~/Desktop /opt /usr/local/bin and /usr/local/share/applications if not present
@@ -47,8 +61,8 @@ EOF
 
 #generate settings
 runonce <<"EOF"
-  if [ "$(ls "$DIRECTORY/data/settings" 2>/dev/null | wc -l)" -le 2 ];then
-    "${DIRECTORY}/settings" refresh
+  if [ "$(ls "$PI_APPS_DIR/data/settings" 2>/dev/null | wc -l)" -le 2 ];then
+    "${PI_APPS_DIR}/settings" refresh
   fi
 EOF
 
@@ -57,7 +71,8 @@ case $(ps -o stat= -p $$) in
   *+*) # Running in foreground
 runonce <<"EOF"
   #populate yadflags since array contents are not passed into runonce
-  yadflags=(--class Pi-Apps --name "Pi-Apps" --center --window-icon="${DIRECTORY}/icons/logo.png" --title="Pi-Apps")
+  #yadflags is not needed in Pi-Apps Go as it's being handled via GOTK3 in the reimplemenation
+  #yadflags=(--class Pi-Apps --name "Pi-Apps" --center --window-icon="${PI_APPS_DIR}/icons/logo.png" --title="Pi-Apps")
   #remove deprecated apps
   remove_deprecated_app "FreeCAD (precompiled)"
   remove_deprecated_app "Chromium Media Edition"
@@ -111,113 +126,113 @@ esac
 #future app renames should follow the standard set by renaming 'Geekbench' to 'Geekbench 5'
 runonce <<"EOF"
   #rework chromium downgrading apps to one single new app: 'Downgrade Chromium'
-  rm -rf "${DIRECTORY}/apps/Back to Chromium v86"
-  rm -rf "${DIRECTORY}/apps/Back to Chromium v78"
-  if [ "$(cat "${DIRECTORY}/data/status/Back to Chromium v78" 2>/dev/null)" == installed ] || [ "$(cat "${DIRECTORY}/data/status/Back to Chromium v86" 2>/dev/null)" == installed ];then
-    echo "installed" > "${DIRECTORY}/data/status/Downgrade Chromium"
+  rm -rf "${PI_APPS_DIR}/apps/Back to Chromium v86"
+  rm -rf "${PI_APPS_DIR}/apps/Back to Chromium v78"
+  if [ "$(cat "${PI_APPS_DIR}/data/status/Back to Chromium v78" 2>/dev/null)" == installed ] || [ "$(cat "${PI_APPS_DIR}/data/status/Back to Chromium v86" 2>/dev/null)" == installed ];then
+    echo "installed" > "${PI_APPS_DIR}/data/status/Downgrade Chromium"
   fi
   
   #rename 'Turbo Scratch' app to 'Turbowarp'
-  rm -rf "${DIRECTORY}/apps/Turbo Scratch"
-  mv -f "${DIRECTORY}/data/status/Turbo Scratch" "${DIRECTORY}/data/status/Turbowarp" 2>/dev/null
+  rm -rf "${PI_APPS_DIR}/apps/Turbo Scratch"
+  mv -f "${PI_APPS_DIR}/data/status/Turbo Scratch" "${PI_APPS_DIR}/data/status/Turbowarp" 2>/dev/null
   
   #rename 'Whatsapp' app to 'WhatsApp'
-  rm -rf "${DIRECTORY}/apps/Whatsapp"
-  mv -f "${DIRECTORY}/data/status/Whatsapp" "${DIRECTORY}/data/status/WhatsApp" 2>/dev/null
+  rm -rf "${PI_APPS_DIR}/apps/Whatsapp"
+  mv -f "${PI_APPS_DIR}/data/status/Whatsapp" "${PI_APPS_DIR}/data/status/WhatsApp" 2>/dev/null
   
   #rename 'Sonic Pi 3.2' to 'Sonic Pi'
-  rm -rf "${DIRECTORY}/apps/Sonic Pi 3.2"
-  mv -f "${DIRECTORY}/data/status/Sonic Pi 3.2" "${DIRECTORY}/data/status/Sonic Pi" 2>/dev/null
+  rm -rf "${PI_APPS_DIR}/apps/Sonic Pi 3.2"
+  mv -f "${PI_APPS_DIR}/data/status/Sonic Pi 3.2" "${PI_APPS_DIR}/data/status/Sonic Pi" 2>/dev/null
   
   #rename 'Min Browser' to 'Min'
-  rm -rf "${DIRECTORY}/apps/Min Browser"
-  mv -f "${DIRECTORY}/data/status/Min Browser" "${DIRECTORY}/data/status/Min" 2>/dev/null
+  rm -rf "${PI_APPS_DIR}/apps/Min Browser"
+  mv -f "${PI_APPS_DIR}/data/status/Min Browser" "${PI_APPS_DIR}/data/status/Min" 2>/dev/null
   
   #rename 'Quartz Browser' to 'Quartz'
-  rm -rf "${DIRECTORY}/apps/Quartz Browser"
-  mv -f "${DIRECTORY}/data/status/Quartz Browser" "${DIRECTORY}/data/status/Quartz" 2>/dev/null
+  rm -rf "${PI_APPS_DIR}/apps/Quartz Browser"
+  mv -f "${PI_APPS_DIR}/data/status/Quartz Browser" "${PI_APPS_DIR}/data/status/Quartz" 2>/dev/null
   
   #rename 'Tor Browser' to 'Tor'
-  rm -rf "${DIRECTORY}/apps/Tor Browser"
-  mv -f "${DIRECTORY}/data/status/Tor Browser" "${DIRECTORY}/data/status/Tor" 2>/dev/null
+  rm -rf "${PI_APPS_DIR}/apps/Tor Browser"
+  mv -f "${PI_APPS_DIR}/data/status/Tor Browser" "${PI_APPS_DIR}/data/status/Tor" 2>/dev/null
   
   #rename 'KeePassX' to 'KeePassXC'
-  rm -rf "${DIRECTORY}/apps/KeePassX"
-  mv -f "${DIRECTORY}/data/status/KeePassX" "${DIRECTORY}/data/status/KeePassXC" 2>/dev/null
+  rm -rf "${PI_APPS_DIR}/apps/KeePassX"
+  mv -f "${PI_APPS_DIR}/data/status/KeePassX" "${PI_APPS_DIR}/data/status/KeePassXC" 2>/dev/null
 
   #rename 'TeamViewer Host' to 'TeamViewer'
-  if [ -f "${DIRECTORY}/data/status/TeamViewer Host" ] && [ $(cat "${DIRECTORY}/data/status/TeamViewer Host") == "installed" ]; then
+  if [ -f "${PI_APPS_DIR}/data/status/TeamViewer Host" ] && [ $(cat "${PI_APPS_DIR}/data/status/TeamViewer Host") == "installed" ]; then
     # installed
-    rm -rf "${DIRECTORY}/apps/TeamViewer Host"  "${DIRECTORY}/apps/TeamViewer"
-    mv -f "${DIRECTORY}/data/status/TeamViewer Host" "${DIRECTORY}/data/status/TeamViewer"
+    rm -rf "${PI_APPS_DIR}/apps/TeamViewer Host"  "${PI_APPS_DIR}/apps/TeamViewer"
+    mv -f "${PI_APPS_DIR}/data/status/TeamViewer Host" "${PI_APPS_DIR}/data/status/TeamViewer"
   else
     # not installed
-    rm -rf "${DIRECTORY}/apps/TeamViewer Host"
+    rm -rf "${PI_APPS_DIR}/apps/TeamViewer Host"
   fi
 
   #rename 'Minecraft Java' to 'Minecraft Java Lunar'
-  if [ -f "${DIRECTORY}/data/status/Minecraft Java" ] && [ $(cat "${DIRECTORY}/data/status/Minecraft Java") == "installed" ]; then
+  if [ -f "${PI_APPS_DIR}/data/status/Minecraft Java" ] && [ $(cat "${PI_APPS_DIR}/data/status/Minecraft Java") == "installed" ]; then
     # installed
-    mv -f "${DIRECTORY}/data/status/Minecraft Java" "${DIRECTORY}/data/status/Minecraft Java Lunar"
-    rm -rf "${DIRECTORY}/apps/Minecraft Java Lunar"
-    mv -f "${DIRECTORY}/apps/Minecraft Java" "${DIRECTORY}/apps/Minecraft Java Lunar"
+    mv -f "${PI_APPS_DIR}/data/status/Minecraft Java" "${PI_APPS_DIR}/data/status/Minecraft Java Lunar"
+    rm -rf "${PI_APPS_DIR}/apps/Minecraft Java Lunar"
+    mv -f "${PI_APPS_DIR}/apps/Minecraft Java" "${PI_APPS_DIR}/apps/Minecraft Java Lunar"
   else
     # not installed
-    rm -rf "${DIRECTORY}/apps/Minecraft Java"
+    rm -rf "${PI_APPS_DIR}/apps/Minecraft Java"
   fi
   
   #rename 'Brave Browser' to 'Brave'
-  rm -rf "${DIRECTORY}/apps/Brave Browser"
-  mv -f "${DIRECTORY}/data/status/Brave Browser" "${DIRECTORY}/data/status/Brave" 2>/dev/null
+  rm -rf "${PI_APPS_DIR}/apps/Brave Browser"
+  mv -f "${PI_APPS_DIR}/data/status/Brave Browser" "${PI_APPS_DIR}/data/status/Brave" 2>/dev/null
   
   #rename 'Discord' to 'Webcord'
-  rm -rf "${DIRECTORY}/apps/Discord"
-  mv -f "${DIRECTORY}/data/status/Discord" "${DIRECTORY}/data/status/Webcord" 2>/dev/null
+  rm -rf "${PI_APPS_DIR}/apps/Discord"
+  mv -f "${PI_APPS_DIR}/data/status/Discord" "${PI_APPS_DIR}/data/status/Webcord" 2>/dev/null
   
   #rename 'Geekbench' to 'Geekbench 5'
   if [ "$(app_status Geekbench)" == "installed" ]; then
     # installed
-    mv -f "${DIRECTORY}/data/status/Geekbench" "${DIRECTORY}/data/status/Geekbench 5"
-    rm -rf "${DIRECTORY}/apps/Geekbench 5"
-    mv -f "${DIRECTORY}/apps/Geekbench" "${DIRECTORY}/apps/Geekbench 5"
+    mv -f "${PI_APPS_DIR}/data/status/Geekbench" "${PI_APPS_DIR}/data/status/Geekbench 5"
+    rm -rf "${PI_APPS_DIR}/apps/Geekbench 5"
+    mv -f "${PI_APPS_DIR}/apps/Geekbench" "${PI_APPS_DIR}/apps/Geekbench 5"
   else
     # not installed
-    rm -rf "${DIRECTORY}/apps/Geekbench"
+    rm -rf "${PI_APPS_DIR}/apps/Geekbench"
   fi
   
   #rename 'ArmCord' to 'Legcord'
   if [ "$(app_status ArmCord)" == "installed" ]; then
     # installed
-    mv -f "${DIRECTORY}/data/status/ArmCord" "${DIRECTORY}/data/status/Legcord"
-    rm -rf "${DIRECTORY}/apps/Legcord"
-    mv -f "${DIRECTORY}/apps/ArmCord" "${DIRECTORY}/apps/Legcord"
+    mv -f "${PI_APPS_DIR}/data/status/ArmCord" "${PI_APPS_DIR}/data/status/Legcord"
+    rm -rf "${PI_APPS_DIR}/apps/Legcord"
+    mv -f "${PI_APPS_DIR}/apps/ArmCord" "${PI_APPS_DIR}/apps/Legcord"
   else
     # not installed
-    rm -rf "${DIRECTORY}/apps/ArmCord"
+    rm -rf "${PI_APPS_DIR}/apps/ArmCord"
   fi
 
   #rename 'LegCord' to 'Legcord'
   #incorrect name capitalization during first ~20 mintues. no reported installs.
   if [ "$(app_status LegCord)" == "installed" ]; then
     # installed
-    mv -f "${DIRECTORY}/data/status/LegCord" "${DIRECTORY}/data/status/Legcord"
-    rm -rf "${DIRECTORY}/apps/Legcord"
-    mv -f "${DIRECTORY}/apps/LegCord" "${DIRECTORY}/apps/Legcord"
+    mv -f "${PI_APPS_DIR}/data/status/LegCord" "${PI_APPS_DIR}/data/status/Legcord"
+    rm -rf "${PI_APPS_DIR}/apps/Legcord"
+    mv -f "${PI_APPS_DIR}/apps/LegCord" "${PI_APPS_DIR}/apps/Legcord"
   else
     # not installed
-    rm -rf "${DIRECTORY}/apps/LegCord"
+    rm -rf "${PI_APPS_DIR}/apps/LegCord"
   fi  
   
   #rename 'Ollama' to 'Ollama GUI'
   #incorrect name capitalization during first ~20 mintues. no reported installs.
   if [ "$(app_status Ollama)" == "installed" ]; then
     # installed
-    mv -f "${DIRECTORY}/data/status/Ollama" "${DIRECTORY}/data/status/Ollama GUI"
-    rm -rf "${DIRECTORY}/apps/Ollama"
-    mv -f "${DIRECTORY}/apps/Ollama" "${DIRECTORY}/apps/Ollama GUI"
+    mv -f "${PI_APPS_DIR}/data/status/Ollama" "${PI_APPS_DIR}/data/status/Ollama GUI"
+    rm -rf "${PI_APPS_DIR}/apps/Ollama"
+    mv -f "${PI_APPS_DIR}/apps/Ollama" "${PI_APPS_DIR}/apps/Ollama GUI"
   else
     # not installed
-    rm -rf "${DIRECTORY}/apps/Ollama"
+    rm -rf "${PI_APPS_DIR}/apps/Ollama"
   fi 
   
   true
@@ -225,8 +240,8 @@ EOF
 
 #rename xlunch setting to xlunch-dark
 runonce <<"EOF"
-  if [ "$(cat "${DIRECTORY}/data/settings/App List Style")" == xlunch ];then
-    echo 'xlunch-dark' > "${DIRECTORY}/data/settings/App List Style"
+  if [ "$(cat "${PI_APPS_DIR}/data/settings/App List Style")" == xlunch ];then
+    echo 'xlunch-dark' > "${PI_APPS_DIR}/data/settings/App List Style"
   fi
 EOF
 
@@ -234,24 +249,24 @@ EOF
 runonce <<"EOF"
   if dpkg -l box86-no-binfmt-restart &>/dev/null ;then
     sudo_popup bash -c 'dpkg --remove box86-no-binfmt-restart'
-    rm -f "${DIRECTORY}/data/status/Box86"
-    "${DIRECTORY}/manage" uninstall Box86
-    "${DIRECTORY}/manage" install Box86
+    rm -f "${PI_APPS_DIR}/data/status/Box86"
+    "${PI_APPS_DIR}/manage" uninstall Box86
+    "${PI_APPS_DIR}/manage" install Box86
   fi
   
   #if box86 is supposedly installed, but box86 command not found, reinstall box86
   if [ "$(app_status Box86)" == 'installed' ] && ! command -v box86 >/dev/null;then
-    rm -f "${DIRECTORY}/data/status/Box86"
-    "${DIRECTORY}/manage" uninstall Box86
-    "${DIRECTORY}/manage" install Box86
+    rm -f "${PI_APPS_DIR}/data/status/Box86"
+    "${PI_APPS_DIR}/manage" uninstall Box86
+    "${PI_APPS_DIR}/manage" install Box86
   fi
   true
 EOF
 
 #remove files from pi-apps folder that are no longer used
 runonce <<"EOF"
-  rm -f "${DIRECTORY}/etc/bitlylink"
-  rm -rf "${DIRECTORY}/data/categories"
+  rm -f "${PI_APPS_DIR}/etc/bitlylink"
+  rm -rf "${PI_APPS_DIR}/data/categories"
 EOF
 
 #change settings icon
@@ -339,8 +354,8 @@ if [ -f /etc/xdg/menus/lxde-pi-applications.menu ];then
 echo "[Desktop Entry]
 Name=Pi-Apps
 Comment=Raspberry Pi App Store for open source projects
-Exec=${DIRECTORY}/gui
-Icon=${DIRECTORY}/icons/logo.png
+Exec=${PI_APPS_DIR}/gui
+Icon=${PI_APPS_DIR}/icons/logo.png
 Terminal=false
 StartupWMClass=Pi-Apps
 Type=Application
@@ -350,8 +365,8 @@ else
 echo "[Desktop Entry]
 Name=Pi-Apps
 Comment=Raspberry Pi App Store for open source projects
-Exec=${DIRECTORY}/gui
-Icon=${DIRECTORY}/icons/logo.png
+Exec=${PI_APPS_DIR}/gui
+Icon=${PI_APPS_DIR}/icons/logo.png
 Terminal=false
 StartupWMClass=Pi-Apps
 Type=Application
@@ -371,16 +386,16 @@ gio set ~/Desktop/pi-apps.desktop "metadata::trusted" yes
 
 #copy icon to local icons directory (necessary on some wayland DEs like on PiOS Wayfire)
 mkdir -p ~/.local/share/icons
-cp -f ${DIRECTORY}/icons/logo.png ~/.local/share/icons/pi-apps.png
-cp -f ${DIRECTORY}/icons/settings.png ~/.local/share/icons/pi-apps-settings.png
+cp -f ${PI_APPS_DIR}/icons/logo.png ~/.local/share/icons/pi-apps.png
+cp -f ${PI_APPS_DIR}/icons/settings.png ~/.local/share/icons/pi-apps-settings.png
 
 #settings menu button
 echo "Updating Settings menu button..."
 echo "[Desktop Entry]
 Name=Pi-Apps Settings
 Comment=Configure Pi-Apps or create an App
-Exec=${DIRECTORY}/settings
-Icon=${DIRECTORY}/icons/settings.png
+Exec=${PI_APPS_DIR}/settings
+Icon=${PI_APPS_DIR}/icons/settings.png
 Terminal=false
 StartupWMClass=Pi-Apps-Settings
 Type=Application
@@ -391,8 +406,8 @@ echo "Updating autostarted updater..."
 mkdir -p ~/.config/autostart
 echo "[Desktop Entry]
 Name=Pi-Apps Updater
-Exec=${DIRECTORY}/updater onboot
-Icon=${DIRECTORY}/icons/logo.png
+Exec=${PI_APPS_DIR}/updater onboot
+Icon=${PI_APPS_DIR}/icons/logo.png
 Terminal=false
 StartupWMClass=Pi-Apps
 Type=Application
@@ -439,7 +454,7 @@ runonce <<"EOF"
   #if rpi-chromium-mods is available, not installed, and was uninstalled on the affected dates, and the Chromium app was uninstalled and installed, install rpi-chromium-mods back.
   if package_available rpi-chromium-mods && ! package_installed rpi-chromium-mods && \
     grep ' not-installed rpi-chromium-mods' /var/log/dpkg.log | tail -1 | grep -q '2024-02-\(22\|23\|24\|25\|26\)' && \
-    find "${DIRECTORY}"/logs | grep -qF 'uninstall-success-Chromium.log' && find "${DIRECTORY}"/logs | grep -qF 'install-success-Chromium.log';then
+    find "${PI_APPS_DIR}"/logs | grep -qF 'uninstall-success-Chromium.log' && find "${PI_APPS_DIR}"/logs | grep -qF 'install-success-Chromium.log';then
     
     #install rpi-chromium-mods back.
     apt_lock_wait
