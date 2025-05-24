@@ -3,7 +3,7 @@
         <img src="https://github.com/pi-apps-go/pi-apps/blob/main/icons/proglogo.png?raw=true" alt="Pi-Apps logo">
     </a>
 </p>
-<p align="center">The most popular app store for Raspberry Pi computers. 100% free, open-source but rewritten in Go for faster performance.
+<p align="center">The most popular app store for Raspberry Pi computers. 100% free, open-source but rewritten in Go for faster performance and with in mind cross distro support.
 <p align="center">
   <a href="https://github.com/pi-apps-go/pi-apps/blob/main/CHANGELOG.md">
     View changelog</a>
@@ -43,7 +43,7 @@
 Let's be honest: **Linux is harder to main than Windows.** Sometimes it's not user-friendly, and following an outdated tutorial may break your Raspberry Pi's operating system.  
 There is no centralized software repository, except for the `apt` repositories which lack many desktop applications.  
 Surely there is a better way! **There is.**  
-Introducing Pi-Apps Go, a Go based app store with a well-maintained collection of app installation-scripts that you can run with **one click**.  
+Introducing Pi-Apps Go, a Go based app store with a well-maintained collection of app installation-scripts that you can run with **one click** and **portable across supported distributions**.  
 
 Original Pi-Apps serves **over 1,000,000 people** and hosts [over 200 apps](https://pi-apps.io/wiki/getting-started/apps-list/).
 
@@ -87,12 +87,19 @@ wget -qO- https://raw.githubusercontent.com/pi-apps-go/pi-apps/main/install | ba
 
 # Supported operating systems for the future:
 #### Nintendo Switch <img src=https://pi-apps.io/img/other-icons/switch-icon.svg height="14">
-- <img src=https://pi-apps.io/img/other-icons/switchroot-icon.png height="14"> [Switchroot L4T Fedora 41](https://wiki.switchroot.org/wiki/linux/l4t-fedora-installation-guide-1): <span style="color:var(--success-dark);">Support is planned for the future, currently unsupported</span>
+- <img src=https://pi-apps.io/img/other-icons/switchroot-icon.png height="14"> [Switchroot L4T Fedora 41](https://wiki.switchroot.org/wiki/linux/l4t-fedora-installation-guide-1) (will require RHEL-like support plugin during installation): <span style="color:var(--success-dark);">Support is planned for the future, currently unsupported</span>
 
 #### Everything else:
-- <img src="https://fedoraproject.org/favicon.ico" height="14"> [Fedora](https://fedoraproject.org): <span style="color:var(--warn-dark);">Support is planned for the future, currently unsupported</span>
-- <img src="https://redhat.com/favicon.ico" height="14"> [RHEL](https://redhat.com/rhel/): <span style="color:var(--warn-dark);">Support is planned for the future, currently unsupported</span>
-- <img src="https://rockylinux.org/favicon.png" height="14"> [Rocky Linux](https://rockylinux.org): <span style="color:var(--warn-dark);">Support is planned for the future, currently unsupported</span>
+
+#### dnf based:
+- <img src="https://fedoraproject.org/favicon.ico" height="14"> [Fedora](https://fedoraproject.org) (will require RHEL-like support plugin during installation): <span style="color:var(--warn-dark);">Support is planned for the future, currently unsupported</span>
+- <img src="https://redhat.com/favicon.ico" height="14"> [RHEL](https://redhat.com/rhel/) (will require RHEL-like support plugin during installation): <span style="color:var(--warn-dark);">Support is planned for the future, currently unsupported</span>
+- <img src="https://rockylinux.org/favicon.png" height="14"> [Rocky Linux](https://rockylinux.org) (will require RHEL-like support plugin during installation): <span style="color:var(--warn-dark);">Support is planned for the future, currently unsupported</span>
+- <img src="https://almalinux.org/fav/favicon.ico" height="14"> [AlmaLinux](https://almalinux.org) (will require RHEL-like support plugin during installation): <span style="color:var(--warn-dark);">Support is planned for the future, currently unsupported</span>
+- <img src="https://centos.org/assets/icons/favicon.svg" height="14"> [CentOS Stream](https://centos.org) (will require RHEL-like support plugin during installation): <span style="color:var(--warn-dark);">Support is planned for the future, currently unsupported</span>
+
+#### apk based (not to be confused with the .apk format for applications on Android)
+- <img src="https://alpinelinux.org/alpine-logo.ico" height="14"> [Alpine Linux](https://alpinelinux.org) (will require Alpine Linux support plugin during installation): <span style="color:var(--warn-dark);">Support is planned for the future, currently unsupported</span>
 
 ### Unsupported systems:
 - Raspberry Pi Pico (2): <span style="color:var(--danger-dark);">These devices are microcontrollers and cannot run linux.
