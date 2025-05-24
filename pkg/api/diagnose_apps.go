@@ -55,7 +55,7 @@ func GetLogfile(appName string) string {
 	}
 
 	// Default location where Pi-Apps stores logs
-	piAppsDir := os.Getenv("DIRECTORY")
+	piAppsDir := os.Getenv("PI_APPS_DIR")
 	if piAppsDir == "" {
 		piAppsDir = "."
 	}
@@ -129,9 +129,9 @@ func CapitalizeFirst(s string) string {
 // CheckCanSendErrorReport determines if we can send an error report for this app
 func CheckCanSendErrorReport(app, action, errorType string) (bool, string) {
 	// Setup variables similar to how the bash script does
-	directory := os.Getenv("DIRECTORY")
+	directory := os.Getenv("PI_APPS_DIR")
 	if directory == "" {
-		return false, "DIRECTORY environment variable is not set"
+		return false, "PI_APPS_DIR environment variable is not set"
 	}
 
 	// Check 1: Check if app is a package app
@@ -333,7 +333,7 @@ func DiagnoseApps(failureList string) []DiagnoseResult {
 		}
 
 		// Add error icon
-		iconPath := filepath.Join(os.Getenv("DIRECTORY"), "icons", "error.png")
+		iconPath := filepath.Join(os.Getenv("PI_APPS_DIR"), "icons", "error.png")
 		if icon, err := loadImage(iconPath); err == nil {
 			headerBox.PackStart(icon, false, false, 0)
 		}
@@ -431,7 +431,7 @@ func DiagnoseApps(failureList string) []DiagnoseResult {
 			continue
 		}
 		// Try to add icon
-		iconPath = filepath.Join(os.Getenv("DIRECTORY"), "icons", "log-file.png")
+		iconPath = filepath.Join(os.Getenv("PI_APPS_DIR"), "icons", "log-file.png")
 		if icon, err := gtk.ImageNewFromFile(iconPath); err == nil {
 			viewLogButton.SetImage(icon)
 			viewLogButton.SetAlwaysShowImage(true)
@@ -466,7 +466,7 @@ func DiagnoseApps(failureList string) []DiagnoseResult {
 				continue
 			}
 			// Try to add icon
-			iconPath = filepath.Join(os.Getenv("DIRECTORY"), "icons", "send-error-report.png")
+			iconPath = filepath.Join(os.Getenv("PI_APPS_DIR"), "icons", "send-error-report.png")
 			if icon, err := gtk.ImageNewFromFile(iconPath); err == nil {
 				sendReportButton.SetImage(icon)
 				sendReportButton.SetAlwaysShowImage(true)
@@ -481,7 +481,7 @@ func DiagnoseApps(failureList string) []DiagnoseResult {
 			continue
 		}
 		// Try to add icon
-		iconPath = filepath.Join(os.Getenv("DIRECTORY"), "icons", "refresh.png")
+		iconPath = filepath.Join(os.Getenv("PI_APPS_DIR"), "icons", "refresh.png")
 		if icon, err := gtk.ImageNewFromFile(iconPath); err == nil {
 			retryButton.SetImage(icon)
 			retryButton.SetAlwaysShowImage(true)
@@ -497,7 +497,7 @@ func DiagnoseApps(failureList string) []DiagnoseResult {
 				continue
 			}
 			// Try to add icon
-			iconPath = filepath.Join(os.Getenv("DIRECTORY"), "icons", "forward.png")
+			iconPath = filepath.Join(os.Getenv("PI_APPS_DIR"), "icons", "forward.png")
 			if icon, err := gtk.ImageNewFromFile(iconPath); err == nil {
 				closeButton.SetImage(icon)
 				closeButton.SetAlwaysShowImage(true)
@@ -509,7 +509,7 @@ func DiagnoseApps(failureList string) []DiagnoseResult {
 				continue
 			}
 			// Try to add icon
-			iconPath = filepath.Join(os.Getenv("DIRECTORY"), "icons", "exit.png")
+			iconPath = filepath.Join(os.Getenv("PI_APPS_DIR"), "icons", "exit.png")
 			if icon, err := gtk.ImageNewFromFile(iconPath); err == nil {
 				closeButton.SetImage(icon)
 				closeButton.SetAlwaysShowImage(true)

@@ -55,7 +55,7 @@ func ViewFile(filePath string) error {
 	win.SetPosition(gtk.WIN_POS_CENTER)
 
 	// Try to get the Pi-Apps directory for icons
-	piAppsDir := os.Getenv("DIRECTORY")
+	piAppsDir := os.Getenv("PI_APPS_DIR")
 	if piAppsDir != "" {
 		// Use different icons based on whether it's a log file or other file
 		var iconPath string

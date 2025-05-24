@@ -24,6 +24,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 )
@@ -194,12 +195,12 @@ func ManageApp(action Action, appName string, isUpdate bool) error {
 	// Determine success or failure
 	if err != nil {
 		fmt.Fprintf(logFile, "\nFailed to %s %s!\n", action, appName)
-		fmt.Printf("\nFailed to %s %s!\n", action, appName)
+		ErrorNoExit(fmt.Sprintf("\nFailed to %s %s!\n", action, appName))
 		fmt.Fprintf(logFile, "Need help? Copy the ENTIRE terminal output or take a screenshot.\n")
-		fmt.Fprintf(logFile, "Please ask on Github: https://github.com/Botspot/pi-apps/issues/new/choose\n")
+		fmt.Fprintf(logFile, "Please ask on Github: https://github.com/pi-apps-go/pi-apps/issues/new/choose\n")
 		fmt.Fprintf(logFile, "Or on Discord: https://discord.gg/RXSTvaUvuu\n")
 		fmt.Printf("Need help? Copy the ENTIRE terminal output or take a screenshot.\n")
-		fmt.Printf("Please ask on Github: https://github.com/Botspot/pi-apps/issues/new/choose\n")
+		fmt.Printf("Please ask on Github: https://github.com/pi-apps-go/pi-apps/issues/new/choose\n")
 		fmt.Printf("Or on Discord: https://discord.gg/RXSTvaUvuu\n")
 
 		// Rename log file to indicate failure
@@ -208,9 +209,17 @@ func ManageApp(action Action, appName string, isUpdate bool) error {
 
 		// If app is script-type, set status to corrupted if the error is not system, internet, or package related
 		if appType == "standard" {
-			// TODO: Implement log_diagnose function to determine error type
-			// For now, set status to corrupted always for failed script apps
-			SetAppStatus(appName, "corrupted")
+			// Use log_diagnose to determine error type and set appropriate status
+			diagnosis, err := LogDiagnose(logPath, true)
+			if diagnosis.ErrorType == "system" || diagnosis.ErrorType == "internet" || diagnosis.ErrorType == "package" {
+				SetAppStatus(appName, "failed")
+			} else {
+				SetAppStatus(appName, "corrupted")
+			}
+			if err != nil {
+				ErrorNoExit("Unable to detect error type, setting it as corrupted")
+				SetAppStatus(appName, "failed")
+			}
 		}
 
 		return fmt.Errorf("command failed: %w", err)
@@ -615,22 +624,25 @@ func runAppScript(appName, scriptName string) error {
 			}
 
 			// Choose the appropriate script based on architecture
-			if arch == "armv7l" || arch == "armv6l" {
-				// 32-bit ARM
+			is32Bit := arch == "armv7l" || arch == "armv6l" || arch == "i386" || arch == "x86" || arch == "riscv32" // riscv32 is not supported by Go but still there for future support
+			is64Bit := arch == "aarch64" || arch == "arm64" || arch == "x86_64" || arch == "amd64" || arch == "riscv64"
+
+			if is32Bit {
+				// 32-bit architecture
 				if _, err := os.Stat(install32Path); err == nil {
 					scriptPath = install32Path
 				} else {
-					return fmt.Errorf("install script does not exist for app '%s' on 32-bit ARM", appName)
+					return fmt.Errorf("install script does not exist for app '%s' on 32-bit architecture", appName)
 				}
-			} else if arch == "aarch64" || arch == "arm64" {
-				// 64-bit ARM
+			} else if is64Bit {
+				// 64-bit architecture
 				if _, err := os.Stat(install64Path); err == nil {
 					scriptPath = install64Path
 				} else if _, err := os.Stat(install32Path); err == nil {
 					// Fallback to 32-bit if 64-bit specific script doesn't exist
 					scriptPath = install32Path
 				} else {
-					return fmt.Errorf("install script does not exist for app '%s' on 64-bit ARM", appName)
+					return fmt.Errorf("install script does not exist for app '%s' on 64-bit architecture", appName)
 				}
 			} else {
 				return fmt.Errorf("unsupported architecture: %s", arch)
@@ -650,15 +662,10 @@ func runAppScript(appName, scriptName string) error {
 
 	// Get API wrapper path
 	piAppsDir := getPiAppsDir()
-	apiBashWrapper := filepath.Join(piAppsDir, "go-rewrite", "api")
+	apiBashWrapper := filepath.Join(piAppsDir, "api")
 	if _, err := os.Stat(apiBashWrapper); os.IsNotExist(err) {
-		// Try alternate location
-		apiBashWrapper = filepath.Join(piAppsDir, "api")
-		if _, err := os.Stat(apiBashWrapper); os.IsNotExist(err) {
-			return fmt.Errorf("API bash wrapper not found at %s or %s",
-				filepath.Join(piAppsDir, "go-rewrite", "api"),
-				filepath.Join(piAppsDir, "api"))
-		}
+		return fmt.Errorf("API bash wrapper not found at %s",
+			filepath.Join(piAppsDir, "api"))
 	}
 
 	// Create a temp script that sources the API and then runs the original script
@@ -852,13 +859,35 @@ func getPiAppsDir() string {
 
 // GetSystemArchitecture returns the current system architecture
 func GetSystemArchitecture() (string, error) {
-	cmd := exec.Command("uname", "-m")
-	output, err := cmd.Output()
-	if err != nil {
-		return "", fmt.Errorf("failed to determine system architecture: %v", err)
+	// Try runtime.GOARCH first for Go's built-in architecture detection
+	arch := runtime.GOARCH
+
+	// Map Go's architecture names to our expected format
+	switch arch {
+	case "amd64":
+		arch = "x86_64"
+	case "386":
+		arch = "i386"
+	case "arm":
+		// For ARM, we need to determine if it's 32 or 64 bit
+		cmd := exec.Command("uname", "-m")
+		output, err := cmd.Output()
+		if err == nil {
+			detectedArch := strings.TrimSpace(string(output))
+			if detectedArch == "aarch64" || detectedArch == "arm64" {
+				arch = "aarch64"
+			} else if detectedArch == "armv7l" || detectedArch == "armv6l" {
+				arch = detectedArch
+			}
+		}
+	case "arm64":
+		arch = "aarch64"
+	case "riscv64":
+		arch = "riscv64"
+	case "riscv32": // Go does not support riscv32 as a build target, but still there for future support
+		arch = "riscv32"
 	}
 
-	arch := strings.TrimSpace(string(output))
 	return arch, nil
 }
 
@@ -876,8 +905,8 @@ func IsAppSupportedOnSystem(appName string) (bool, string) {
 	}
 
 	// Check the architecture specific scripts
-	is32bit := arch == "armv7l" || arch == "armv6l"
-	is64bit := arch == "aarch64" || arch == "arm64"
+	is32bit := arch == "armv7l" || arch == "armv6l" || arch == "i386" || arch == "riscv32" // Go does not support riscv32 as a build target, but still there for future support
+	is64bit := arch == "aarch64" || arch == "arm64" || arch == "x86_64" || arch == "riscv64"
 
 	// Generic install script
 	installPath := filepath.Join(appDir, "install")
@@ -893,7 +922,7 @@ func IsAppSupportedOnSystem(appName string) (bool, string) {
 		if _, err := os.Stat(install32Path); err == nil {
 			return true, ""
 		}
-		return false, fmt.Sprintf("This app doesn't support 32-bit ARM systems (%s)", arch)
+		return false, fmt.Sprintf("This app doesn't support 32-bit systems (%s)", arch)
 	} else if is64bit {
 		if _, err := os.Stat(install64Path); err == nil {
 			return true, ""
@@ -902,7 +931,7 @@ func IsAppSupportedOnSystem(appName string) (bool, string) {
 		if _, err := os.Stat(install32Path); err == nil {
 			return true, ""
 		}
-		return false, fmt.Sprintf("This app doesn't support 64-bit ARM systems (%s)", arch)
+		return false, fmt.Sprintf("This app doesn't support 64-bit systems (%s)", arch)
 	}
 
 	return false, fmt.Sprintf("This app doesn't support your system architecture (%s)", arch)

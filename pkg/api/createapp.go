@@ -1804,14 +1804,14 @@ func runScript(scriptPath, appName string) error {
 	// Check if terminal-run exists
 	if _, err := os.Stat(terminalRunPath); os.IsNotExist(err) {
 		// Fallback to the previous method if terminal-run doesn't exist
-		cmd := fmt.Sprintf(`cd %s; DIRECTORY='%s'; export DIRECTORY; set -a; source '%s/api'; app='%s'; export app; '%s' | cat; echo 'Press Enter to exit.'; read dummy`,
+		cmd := fmt.Sprintf(`cd %s; PI_APPS_DIR='%s'; export PI_APPS_DIR; set -a; source '%s/api'; app='%s'; export app; '%s' | cat; echo 'Press Enter to exit.'; read dummy`,
 			piAppsDir, piAppsDir, piAppsDir, appName, scriptPath)
 		terminal := exec.Command("x-terminal-emulator", "-e", "bash", "-c", cmd)
 		return terminal.Start()
 	}
 
 	// Use the Pi-Apps terminal-run script which handles all the environment setup
-	scriptCmd := fmt.Sprintf("cd %s; DIRECTORY='%s'; set -a; source '%s/api'; app='%s'; '%s' | cat; echo 'Press Enter to exit.'; read dummy",
+	scriptCmd := fmt.Sprintf("cd %s; PI_APPS_DIR='%s'; set -a; source '%s/api'; app='%s'; '%s' | cat; echo 'Press Enter to exit.'; read dummy",
 		piAppsDir, piAppsDir, piAppsDir, appName, scriptPath)
 	scriptTitle := fmt.Sprintf("Running %s script of %s", filepath.Base(scriptPath), appName)
 	terminal := exec.Command(terminalRunPath, scriptCmd, scriptTitle)

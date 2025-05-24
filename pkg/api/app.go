@@ -37,7 +37,7 @@ func AppStatus(app string) (string, error) {
 	}
 
 	// Get the Pi-Apps directory
-	directory := os.Getenv("DIRECTORY")
+	directory := os.Getenv("PI_APPS_DIR")
 	if directory == "" {
 		// Default to the parent of the parent directory
 		currentDir, err := os.Getwd()
@@ -77,7 +77,7 @@ func RemoveDeprecatedApp(app, removalArch, message string) error {
 	}
 
 	// Get the Pi-Apps directory
-	directory := os.Getenv("DIRECTORY")
+	directory := os.Getenv("PI_APPS_DIR")
 	if directory == "" {
 		// Default to the parent of the parent directory
 		currentDir, err := os.Getwd()
@@ -133,7 +133,7 @@ func RemoveDeprecatedApp(app, removalArch, message string) error {
 
 		// If user chose to uninstall, run the uninstall command
 		if output == "Uninstall now" {
-			uninstallCmd := exec.Command(filepath.Join(directory, "manage"), "uninstall", app)
+			uninstallCmd := exec.Command(filepath.Join(directory, "manage"), "-uninstall", app)
 			uninstallCmd.Stdout = os.Stdout
 			uninstallCmd.Stderr = os.Stderr
 			if err := uninstallCmd.Run(); err != nil {
@@ -180,7 +180,7 @@ func TerminalManage(action, app string) error {
 // This is a Go implementation of the original bash terminal_manage_multi function
 func TerminalManageMulti(queue string) error {
 	// Get the Pi-Apps directory
-	directory := os.Getenv("DIRECTORY")
+	directory := os.Getenv("PI_APPS_DIR")
 	if directory == "" {
 		// Default to the parent of the parent directory
 		currentDir, err := os.Getwd()
