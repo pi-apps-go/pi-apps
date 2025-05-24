@@ -1,7 +1,9 @@
 .PHONY: all build clean install
 
 BINDIR := $(DESTDIR)/usr/local/bin
-VERSION := 0.1.0
+BUILD_DATE=$(shell date -u +%Y-%m-%dT%H:%M:%SZ || echo "Warning: unable to get current date")
+GIT_COMMIT_HASH=$(shell git rev-parse HEAD || echo "Warning: unable to get Git commit hash")
+LDFLAGS=-X main.BuildDate="$(BUILD_DATE)" -X main.GitCommit="$(GIT_COMMIT_HASH)"
 
 all: build
 
@@ -9,22 +11,29 @@ build: build-api build-pi-apps build-manage
 build-debug: build-api-debug build-pi-apps-debug build-manage-debug
 
 build-api:
-	go build -o bin/api -ldflags "-X main.Version=$(VERSION) -w -s" -trimpath ./cmd/api
+	go build -o bin/api -ldflags "$(LDFLAGS) -w -s" -trimpath ./cmd/api
 
 build-pi-apps:
-	go build -o bin/pi-apps -ldflags "-X main.Version=$(VERSION) -w -s" -trimpath ./cmd/pi-apps
+	go build -o bin/pi-apps -ldflags "$(LDFLAGS) -w -s" -trimpath ./cmd/pi-apps
 
 build-api-debug:
-	go build -o bin/api -ldflags "-X main.Version=$(VERSION)" ./cmd/api
+	go build -o bin/api -ldflags "$(LDFLAGS)" ./cmd/api
 
 build-pi-apps-debug:
-	go build -o bin/pi-apps -ldflags "-X main.Version=$(VERSION)" ./cmd/pi-apps
+	go build -o bin/pi-apps -ldflags "$(LDFLAGS)" ./cmd/pi-apps
 
 build-manage:
-	go build -o bin/manage -ldflags "-X main.Version=$(VERSION) -w -s" -trimpath ./cmd/manage/main.go
+	go build -o bin/manage -ldflags "$(LDFLAGS) -w -s" -trimpath ./cmd/manage/main.go
 
 build-manage-debug:
-	go build -o bin/manage -ldflags "-X main.Version=$(VERSION)" ./cmd/manage/main.go
+	go build -o bin/manage -ldflags "$(LDFLAGS)" ./cmd/manage/main.go
+
+# Note: error-report-server is not meant to be compiled by a user and is not included during compiling unless you are hosting the error report server yourself.
+build-error-report-server:
+	go build -o bin/error-report-server -ldflags "-w -s" -trimpath ./cmd/error-report-server/main.go
+
+build-error-report-server-debug:
+	go build -o bin/error-report-server ./cmd/error-report-server/main.go
 
 clean:
 	rm -rf bin/

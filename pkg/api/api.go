@@ -1,13 +1,22 @@
-// This code is the backbone of Pi-Apps Go.
-// It hosts the core functions that all other non Go scripts can interact via functions in the Bash API.
+// Copyright (C) 2025 pi-apps-go contributors
+// This file is part of Pi-Apps Go - a modern, cross-architecture/cross-platform, and modular Pi-Apps implementation in Go.
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
 
-// The following code handles the functionality that also interacts with other functions within this code which include:
-// - Adding local package files to the /tmp/pi-apps-local-packages repository
-// - Indexing the Pi-Apps local apt repository by creating a Packages file
-// - Waiting until other apt processes are finished before proceeding
-// - Filtering out unwanted lines from apt output
-// - Running an apt update with error-checking and minimal output...
-// - and more!
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+// Module: api.go
+// Description: This module hosts the core functions that all
+// other non Go scripts can interact via functions in the Bash API (or plugins via the plugin API).
 
 package api
 

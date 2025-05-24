@@ -1,3 +1,22 @@
+// Copyright (C) 2025 pi-apps-go contributors
+// This file is part of Pi-Apps Go - a modern, cross-architecture/cross-platform, and modular Pi-Apps implementation in Go.
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+// Module: apt.go
+// Description: Provides functions for managing APT repositories.
+
 package api
 
 import (
@@ -993,7 +1012,7 @@ Package: %s
 					packagesContent, _ := os.ReadFile("/tmp/pi-apps-local-packages/Packages")
 					fmt.Println(string(packagesContent))
 
-					fmt.Println("Attempting apt --dry-run installation of the problematic package(s) for debugging purposes:\n")
+					fmt.Println("Attempting apt --dry-run installation of the problematic package(s) for debugging purposes:")
 
 					// Extract problematic packages
 					var problemPackages []string
@@ -1017,7 +1036,7 @@ Package: %s
 						fmt.Println(string(dryRunOutput))
 					}
 
-					fmt.Println("Printing apt-cache policy output for debugging purposes:\n")
+					fmt.Println("Printing apt-cache policy output for debugging purposes:")
 					policyCmd := exec.Command("apt-cache", "policy")
 					policyOutput, _ := policyCmd.CombinedOutput()
 					fmt.Println(string(policyOutput))

@@ -1,3 +1,20 @@
+// This file is part of Pi-Apps Go - a modern, cross-architecture/cross-platform, and modular Pi-Apps implementation in Go.
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+// Module: main.go
+// Description: Provides a user interactible way of communicating with the Pi-Apps Go API functions.
 package main
 
 import (
@@ -11,6 +28,12 @@ import (
 	"strings"
 
 	"github.com/botspot/pi-apps/pkg/api"
+)
+
+// Build-time variables
+var (
+	BuildDate string
+	GitCommit string
 )
 
 func main() {
@@ -34,7 +57,17 @@ func main() {
 
 	// Handle version flag
 	if *versionFlag {
-		fmt.Println("Pi-Apps API Go Edition v0.1.0")
+		fmt.Println("Pi-Apps Go API (rolling release)")
+		if BuildDate != "" {
+			fmt.Println("Built on", BuildDate)
+		} else {
+			fmt.Println("Build date not available")
+		}
+		if GitCommit != "" {
+			fmt.Println("Git commit:", GitCommit)
+		} else {
+			fmt.Println("Git commit hash not available")
+		}
 		return
 	}
 
@@ -1352,6 +1385,13 @@ func main() {
 			os.Exit(1)
 		}
 
+	case "importapp":
+		// Call without arguments to launch the importapp wizard
+		if err := api.ImportAppGUI(); err != nil {
+			fmt.Printf("Error: %v\n", err)
+			os.Exit(1)
+		}
+
 	case "install":
 		if len(args) < 1 {
 			fmt.Println("Error: No app specified")
@@ -1441,6 +1481,56 @@ func main() {
 			os.Exit(1)
 		}
 
+	case "log_diagnose":
+		if len(args) < 1 {
+			fmt.Println("Error: No log file specified")
+			fmt.Println("Usage: api log_diagnose <logfile> [--allow-write]")
+			os.Exit(1)
+		}
+
+		allowWrite := false
+		if len(args) > 1 && args[1] == "--allow-write" {
+			allowWrite = true
+		}
+
+		diagnosis, err := api.LogDiagnose(args[0], allowWrite)
+		if err != nil {
+			fmt.Printf("Error: %v\n", err)
+			os.Exit(1)
+		}
+
+		// Print the diagnosis
+		fmt.Printf("Error Type: %s\n", diagnosis.ErrorType)
+		for _, caption := range diagnosis.Captions {
+			fmt.Println(caption)
+		}
+
+	case "format_logfile":
+		if len(args) < 1 {
+			fmt.Println("Error: No log file specified")
+			fmt.Println("Usage: api format_logfile <logfile>")
+			os.Exit(1)
+		}
+
+		if err := api.FormatLogfile(args[0]); err != nil {
+			fmt.Printf("Error: %v\n", err)
+			os.Exit(1)
+		}
+
+	case "send_error_report":
+		if len(args) < 1 {
+			fmt.Println("Error: No log file specified")
+			fmt.Println("Usage: api send_error_report <logfile>")
+			os.Exit(1)
+		}
+
+		response, err := api.SendErrorReport(args[0])
+		if err != nil {
+			fmt.Printf("Error: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Println(response)
+
 	default:
 		fmt.Printf("Unknown command: %s\n", command)
 		printUsage()
@@ -1516,6 +1606,7 @@ func printUsage() {
 	fmt.Println("  refresh_all_pkgapp_status                    - Update status of all package-apps")
 	fmt.Println("  refresh_app_list                             - Force regeneration of the app list")
 	fmt.Println("  createapp                                    - Launch the Create App wizard")
+	fmt.Println("  importapp                                    - Launch the Import App wizard")
 	fmt.Println("  manage                                       - Manage apps")
 	fmt.Println("")
 	fmt.Println("List Operations:")

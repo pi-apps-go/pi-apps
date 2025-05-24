@@ -1,3 +1,22 @@
+// Copyright (C) 2025 pi-apps-go contributors
+// This file is part of Pi-Apps Go - a modern, cross-architecture/cross-platform, and modular Pi-Apps implementation in Go.
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+// Module: app_maint.go
+// Description: Provides functions for maintaining the app list, package app status, and app icons.
+
 package api
 
 import (
@@ -411,27 +430,41 @@ func getDpkgStatus(packages []string) (string, error) {
 		return "", nil
 	}
 
-	// Create a grep pattern for all packages
-	var pattern string
-	for i, pkg := range packages {
-		if i > 0 {
-			pattern += "\\|"
-		}
-		pattern += pkg
-	}
-
-	// Run grep to get the status from dpkg
-	cmd := exec.Command("grep", "-x", fmt.Sprintf("Package: \\(%s\\)", pattern), "-A", "2", "/var/lib/dpkg/status")
-	output, err := cmd.Output()
+	// Read the dpkg status file
+	statusData, err := os.ReadFile("/var/lib/dpkg/status")
 	if err != nil {
-		// Check if it's an exit code 1, which means no matches
-		if exitErr, ok := err.(*exec.ExitError); ok && exitErr.ExitCode() == 1 {
-			return "", nil
-		}
-		return "", fmt.Errorf("error running grep on dpkg status: %w", err)
+		return "", fmt.Errorf("error reading dpkg status file: %w", err)
 	}
 
-	return string(output), nil
+	// Split the status file into package sections
+	sections := strings.Split(string(statusData), "\n\n")
+	var result strings.Builder
+
+	// Create a map for quick package lookup
+	packageMap := make(map[string]bool)
+	for _, pkg := range packages {
+		packageMap[pkg] = true
+	}
+
+	// Process each section
+	for _, section := range sections {
+		lines := strings.Split(section, "\n")
+		if len(lines) == 0 {
+			continue
+		}
+
+		// Check if this section is for one of our packages
+		if strings.HasPrefix(lines[0], "Package: ") {
+			pkgName := strings.TrimPrefix(lines[0], "Package: ")
+			if packageMap[pkgName] {
+				// Include this section and the next 2 lines
+				result.WriteString(section)
+				result.WriteString("\n\n")
+			}
+		}
+	}
+
+	return result.String(), nil
 }
 
 // refreshPackageAppStatusWithCache refreshes a single package-app status using cached apt and dpkg data

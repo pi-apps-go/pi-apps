@@ -1,13 +1,33 @@
+// Copyright (C) 2025 pi-apps-go contributors
+// This file is part of Pi-Apps Go - a modern, cross-architecture/cross-platform, and modular Pi-Apps implementation in Go.
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+// Module: log_diagnose.go
+// Description: Provides functions for diagnosing log files.
+// Warning: This module is the largest module in the Pi-Apps Go project, and is responsible for diagnosing the log file.
+
 package api
 
 import (
 	"bufio"
 	"bytes"
 	"crypto/sha1"
-	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
-	"io"
+	"mime/multipart"
 	"net/http"
 	"os"
 	"os/exec"
@@ -16,6 +36,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
+	"unsafe"
 )
 
 // ErrorDiagnosis contains the results of diagnosing a log file
@@ -865,6 +887,16 @@ func LogDiagnose(logfilePath string, allowWrite bool) (*ErrorDiagnosis, error) {
 	//------------------------------------------
 	//apt/dpkg issues above, package issues below
 	//------------------------------------------
+
+	// check for "Consult /var/lib/dkms/anbox-ashmem/1/build/make.log for more information."
+	regexAnboxCompileFailure := regexp.MustCompile(`Consult /var/lib/dkms/anbox-ashmem/1/build/make.log for more information.`)
+	if regexAnboxCompileFailure.MatchString(errors) {
+		diagnosis.Captions = append(diagnosis.Captions,
+			"Anbox kernel modules no longer compile on the latest kernel. You need to remove it for the kernel to fully install and for APT to work.\n"+
+				"Run this command to remove anbox kernel modules, then retry the operation.\n\n"+
+				"sudo rm -rf /etc/modules-load.d/anbox.conf /lib/udev/rules.d/99-anbox.rules /usr/src/anbox-ashmem-1/ /usr/src/anbox-binder-1/ /var/lib/dkms/anbox-*")
+		diagnosis.ErrorType = "package"
+	}
 
 	// check for "installed .* post-installation script subprocess returned error exit status"
 	regexPostInstall := regexp.MustCompile(`installed .* post-installation script subprocess returned error exit status`)
@@ -1863,16 +1895,12 @@ func GetDeviceInfo() (string, error) {
 		info.WriteString("OS: Unknown\n")
 	}
 
-	// Get OS architecture
-	archOutput, err := runCommand("getconf", "LONG_BIT")
-	if err == nil {
-		info.WriteString("OS architecture: " + strings.TrimSpace(archOutput) + "-bit\n")
-	} else {
-		info.WriteString("OS architecture: Unknown\n")
-	}
+	// Get OS architecture using unsafe.Sizeof
+	arch := fmt.Sprintf("%d", unsafe.Sizeof(uintptr(0))*8)
+	info.WriteString("OS architecture: " + arch + "-bit\n")
 
 	// Get Pi-Apps information
-	piAppsDir := os.Getenv("DIRECTORY") // Pi-Apps directory environment variable
+	piAppsDir := os.Getenv("PI_APPS_DIR") // Pi-Apps directory environment variable
 	if piAppsDir != "" && fileExists(piAppsDir) {
 		// Get last local update date
 		cmd := exec.Command("bash", "-c",
@@ -1888,14 +1916,53 @@ func GetDeviceInfo() (string, error) {
 		// Get latest Pi-Apps version
 		gitURLPath := filepath.Join(piAppsDir, "etc", "git_url")
 		if fileExists(gitURLPath) {
-			// Use the exact command that works in the terminal
-			cmd = exec.Command("bash", "-c",
-				`wget -qO- https://api.github.com/repos/Botspot/pi-apps/commits/master 2>/dev/null | grep '"date"' | head -1 | awk -F'"' '{print $4}' | cut -dT -f1 | xargs -I{} date +%m/%d/%Y -d {}`)
-			output, err := cmd.Output()
-			if err == nil && len(output) > 0 {
-				dateStr := strings.TrimSpace(string(output))
-				if dateStr != "" {
-					info.WriteString("Latest Pi-Apps version: " + dateStr + "\n")
+			// Read git URL from file
+			gitURLBytes, err := os.ReadFile(gitURLPath)
+			if err == nil {
+				gitURL := strings.TrimSpace(string(gitURLBytes))
+
+				// Parse account and repository from URL
+				parts := strings.Split(gitURL, "/")
+				if len(parts) >= 2 {
+					account := parts[len(parts)-2]
+					repo := parts[len(parts)-1]
+
+					// Make HTTP request to GitHub API
+					apiURL := fmt.Sprintf("https://api.github.com/repos/%s/%s/commits/master", account, repo)
+
+					// Create request with optional GitHub API key
+					req, err := http.NewRequest("GET", apiURL, nil)
+					if err == nil {
+						// Add GitHub API key if available
+						if apiKey := os.Getenv("GITHUB_API_KEY"); apiKey != "" {
+							req.Header.Set("Authorization", "token "+apiKey)
+						}
+
+						// Make the request
+						client := &http.Client{}
+						resp, err := client.Do(req)
+						if err == nil {
+							defer resp.Body.Close()
+
+							// Parse JSON response
+							var commits []struct {
+								Commit struct {
+									Author struct {
+										Date string `json:"date"`
+									} `json:"author"`
+								} `json:"commit"`
+							}
+
+							if err := json.NewDecoder(resp.Body).Decode(&commits); err == nil && len(commits) > 0 {
+								// Parse the ISO date and format it
+								date, err := time.Parse(time.RFC3339, commits[0].Commit.Author.Date)
+								if err == nil {
+									dateStr := date.Format("01/02/2006")
+									info.WriteString("Latest Pi-Apps version: " + dateStr + "\n")
+								}
+							}
+						}
+					}
 				}
 			}
 		}
@@ -2042,7 +2109,6 @@ func containsAny(s string, patterns []string) bool {
 }
 
 // SendErrorReport sends an error report to the Pi-Apps team
-// This is a placeholder implementation
 func SendErrorReport(logfilePath string) (string, error) {
 	// Validate arguments
 	if logfilePath == "" {
@@ -2077,62 +2143,69 @@ func SendErrorReport(logfilePath string) (string, error) {
 		return "Log file not sent - missing required header", nil
 	}
 
-	// The webhook URL is obfuscated to prevent abuse
-	// This is similar to how the original bash script handled it
-	webhookURLData := "aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JvdHNwb3QvcGktYXBwcy1hbmFseXRpY3MvbWFpbi9lcnJvci1sb2ctd2ViaG9vay1uZXcK"
-	decodedURL, err := getDeobfuscatedWebhookURL(webhookURLData)
+	// Get a token from the error report server
+	client := &http.Client{}
+	tokenResp, err := client.Get("http://localhost:8080/token") // localhost for development purposes
 	if err != nil {
-		return "", fmt.Errorf("error processing webhook URL: %w", err)
+		return "", fmt.Errorf("failed to get error report token: %w", err)
+	}
+	defer tokenResp.Body.Close()
+
+	if tokenResp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("failed to get error report token: server returned %d", tokenResp.StatusCode)
+	}
+
+	var tokenData struct {
+		Token string `json:"token"`
+	}
+	if err := json.NewDecoder(tokenResp.Body).Decode(&tokenData); err != nil {
+		return "", fmt.Errorf("failed to decode token response: %w", err)
 	}
 
 	// Create a filename for the upload that removes the .log extension
 	filename := filepath.Base(logfilePath)
 	filename = strings.TrimSuffix(filename, filepath.Ext(filename)) + ".txt"
 
-	// Use curl to upload the file to maintain compatibility with the original implementation
-	// This approach is more resistant to simple reverse engineering
-	cmd := exec.Command("curl", "-F", fmt.Sprintf("file=@%s;filename=%s", logfilePath, filename), decodedURL)
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-
-	if err := cmd.Run(); err != nil {
-		return "", fmt.Errorf("curl failed to upload log file: %s", stderr.String())
+	// Create a multipart form request
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+	part, err := writer.CreateFormFile("file", filename)
+	if err != nil {
+		return "", fmt.Errorf("failed to create form file: %w", err)
 	}
 
-	return "Error report sent successfully!", nil
-}
-
-// getDeobfuscatedWebhookURL handles the deobfuscation of the webhook URL
-// This function processes the obfuscated data to obtain the actual webhook URL
-// The implementation is deliberately kept minimal to maintain security
-func getDeobfuscatedWebhookURL(encodedData string) (string, error) {
-	// First level of deobfuscation - base64 decode
-	// This actually contains the GitHub URL where the webhook is stored
-	githubURL, err := base64.StdEncoding.DecodeString(encodedData)
+	// Read and write the file content
+	fileContent, err := os.ReadFile(logfilePath)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to read log file: %w", err)
+	}
+	if _, err := part.Write(fileContent); err != nil {
+		return "", fmt.Errorf("failed to write file content: %w", err)
+	}
+	writer.Close()
+
+	// Create the request
+	req, err := http.NewRequest("POST", "http://localhost:8080/report", body) // localhost is for development purposes
+	if err != nil {
+		return "", fmt.Errorf("failed to create request: %w", err)
 	}
 
-	// Fetch the webhook URL from the obfuscated location
-	resp, err := http.Get(string(githubURL))
+	// Set headers
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	req.Header.Set("X-Error-Report-Token", tokenData.Token)
+
+	// Send the request
+	resp, err := client.Do(req)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to send error report: %w", err)
 	}
 	defer resp.Body.Close()
 
-	webhookData, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", err
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("failed to send error report: server returned %d", resp.StatusCode)
 	}
 
-	// Final layer of deobfuscation
-	finalURL, err := base64.StdEncoding.DecodeString(string(webhookData))
-	if err != nil {
-		return "", err
-	}
-
-	return string(finalURL), nil
+	return "Error report sent successfully!", nil
 }
 
 // fileContainsPattern checks if a file contains a given pattern
