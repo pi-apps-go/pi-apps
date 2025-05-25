@@ -1272,7 +1272,7 @@ func PurgePackages(app string, isUpdate bool) error {
 		}
 	} else {
 		// Check for legacy installed-packages file
-		installDataDir := os.Getenv("DIRECTORY")
+		installDataDir := os.Getenv("PI_APPS_DIR")
 		if installDataDir == "" {
 			installDataDir = "/home/pi/pi-apps" // Default location
 		}
@@ -1406,7 +1406,7 @@ func PurgePackages(app string, isUpdate bool) error {
 	}
 
 	// Clean up the installed-packages file
-	installDataDir := os.Getenv("DIRECTORY")
+	installDataDir := os.Getenv("PI_APPS_DIR")
 	if installDataDir == "" {
 		installDataDir = "/home/pi/pi-apps" // Default location
 	}

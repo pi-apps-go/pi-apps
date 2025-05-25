@@ -307,7 +307,7 @@ func main() {
 
 			// Check result
 			if err != nil {
-				api.ErrorNoExit("Error: " + err.Error())
+				// Do nothing here considering the error handling and display of the Need help? section is already handled in the manage package
 			} else {
 				api.StatusGreen("Operation completed successfully")
 				queue[i].Status = "success"

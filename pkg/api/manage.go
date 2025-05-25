@@ -21,6 +21,7 @@ package api
 import (
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -194,14 +195,17 @@ func ManageApp(action Action, appName string, isUpdate bool) error {
 
 	// Determine success or failure
 	if err != nil {
+		// Write plain text to log file (no color codes)
 		fmt.Fprintf(logFile, "\nFailed to %s %s!\n", action, appName)
-		ErrorNoExit(fmt.Sprintf("\nFailed to %s %s!\n", action, appName))
 		fmt.Fprintf(logFile, "Need help? Copy the ENTIRE terminal output or take a screenshot.\n")
 		fmt.Fprintf(logFile, "Please ask on Github: https://github.com/pi-apps-go/pi-apps/issues/new/choose\n")
 		fmt.Fprintf(logFile, "Or on Discord: https://discord.gg/RXSTvaUvuu\n")
-		fmt.Printf("Need help? Copy the ENTIRE terminal output or take a screenshot.\n")
-		fmt.Printf("Please ask on Github: https://github.com/pi-apps-go/pi-apps/issues/new/choose\n")
-		fmt.Printf("Or on Discord: https://discord.gg/RXSTvaUvuu\n")
+
+		// Write colored messages to stdout (terminal) matching the original bash formatting
+		fmt.Printf("\n\033[91mFailed to %s %s!\033[39m\n", action, appName)
+		fmt.Printf("\033[40m\033[93m\033[5m◢◣\033[25m\033[39m\033[49m\033[93mNeed help? Copy the \033[1mENTIRE\033[0m\033[49m\033[93m terminal output or take a screenshot.\n")
+		fmt.Printf("Please ask on Github: \033[94m\033[4mhttps://github.com/pi-apps-go/pi-apps/issues/new/choose\033[24m\033[93m\n")
+		fmt.Printf("Or on Discord: \033[94m\033[4mhttps://discord.gg/RXSTvaUvuu\033[0m\n")
 
 		// Rename log file to indicate failure
 		newLogPath := strings.Replace(logPath, "-incomplete-", "-fail-", 1)
@@ -607,6 +611,43 @@ func uninstallScriptApp(appName string) error {
 
 // runAppScript runs a script for an app (install, uninstall, update)
 func runAppScript(appName, scriptName string) error {
+	// Get PI_APPS_DIR environment variable
+	piAppsDir := getPiAppsDir()
+	if piAppsDir == "" {
+		return fmt.Errorf("PI_APPS_DIR environment variable not set")
+	}
+
+	// Set up logging
+	logDir := filepath.Join(piAppsDir, "logs")
+	os.MkdirAll(logDir, 0755)
+	logFilename := fmt.Sprintf("%s-incomplete-%s.log", scriptName, appName)
+	logPath := filepath.Join(logDir, logFilename)
+
+	// If log file already exists with another status, create a new one with a suffix
+	if _, err := os.Stat(logPath); err == nil {
+		// File already exists, add a number to the filename
+		i := 1
+		for {
+			newLogPath := fmt.Sprintf("%s%d", logPath, i)
+			if _, err := os.Stat(newLogPath); os.IsNotExist(err) {
+				logPath = newLogPath
+				break
+			}
+			i++
+		}
+	}
+
+	// Create log file
+	logFile, err := os.Create(logPath)
+	if err != nil {
+		return fmt.Errorf("failed to create log file: %w", err)
+	}
+	defer logFile.Close()
+
+	// Write to both log file and stdout
+	fmt.Fprintf(logFile, "%s %sing %s...\n\n", time.Now().Format("2006-01-02 15:04:05"), scriptName, appName)
+	fmt.Printf("%sing %s...\n\n", scriptName, appName)
+
 	scriptPath := filepath.Join(getPiAppsDir(), "apps", appName, scriptName)
 
 	// Check if script exists
@@ -653,15 +694,15 @@ func runAppScript(appName, scriptName string) error {
 	}
 
 	fmt.Printf("Running script: %s\n", scriptPath)
+	fmt.Fprintf(logFile, "Running script: %s\n", scriptPath)
 
 	// Make script executable if it's not already
-	err := os.Chmod(scriptPath, 0755)
+	err = os.Chmod(scriptPath, 0755)
 	if err != nil {
 		return fmt.Errorf("failed to make script executable: %v", err)
 	}
 
 	// Get API wrapper path
-	piAppsDir := getPiAppsDir()
 	apiBashWrapper := filepath.Join(piAppsDir, "api")
 	if _, err := os.Stat(apiBashWrapper); os.IsNotExist(err) {
 		return fmt.Errorf("API bash wrapper not found at %s",
@@ -727,8 +768,10 @@ cd "%s"
 		cmd = exec.Command(tempScriptPath)
 	}
 
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	// Connect command output to both log file and stdout using multiwriter
+	multiWriter := io.MultiWriter(logFile, os.Stdout)
+	cmd.Stdout = multiWriter
+	cmd.Stderr = multiWriter
 	cmd.Dir = appDir
 
 	// Set environment variables that scripts might need
@@ -746,16 +789,56 @@ cd "%s"
 
 	// Run the command
 	err = cmd.Run()
+
+	// Determine success or failure
 	if err != nil {
+		// Write plain text to log file (no color codes)
+		fmt.Fprintf(logFile, "\nFailed to %s %s!\n", scriptName, appName)
+		fmt.Fprintf(logFile, "Need help? Copy the ENTIRE terminal output or take a screenshot.\n")
+		fmt.Fprintf(logFile, "Please ask on Github: https://github.com/pi-apps-go/pi-apps/issues/new/choose\n")
+		fmt.Fprintf(logFile, "Or on Discord: https://discord.gg/RXSTvaUvuu\n")
+
+		// Write colored messages to stdout (terminal) matching the original bash formatting
+		fmt.Printf("\n\033[91mFailed to %s %s!\033[39m\n", scriptName, appName)
+		fmt.Printf("\033[40m\033[93m\033[5m◢◣\033[25m\033[39m\033[49m\033[93mNeed help? Copy the \033[1mENTIRE\033[0m\033[49m\033[93m terminal output or take a screenshot.\n")
+		fmt.Printf("Please ask on Github: \033[94m\033[4mhttps://github.com/pi-apps-go/pi-apps/issues/new/choose\033[24m\033[93m\n")
+		fmt.Printf("Or on Discord: \033[94m\033[4mhttps://discord.gg/RXSTvaUvuu\033[0m\n")
+
+		// Rename log file to indicate failure
+		newLogPath := strings.Replace(logPath, "-incomplete-", "-fail-", 1)
+		os.Rename(logPath, newLogPath)
+
+		// For script-type apps, set status to corrupted if the error is not system, internet, or package related
+		appType, typeErr := GetAppType(appName)
+		if typeErr == nil && appType == "standard" {
+			// Use log_diagnose to determine error type and set appropriate status
+			diagnosis, diagErr := LogDiagnose(newLogPath, true)
+			if diagErr == nil && (diagnosis.ErrorType == "system" || diagnosis.ErrorType == "internet" || diagnosis.ErrorType == "package") {
+				SetAppStatus(appName, "failed")
+			} else {
+				SetAppStatus(appName, "corrupted")
+			}
+			if diagErr != nil {
+				ErrorNoExit("Unable to detect error type, setting it as failed")
+				SetAppStatus(appName, "failed")
+			}
+		}
+
 		return fmt.Errorf("failed to run %s script: %v", scriptName, err)
 	}
 
+	// Success
+	fmt.Fprintf(logFile, "\n%s %sed successfully.\n", scriptName, appName)
+	fmt.Printf("\n%s %sed successfully.\n", scriptName, appName)
+
+	// Rename log file to indicate success
+	newLogPath := strings.Replace(logPath, "-incomplete-", "-success-", 1)
+	os.Rename(logPath, newLogPath)
+
 	// Display success message consistently for both package and script apps
 	if scriptName == "install" {
-		fmt.Printf("\ninstall completed successfully for %s\n", appName)
 		return markAppAsInstalled(appName)
 	} else if scriptName == "uninstall" {
-		fmt.Printf("\nuninstall completed successfully for %s\n", appName)
 		return markAppAsUninstalled(appName)
 	}
 

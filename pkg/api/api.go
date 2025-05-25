@@ -145,59 +145,18 @@ func GenerateLogo() string {
 
 // checkUnicodeSupport checks if the system supports Unicode 13 (libicu66+)
 func checkUnicodeSupport() bool {
-	paths := []string{
-		"/usr/lib/aarch64-linux-gnu/libicudata.so",
-		"/usr/lib/arm-linux-gnueabihf/libicudata.so",
-		"/usr/lib/x86_64-linux-gnu/libicudata.so",
-		"/usr/lib/i686-linux-gnu/libicudata.so",
-		"/usr/lib/riscv64-linux-gnu/libicudata.so",
-		"/usr/lib/riscv32-linux-gnu/libicudata.so",
+	version := GetICUVersion()
+	parts := strings.Split(version, ".")
+	if len(parts) < 1 {
+		return false
 	}
 
-	// Check for direct file existence first
-	for _, path := range paths {
-		if _, err := os.Stat(path); err == nil {
-			// Get the version by following the symlink
-			realPath, err := os.Readlink(path)
-			if err == nil {
-				re := regexp.MustCompile(`libicudata\.so\.(\d+)`)
-				matches := re.FindStringSubmatch(realPath)
-				if len(matches) > 1 {
-					version, err := strconv.Atoi(matches[1])
-					if err == nil && version >= 66 {
-						return true
-					}
-				}
-			}
-		}
+	majorVersion, err := strconv.Atoi(parts[0])
+	if err != nil {
+		return false
 	}
 
-	// Check for any matching files using glob patterns
-	searchPaths := []string{
-		"/usr/lib/aarch64-linux-gnu/libicudata.so.*",
-		"/usr/lib/arm-linux-gnueabihf/libicudata.so.*",
-		"/usr/lib/x86_64-linux-gnu/libicudata.so.*",
-		"/usr/lib/i686-linux-gnu/libicudata.so.*",
-		"/usr/lib/riscv64-linux-gnu/libicudata.so.*",
-		"/usr/lib/riscv32-linux-gnu/libicudata.so.*",
-	}
-
-	for _, pattern := range searchPaths {
-		matches, err := filepath.Glob(pattern)
-		if err == nil && len(matches) > 0 {
-			// Extract version from the first match
-			re := regexp.MustCompile(`libicudata\.so\.(\d+)`)
-			submatches := re.FindStringSubmatch(matches[0])
-			if len(submatches) > 1 {
-				version, err := strconv.Atoi(submatches[1])
-				if err == nil && version >= 66 {
-					return true
-				}
-			}
-		}
-	}
-
-	return false
+	return majorVersion >= 66
 }
 
 // AddEnglish adds en_US locale for more accurate error messages
