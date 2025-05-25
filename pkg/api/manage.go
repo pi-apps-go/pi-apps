@@ -123,9 +123,9 @@ func ManageApp(action Action, appName string, isUpdate bool) error {
 	}
 	defer logFile.Close()
 
-	// Write to both log file and stdout
+	// Write to log file (plain text) and stdout (colored)
 	fmt.Fprintf(logFile, "%s %sing %s...\n\n", time.Now().Format("2006-01-02 15:04:05"), action, appName)
-	fmt.Printf("%sing %s...\n\n", action, appName)
+	Status(fmt.Sprintf("%sing \033[1m%s\033[22m...", action, appName))
 
 	// Check if system is supported
 	supported, supportMessage := IsAppSupportedOnSystem(appName)
@@ -258,7 +258,7 @@ func ManageApp(action Action, appName string, isUpdate bool) error {
 
 	// Success
 	fmt.Fprintf(logFile, "\n%s %sed successfully.\n", action, appName)
-	fmt.Printf("\n%s %sed successfully.\n", action, appName)
+	StatusGreen(fmt.Sprintf("%s %sed successfully.", action, appName))
 
 	// Rename log file to indicate success
 	newLogPath := strings.Replace(logPath, "-incomplete-", "-success-", 1)
@@ -574,6 +574,9 @@ func MultiUninstall(appList []string) error {
 
 // installPackageApp installs a package-based app
 func installPackageApp(appName string) error {
+	// Show colored status message
+	Status(fmt.Sprintf("Installing \033[1m%s\033[22m...", appName))
+
 	packageListPath := filepath.Join(getPiAppsDir(), "apps", appName, "packages")
 
 	// Read packages list
@@ -595,12 +598,18 @@ func installPackageApp(appName string) error {
 		return fmt.Errorf("failed to install packages: %v", err)
 	}
 
+	// Show success message
+	StatusGreen(fmt.Sprintf("Installed %s successfully.", appName))
+
 	// Mark app as installed
 	return markAppAsInstalled(appName)
 }
 
 // uninstallPackageApp uninstalls a package-based app
 func uninstallPackageApp(appName string) error {
+	// Show colored status message
+	Status(fmt.Sprintf("Uninstalling \033[1m%s\033[22m...", appName))
+
 	packageListPath := filepath.Join(getPiAppsDir(), "apps", appName, "packages")
 
 	// Read packages list
@@ -621,6 +630,9 @@ func uninstallPackageApp(appName string) error {
 	if err != nil {
 		return fmt.Errorf("failed to uninstall packages: %v", err)
 	}
+
+	// Show success message
+	StatusGreen(fmt.Sprintf("Uninstalled %s successfully.", appName))
 
 	// Mark app as uninstalled
 	return markAppAsUninstalled(appName)
@@ -671,9 +683,9 @@ func runAppScript(appName, scriptName string) error {
 	}
 	defer logFile.Close()
 
-	// Write to both log file and stdout
+	// Write to log file (plain text) and stdout (colored)
 	fmt.Fprintf(logFile, "%s %sing %s...\n\n", time.Now().Format("2006-01-02 15:04:05"), scriptName, appName)
-	fmt.Printf("%sing %s...\n\n", scriptName, appName)
+	Status(fmt.Sprintf("%sing \033[1m%s\033[22m...", strings.Title(scriptName), appName))
 
 	scriptPath := filepath.Join(getPiAppsDir(), "apps", appName, scriptName)
 
@@ -858,7 +870,7 @@ cd "%s"
 
 	// Success
 	fmt.Fprintf(logFile, "\n%s %sed successfully.\n", scriptName, appName)
-	fmt.Printf("\n%s %sed successfully.\n", scriptName, appName)
+	StatusGreen(fmt.Sprintf("%sed %s successfully.", strings.Title(scriptName), appName))
 
 	// Rename log file to indicate success
 	newLogPath := strings.Replace(logPath, "-incomplete-", "-success-", 1)

@@ -695,6 +695,7 @@ func importFromPRZip(zipURL, piAppsDir, branchName string) ([]string, error) {
 		// Check if it's a new app or significantly different
 		isNew := !existingApps[appName]
 		if !isNew {
+			// TODO: Add more sophisticated comparison
 			// For existing apps, we could add more sophisticated comparison
 			// For now, we'll import it anyway as an update
 		}
