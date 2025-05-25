@@ -25,6 +25,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 	"time"
@@ -39,6 +40,30 @@ const (
 	ActionUpdate    Action = "update"
 	ActionRefresh   Action = "refresh"
 )
+
+// AnsiStripWriter wraps an io.Writer and strips ANSI escape sequences before writing
+type AnsiStripWriter struct {
+	writer io.Writer
+	ansiRe *regexp.Regexp
+}
+
+// NewAnsiStripWriter creates a new AnsiStripWriter
+func NewAnsiStripWriter(w io.Writer) *AnsiStripWriter {
+	return &AnsiStripWriter{
+		writer: w,
+		ansiRe: regexp.MustCompile(`\x1b\[?[0-9;]*[a-zA-Z]`),
+	}
+}
+
+// Write implements io.Writer interface, stripping ANSI codes before writing
+func (w *AnsiStripWriter) Write(p []byte) (n int, err error) {
+	// Strip ANSI escape sequences
+	cleaned := w.ansiRe.ReplaceAll(p, []byte{})
+	// Write the cleaned content to the underlying writer
+	_, err = w.writer.Write(cleaned)
+	// Return the original length to satisfy the io.Writer interface
+	return len(p), err
+}
 
 // ManageApp handles installation, uninstallation, or updating of an app
 func ManageApp(action Action, appName string, isUpdate bool) error {
@@ -186,9 +211,11 @@ func ManageApp(action Action, appName string, isUpdate bool) error {
 	// Set environment variable for non-interactive installation
 	cmd.Env = append(os.Environ(), "DEBIAN_FRONTEND=noninteractive")
 
-	// Connect command output to both log file and stdout
-	cmd.Stdout = logFile
-	cmd.Stderr = logFile
+	// Create ANSI-stripping writer for log file to avoid escape codes in logs
+	ansiStripLogWriter := NewAnsiStripWriter(logFile)
+	// Connect command output to log file with ANSI stripped
+	cmd.Stdout = ansiStripLogWriter
+	cmd.Stderr = ansiStripLogWriter
 
 	// Run the command
 	err = cmd.Run()
@@ -768,8 +795,10 @@ cd "%s"
 		cmd = exec.Command(tempScriptPath)
 	}
 
-	// Connect command output to both log file and stdout using multiwriter
-	multiWriter := io.MultiWriter(logFile, os.Stdout)
+	// Create ANSI-stripping writer for log file to avoid escape codes in logs
+	ansiStripLogWriter := NewAnsiStripWriter(logFile)
+	// Connect command output to both log file (with ANSI stripped) and stdout (with ANSI preserved)
+	multiWriter := io.MultiWriter(ansiStripLogWriter, os.Stdout)
 	cmd.Stdout = multiWriter
 	cmd.Stderr = multiWriter
 	cmd.Dir = appDir

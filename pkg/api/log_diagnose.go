@@ -1860,14 +1860,21 @@ func FormatLogfile(filename string) error {
 		return err
 	}
 
+	// Remove ANSI escape sequences
+	cleanedContent := RemoveAnsiEscapes(string(content))
+
+	// Check if the file already starts with device information
+	// Look for patterns that indicate system info is already present
+	if strings.HasPrefix(cleanedContent, "OS: ") {
+		// File already has device info, just clean ANSI and write back
+		return os.WriteFile(filename, []byte(cleanedContent), 0644)
+	}
+
 	// Get device info
 	deviceInfo, err := GetDeviceInfo()
 	if err != nil {
 		deviceInfo = "Failed to get device info"
 	}
-
-	// Remove ANSI escape sequences
-	cleanedContent := RemoveAnsiEscapes(string(content))
 
 	// Create the formatted content
 	formattedContent := deviceInfo + "\n\nBEGINNING OF LOG FILE:\n-----------------------\n\n" + cleanedContent

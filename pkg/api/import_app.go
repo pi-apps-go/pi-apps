@@ -21,6 +21,7 @@ package api
 
 import (
 	"archive/zip"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -518,14 +519,224 @@ func importFromDirectory(dirPath, piAppsDir string) (string, error) {
 }
 
 func importFromPullRequest(prURL, piAppsDir string) ([]string, error) {
-	// TODO: Implement GitHub PR import
-	// This would require:
-	// 1. Fetching PR information
-	// 2. Getting the branch information
-	// 3. Cloning the repository
-	// 4. Comparing with main branch
-	// 5. Extracting new/modified apps
-	return nil, fmt.Errorf("GitHub PR import not implemented yet")
+	// Parse GitHub PR URL to extract owner, repo, and PR number
+	parts := strings.Split(prURL, "/")
+	if len(parts) < 7 || !strings.Contains(prURL, "github.com") || !strings.Contains(prURL, "/pull/") {
+		return nil, fmt.Errorf("invalid GitHub PR URL format")
+	}
+
+	owner := parts[3]
+	repo := parts[4]
+	prNumber := parts[6]
+
+	// Fetch PR information from GitHub API
+	apiURL := fmt.Sprintf("https://api.github.com/repos/%s/%s/pulls/%s", owner, repo, prNumber)
+	resp, err := http.Get(apiURL)
+	if err != nil {
+		return nil, fmt.Errorf("error fetching PR information: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return nil, fmt.Errorf("GitHub API returned status %d", resp.StatusCode)
+	}
+
+	// Parse PR response
+	var prInfo struct {
+		Head struct {
+			Ref  string `json:"ref"`
+			Sha  string `json:"sha"`
+			Repo struct {
+				FullName string `json:"full_name"`
+			} `json:"repo"`
+		} `json:"head"`
+		Base struct {
+			Ref string `json:"ref"`
+		} `json:"base"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&prInfo); err != nil {
+		return nil, fmt.Errorf("error parsing PR information: %w", err)
+	}
+
+	// Download the PR branch as zip
+	zipURL := fmt.Sprintf("https://github.com/%s/archive/%s.zip", prInfo.Head.Repo.FullName, prInfo.Head.Sha)
+	return importFromPRZip(zipURL, piAppsDir, prInfo.Head.Ref)
+}
+
+// importFromPRZip downloads and imports apps from a GitHub PR zip
+func importFromPRZip(zipURL, piAppsDir, branchName string) ([]string, error) {
+	// Download the zip file
+	resp, err := http.Get(zipURL)
+	if err != nil {
+		return nil, fmt.Errorf("error downloading PR zip: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return nil, fmt.Errorf("error downloading PR zip: status %d", resp.StatusCode)
+	}
+
+	// Create temporary file
+	tmpFile, err := os.CreateTemp("", "pi-apps-pr-*.zip")
+	if err != nil {
+		return nil, fmt.Errorf("error creating temporary file: %w", err)
+	}
+	defer os.Remove(tmpFile.Name())
+
+	// Save the zip file
+	_, err = io.Copy(tmpFile, resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("error saving PR zip: %w", err)
+	}
+	tmpFile.Close()
+
+	// Extract zip to temporary directory
+	reader, err := zip.OpenReader(tmpFile.Name())
+	if err != nil {
+		return nil, fmt.Errorf("error opening PR zip: %w", err)
+	}
+	defer reader.Close()
+
+	tmpDir, err := os.MkdirTemp("", "pi-apps-pr-*")
+	if err != nil {
+		return nil, fmt.Errorf("error creating temporary directory: %w", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Extract zip contents
+	for _, file := range reader.File {
+		path := filepath.Join(tmpDir, file.Name)
+		if file.FileInfo().IsDir() {
+			os.MkdirAll(path, 0755)
+			continue
+		}
+
+		os.MkdirAll(filepath.Dir(path), 0755)
+
+		rc, err := file.Open()
+		if err != nil {
+			return nil, fmt.Errorf("error opening zip entry: %w", err)
+		}
+
+		out, err := os.Create(path)
+		if err != nil {
+			rc.Close()
+			return nil, fmt.Errorf("error creating output file: %w", err)
+		}
+
+		_, err = io.Copy(out, rc)
+		out.Close()
+		rc.Close()
+		if err != nil {
+			return nil, fmt.Errorf("error extracting file: %w", err)
+		}
+	}
+
+	// Find the extracted repository directory
+	entries, err := os.ReadDir(tmpDir)
+	if err != nil {
+		return nil, fmt.Errorf("error reading temporary directory: %w", err)
+	}
+
+	var repoDir string
+	for _, entry := range entries {
+		if entry.IsDir() {
+			repoDir = filepath.Join(tmpDir, entry.Name())
+			break
+		}
+	}
+
+	if repoDir == "" {
+		return nil, fmt.Errorf("could not find repository directory in PR zip")
+	}
+
+	// Look for apps in the apps directory
+	appsDir := filepath.Join(repoDir, "apps")
+	if !isDir(appsDir) {
+		return nil, fmt.Errorf("no apps directory found in PR")
+	}
+
+	// Get list of apps from PR
+	prApps, err := os.ReadDir(appsDir)
+	if err != nil {
+		return nil, fmt.Errorf("error reading PR apps directory: %w", err)
+	}
+
+	// Get list of existing apps
+	existingAppsDir := filepath.Join(piAppsDir, "apps")
+	existingApps := make(map[string]bool)
+	if isDir(existingAppsDir) {
+		existing, err := os.ReadDir(existingAppsDir)
+		if err == nil {
+			for _, app := range existing {
+				if app.IsDir() {
+					existingApps[app.Name()] = true
+				}
+			}
+		}
+	}
+
+	// Import new apps
+	var importedApps []string
+	for _, app := range prApps {
+		if !app.IsDir() {
+			continue
+		}
+
+		appName := app.Name()
+		appSourceDir := filepath.Join(appsDir, appName)
+
+		// Validate app structure
+		if err := validateAppStructure(appSourceDir); err != nil {
+			continue // Skip invalid apps
+		}
+
+		// Check if it's a new app or significantly different
+		isNew := !existingApps[appName]
+		if !isNew {
+			// For existing apps, we could add more sophisticated comparison
+			// For now, we'll import it anyway as an update
+		}
+
+		// Copy app to pi-apps directory
+		targetDir := filepath.Join(piAppsDir, "apps", appName)
+		os.RemoveAll(targetDir) // Remove existing if present
+
+		if err := copyDir(appSourceDir, targetDir); err != nil {
+			continue // Skip apps that fail to copy
+		}
+
+		importedApps = append(importedApps, appName)
+	}
+
+	if len(importedApps) == 0 {
+		return nil, fmt.Errorf("no valid apps found in PR")
+	}
+
+	return importedApps, nil
+}
+
+// copyDir recursively copies a directory
+func copyDir(src, dst string) error {
+	return filepath.Walk(src, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		relPath, err := filepath.Rel(src, path)
+		if err != nil {
+			return err
+		}
+
+		dstPath := filepath.Join(dst, relPath)
+
+		if info.IsDir() {
+			return os.MkdirAll(dstPath, info.Mode())
+		}
+
+		return CopyFile(path, dstPath)
+	})
 }
 
 // Helper functions
@@ -550,7 +761,7 @@ func isNumeric(s string) bool {
 func getGitUrl() (account, repo string) {
 	piAppsDir := os.Getenv("PI_APPS_DIR")
 	gitURLPath := filepath.Join(piAppsDir, "etc", "git_url")
-	if fileExists(gitURLPath) {
+	if FileExists(gitURLPath) {
 		// Read git URL from file
 		gitURLBytes, err := os.ReadFile(gitURLPath)
 		if err == nil {
