@@ -18,6 +18,12 @@ import (
 	"github.com/botspot/pi-apps/pkg/gui"
 )
 
+// Build-time variables
+var (
+	BuildDate string
+	GitCommit string
+)
+
 func main() {
 	// Define flags
 	installFlag := flag.Bool("install", false, "Install the specified apps")
@@ -32,6 +38,7 @@ func main() {
 	refreshFlag := flag.Bool("refresh", false, "Refresh the specified apps")
 	updateFileFlag := flag.Bool("update-file", false, "Update the specified files")
 	daemonFlag := flag.Bool("daemon", false, "Run in daemon mode")
+	versionFlag := flag.Bool("version", false, "Show version information")
 
 	// Custom error handling for undefined flags
 	flag.Usage = printUsage
@@ -42,6 +49,26 @@ func main() {
 		api.ErrorNoExit("Error: " + err.Error())
 		printUsage()
 		os.Exit(1)
+	}
+
+	// Check for version flag first
+	if *versionFlag {
+		fmt.Println("Pi-Apps Go management tool (rolling release)")
+		if BuildDate != "" {
+			api.Status(fmt.Sprintf("Built on %s", BuildDate))
+		} else {
+			api.ErrorNoExit("Build date not available")
+		}
+		if GitCommit != "" {
+			api.Status(fmt.Sprintf("Git commit: %s", GitCommit))
+			account, repo := api.GetGitUrl()
+			if account != "" && repo != "" {
+				api.Status(fmt.Sprintf("Link to commit: https://github.com/%s/%s/commit/%s", account, repo, GitCommit))
+			}
+		} else {
+			api.ErrorNoExit("Git commit hash not available")
+		}
+		return
 	}
 
 	// Get remaining arguments (app names)
@@ -1263,6 +1290,7 @@ func printUsage() {
 	fmt.Println("  -refresh                  Refresh the specified apps")
 	fmt.Println("  -update-file              Update the specified files")
 	fmt.Println("  -daemon                   Run in daemon mode")
+	fmt.Println("  -version                  Show version information")
 	fmt.Println()
 	fmt.Println("Examples:")
 	fmt.Println("  manage -install Firefox LibreOffice")
