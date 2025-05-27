@@ -33,6 +33,7 @@ import (
 )
 
 // GenerateAppIcons converts the given image into icon-24.png and icon-64.png files for the specified app
+//
 // This implementation uses the bimg library for image processing and preserves the original aspect ratio
 // of the image when resizing, similar to how ImageMagick would handle it in the bash implementation
 func GenerateAppIcons(iconPath, appName string) error {
@@ -144,9 +145,12 @@ func GenerateAppIcons(iconPath, appName string) error {
 }
 
 // RefreshPkgAppStatus updates the status of a package-app
-// If a package is installed, mark the app as installed
-// If a package is not installed but available, mark the app as uninstalled
-// If a package is not available, mark the app as hidden
+//
+// # If a package is installed, mark the app as installed
+//
+// # If a package is not installed but available, mark the app as uninstalled
+//
+// # If a package is not available, mark the app as hidden
 func RefreshPkgAppStatus(appName string, packageName string) error {
 	if appName == "" {
 		return fmt.Errorf("refresh_pkgapp_status(): no app specified")
@@ -377,6 +381,9 @@ func RefreshAllPkgAppStatus() error {
 }
 
 // getDpkgArchitecture gets the current system architecture from dpkg
+//
+//	architecture - system architecture
+//	error - error if dpkg is not installed
 func getDpkgArchitecture() (string, error) {
 	cmd := exec.Command("dpkg", "--print-architecture")
 	output, err := cmd.Output()
@@ -387,6 +394,9 @@ func getDpkgArchitecture() (string, error) {
 }
 
 // readPackagesFile reads and parses packages from a packages file
+//
+//	[]string - list of packages
+//	error - error if packages file does not exist
 func readPackagesFile(filePath string) ([]string, error) {
 	data, err := os.ReadFile(filePath)
 	if err != nil {
@@ -410,6 +420,10 @@ func readPackagesFile(filePath string) ([]string, error) {
 }
 
 // getAptCachePolicy runs apt-cache policy for the specified packages
+//
+//	"" - no packages specified
+//	aptCacheOutput - apt cache output
+//	error - error if apt-cache policy fails
 func getAptCachePolicy(packages []string) (string, error) {
 	if len(packages) == 0 {
 		return "", nil
@@ -425,6 +439,10 @@ func getAptCachePolicy(packages []string) (string, error) {
 }
 
 // getDpkgStatus gets the status of the specified packages from dpkg
+//
+//	"" - no packages specified
+//	dpkgStatus - dpkg status
+//	error - error if dpkg status fails
 func getDpkgStatus(packages []string) (string, error) {
 	if len(packages) == 0 {
 		return "", nil
@@ -587,6 +605,11 @@ func refreshPackageAppStatusWithCache(appName, aptCacheOutput, dpkgStatus, direc
 }
 
 // isPackageInstalledFromStatus checks if a package is installed by looking at the dpkg status
+//
+//	packageName - package name
+//	dpkgStatus - dpkg status
+//	false - package is not installed
+//	true - package is installed
 func isPackageInstalledFromStatus(packageName, dpkgStatus string) bool {
 	// Look for the package and check if it's installed
 	packageSection := fmt.Sprintf("Package: %s\n", packageName)

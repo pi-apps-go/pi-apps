@@ -57,16 +57,20 @@ func main() {
 
 	// Handle version flag
 	if *versionFlag {
-		fmt.Println("Pi-Apps Go API (rolling release)")
+		fmt.Println("Pi-Apps Go API binary runtime (rolling release)")
 		if BuildDate != "" {
-			fmt.Println("Built on", BuildDate)
+			api.Status(fmt.Sprintf("Built on %s", BuildDate))
 		} else {
-			fmt.Println("Build date not available")
+			api.ErrorNoExit("Build date not available")
 		}
 		if GitCommit != "" {
-			fmt.Println("Git commit:", GitCommit)
+			api.Status(fmt.Sprintf("Git commit: %s", GitCommit))
+			account, repo := api.GetGitUrl()
+			if account != "" && repo != "" {
+				api.Status(fmt.Sprintf("Link to commit: https://github.com/%s/%s/commit/%s", account, repo, GitCommit))
+			}
 		} else {
-			fmt.Println("Git commit hash not available")
+			api.ErrorNoExit("Git commit hash not available")
 		}
 		return
 	}
@@ -91,21 +95,20 @@ func main() {
 	switch strings.ToLower(command) {
 	case "package_info":
 		if len(args) < 1 {
-			fmt.Println("Error: No package specified")
-			fmt.Println("Usage: api package_info <package-name>")
+			api.ErrorNoExit("Error: No package specified")
+			api.Status("Usage: api package_info <package-name>")
 			os.Exit(1)
 		}
 		info, err := api.PackageInfo(args[0])
 		if err != nil {
-			fmt.Printf("Error: %v\n", err)
-			os.Exit(1)
+			api.Error(fmt.Sprintf("Error: %v", err))
 		}
 		fmt.Println(info)
 
 	case "package_installed":
 		if len(args) < 1 {
-			fmt.Println("Error: No package specified")
-			fmt.Println("Usage: api package_installed <package-name>")
+			api.ErrorNoExit("Error: No package specified")
+			api.Status("Usage: api package_installed <package-name>")
 			os.Exit(1)
 		}
 		if api.PackageInstalled(args[0]) {
@@ -118,8 +121,8 @@ func main() {
 
 	case "package_available":
 		if len(args) < 1 {
-			fmt.Println("Error: No package specified")
-			fmt.Println("Usage: api package_available <package-name> [architecture]")
+			api.ErrorNoExit("Error: No package specified")
+			api.Status("Usage: api package_available <package-name> [architecture]")
 			os.Exit(1)
 		}
 
@@ -138,14 +141,13 @@ func main() {
 
 	case "package_dependencies":
 		if len(args) < 1 {
-			fmt.Println("Error: No package specified")
-			fmt.Println("Usage: api package_dependencies <package-name>")
+			api.ErrorNoExit("Error: No package specified")
+			api.Status("Usage: api package_dependencies <package-name>")
 			os.Exit(1)
 		}
 		deps, err := api.PackageDependencies(args[0])
 		if err != nil {
-			fmt.Printf("Error: %v\n", err)
-			os.Exit(1)
+			api.Error(fmt.Sprintf("Error: %v", err))
 		}
 		if len(deps) > 0 {
 			fmt.Println(deps[0])
@@ -153,21 +155,20 @@ func main() {
 
 	case "package_installed_version":
 		if len(args) < 1 {
-			fmt.Println("Error: No package specified")
-			fmt.Println("Usage: api package_installed_version <package-name>")
+			api.ErrorNoExit("Error: No package specified")
+			api.Status("Usage: api package_installed_version <package-name>")
 			os.Exit(1)
 		}
 		version, err := api.PackageInstalledVersion(args[0])
 		if err != nil {
-			fmt.Printf("Error: %v\n", err)
-			os.Exit(1)
+			api.Error(fmt.Sprintf("Error: %v", err))
 		}
 		fmt.Println(version)
 
 	case "package_latest_version":
 		if len(args) < 1 {
-			fmt.Println("Error: No package specified")
-			fmt.Println("Usage: api package_latest_version <package-name> [-t <repository>]")
+			api.ErrorNoExit("Error: No package specified")
+			api.Status("Usage: api package_latest_version <package-name> [-t <repository>]")
 			os.Exit(1)
 		}
 
@@ -178,15 +179,14 @@ func main() {
 
 		version, err := api.PackageLatestVersion(args[0], repoArgs...)
 		if err != nil {
-			fmt.Printf("Error: %v\n", err)
-			os.Exit(1)
+			api.Error(fmt.Sprintf("Error: %v", err))
 		}
 		fmt.Println(version)
 
 	case "package_is_new_enough":
 		if len(args) < 2 {
-			fmt.Println("Error: Missing arguments")
-			fmt.Println("Usage: api package_is_new_enough <package-name> <version>")
+			api.ErrorNoExit("Error: Missing arguments")
+			api.Status("Usage: api package_is_new_enough <package-name> <version>")
 			os.Exit(1)
 		}
 
@@ -200,20 +200,19 @@ func main() {
 
 	case "download_file":
 		if len(args) < 2 {
-			fmt.Println("Error: Missing arguments")
-			fmt.Println("Usage: api download_file <url> <destination>")
+			api.ErrorNoExit("Error: Missing arguments")
+			api.Status("Usage: api download_file <url> <destination>")
 			os.Exit(1)
 		}
 
 		if err := api.DownloadFile(args[0], args[1]); err != nil {
-			fmt.Printf("Error: %v\n", err)
-			os.Exit(1)
+			api.Error(fmt.Sprintf("Error: %v", err))
 		}
 
 	case "file_exists":
 		if len(args) < 1 {
-			fmt.Println("Error: No file specified")
-			fmt.Println("Usage: api file_exists <file-path>")
+			api.ErrorNoExit("Error: No file specified")
+			api.Status("Usage: api file_exists <file-path>")
 			os.Exit(1)
 		}
 
@@ -227,8 +226,8 @@ func main() {
 
 	case "dir_exists":
 		if len(args) < 1 {
-			fmt.Println("Error: No directory specified")
-			fmt.Println("Usage: api dir_exists <directory-path>")
+			api.ErrorNoExit("Error: No directory specified")
+			api.Status("Usage: api dir_exists <directory-path>")
 			os.Exit(1)
 		}
 
@@ -242,39 +241,36 @@ func main() {
 
 	case "ensure_dir":
 		if len(args) < 1 {
-			fmt.Println("Error: No directory specified")
-			fmt.Println("Usage: api ensure_dir <directory-path>")
+			api.ErrorNoExit("Error: No directory specified")
+			api.Status("Usage: api ensure_dir <directory-path>")
 			os.Exit(1)
 		}
 
 		if err := api.EnsureDir(args[0]); err != nil {
-			fmt.Printf("Error: %v\n", err)
-			os.Exit(1)
+			api.Error(fmt.Sprintf("Error: %v", err))
 		}
 
 	case "copy_file":
 		if len(args) < 2 {
-			fmt.Println("Error: Missing arguments")
-			fmt.Println("Usage: api copy_file <source> <destination>")
+			api.ErrorNoExit("Error: Missing arguments")
+			api.Status("Usage: api copy_file <source> <destination>")
 			os.Exit(1)
 		}
 
 		if err := api.CopyFile(args[0], args[1]); err != nil {
-			fmt.Printf("Error: %v\n", err)
-			os.Exit(1)
+			api.Error(fmt.Sprintf("Error: %v", err))
 		}
 
 	case "files_match":
 		if len(args) < 2 {
-			fmt.Println("Error: Two files must be specified")
-			fmt.Println("Usage: api files_match <file1> <file2>")
+			api.ErrorNoExit("Error: Two files must be specified")
+			api.Status("Usage: api files_match <file1> <file2>")
 			os.Exit(1)
 		}
 
 		match, err := api.FilesMatch(args[0], args[1])
 		if err != nil {
-			fmt.Printf("Error: %v\n", err)
-			os.Exit(1)
+			api.Error(fmt.Sprintf("Error: %v", err))
 		}
 
 		if match {
@@ -287,68 +283,62 @@ func main() {
 
 	case "text_editor":
 		if len(args) < 1 {
-			fmt.Println("Error: No file specified")
-			fmt.Println("Usage: api text_editor <file-path>")
+			api.ErrorNoExit("Error: No file specified")
+			api.Status("Usage: api text_editor <file-path>")
 			os.Exit(1)
 		}
 
 		if err := api.TextEditor(args[0]); err != nil {
-			fmt.Printf("Error: %v\n", err)
-			os.Exit(1)
+			api.Error(fmt.Sprintf("Error: %v", err))
 		}
 
 	case "view_file":
 		if len(args) < 1 {
-			fmt.Println("Error: No file specified")
-			fmt.Println("Usage: api view_file <file>")
+			api.ErrorNoExit("Error: No file specified")
+			api.Status("Usage: api view_file <file>")
 			os.Exit(1)
 		}
 
 		// Check if the file exists
 		if _, err := os.Stat(args[0]); os.IsNotExist(err) {
-			fmt.Printf("Error: File does not exist: %s\n", args[0])
-			os.Exit(1)
+			api.Error(fmt.Sprintf("Error: File does not exist: %s", args[0]))
 		}
 
 		// Open file viewer
 		err := api.ViewFile(args[0])
 		if err != nil {
-			fmt.Printf("Error viewing file: %v\n", err)
-			os.Exit(1)
+			api.Error(fmt.Sprintf("Error viewing file: %v", err))
 		}
 
 	case "view_log":
 		if len(args) < 1 {
-			fmt.Println("Error: No file specified")
-			fmt.Println("Usage: api view_log <file>")
+			api.ErrorNoExit("Error: No file specified")
+			api.Status("Usage: api view_log <file>")
 			os.Exit(1)
 		}
 
 		// Check if the file exists
 		if _, err := os.Stat(args[0]); os.IsNotExist(err) {
-			fmt.Printf("Error: File does not exist: %s\n", args[0])
-			os.Exit(1)
+			api.Error(fmt.Sprintf("Error: File does not exist: %s", args[0]))
 		}
 
 		// Open file viewer
 		err := api.ViewLog(args[0])
 		if err != nil {
-			fmt.Printf("Error viewing file: %v\n", err)
-			os.Exit(1)
+			api.Error(fmt.Sprintf("Error viewing file: %v", err))
 		}
 
 	case "get_device_info":
 		// Call GetDeviceInfo and output the result
 		info, err := api.GetDeviceInfo()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error getting device info: %v\n", err)
-			os.Exit(1)
+			api.Error(fmt.Sprintf("Error getting device info: %v", err))
 		}
 		fmt.Print(info)
 
 	case "diagnose_apps":
 		if len(args) < 1 {
-			fmt.Fprintf(os.Stderr, "Error: diagnose_apps requires a failure list\n")
+			api.ErrorNoExit("Error: diagnose_apps requires a failure list")
 			os.Exit(1)
 		}
 
@@ -361,8 +351,7 @@ func main() {
 			// Read the file and parse for app name
 			content, err := os.ReadFile(input)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error reading file: %s\n", err)
-				os.Exit(1)
+				api.Error(fmt.Sprintf("Error reading file: %s", err))
 			}
 
 			// Extract app name from log file path
@@ -389,8 +378,7 @@ func main() {
 
 		// Validate the format
 		if !strings.Contains(failureList, ";") {
-			fmt.Fprintf(os.Stderr, "Error: Invalid failure list format. Expected 'action;app'\n")
-			os.Exit(1)
+			api.Error("Error: Invalid failure list format. Expected 'action;app'")
 		}
 
 		// Run the diagnostic UI
@@ -405,7 +393,7 @@ func main() {
 				fmt.Printf("Sending error report for %s...\n", result.AppName)
 				response, err := api.ProcessSendErrorReport(logfilePath)
 				if err != nil {
-					fmt.Fprintf(os.Stderr, "Error sending report: %s\n", err)
+					api.Error(fmt.Sprintf("Error sending report: %s", err))
 				} else {
 					fmt.Println(response)
 				}
@@ -414,8 +402,8 @@ func main() {
 
 	case "anything_installed_from_uri_suite_component":
 		if len(args) < 2 {
-			fmt.Println("Error: Missing required arguments")
-			fmt.Println("Usage: api anything_installed_from_uri_suite_component <uri> <suite> [component]")
+			api.ErrorNoExit("Error: Missing required arguments")
+			api.Status("Usage: api anything_installed_from_uri_suite_component <uri> <suite> [component]")
 			os.Exit(1)
 		}
 
@@ -428,8 +416,7 @@ func main() {
 
 		result, err := api.AnythingInstalledFromURISuiteComponent(uri, suite, component)
 		if err != nil {
-			fmt.Printf("Error: %v\n", err)
-			os.Exit(1)
+			api.Error(fmt.Sprintf("Error: %v", err))
 		}
 
 		// Exit with code 0 if packages are installed, 1 if not
@@ -439,8 +426,8 @@ func main() {
 
 	case "remove_repofile_if_unused":
 		if len(args) < 1 {
-			fmt.Println("Error: Missing required arguments")
-			fmt.Println("Usage: api remove_repofile_if_unused <file> [test] [key]")
+			api.ErrorNoExit("Error: Missing required arguments")
+			api.Status("Usage: api remove_repofile_if_unused <file> [test] [key]")
 			os.Exit(1)
 		}
 
@@ -458,65 +445,59 @@ func main() {
 
 		err := api.RemoveRepofileIfUnused(file, testMode, key)
 		if err != nil {
-			fmt.Printf("Error: %v\n", err)
-			os.Exit(1)
+			api.Error(fmt.Sprintf("Error: %v", err))
 		}
 
 	case "repo_add":
 		if len(args) < 1 {
-			fmt.Println("Error: No files specified")
-			fmt.Println("Usage: api repo_add <file1> [file2] [...]")
+			api.ErrorNoExit("Error: No files specified")
+			api.Status("Usage: api repo_add <file1> [file2] [...]")
 			os.Exit(1)
 		}
 
 		if err := api.RepoAdd(args...); err != nil {
-			fmt.Printf("Error: %v\n", err)
-			os.Exit(1)
+			api.Error(fmt.Sprintf("Error: %v", err))
 		}
 
 	case "repo_refresh":
 		if err := api.RepoRefresh(); err != nil {
-			fmt.Printf("Error: %v\n", err)
-			os.Exit(1)
+			api.Error(fmt.Sprintf("Error: %v", err))
 		}
 
 	case "repo_rm":
 		if err := api.RepoRm(); err != nil {
-			fmt.Printf("Error: %v\n", err)
-			os.Exit(1)
+			api.Error(fmt.Sprintf("Error: %v", err))
 		}
 
 	case "app_to_pkgname":
 		if len(args) < 1 {
-			fmt.Println("Error: No app name specified")
-			fmt.Println("Usage: api app_to_pkgname <app-name>")
+			api.ErrorNoExit("Error: No app name specified")
+			api.Status("Usage: api app_to_pkgname <app-name>")
 			os.Exit(1)
 		}
 
 		pkgName, err := api.AppToPkgName(args[0])
 		if err != nil {
-			fmt.Printf("Error: %v\n", err)
-			os.Exit(1)
+			api.Error(fmt.Sprintf("Error: %v", err))
 		}
 		fmt.Println(pkgName)
 
 	case "install_packages":
 		if len(args) < 1 {
-			fmt.Println("Error: No app name specified")
-			fmt.Println("Usage: api install_packages <app-name> <package1> [package2] ... [-t repo]")
+			api.ErrorNoExit("Error: No app name specified")
+			api.Status("Usage: api install_packages <app-name> <package1> [package2] ... [-t repo]")
 			os.Exit(1)
 		}
 
 		appName := args[0]
 		if err := api.InstallPackages(appName, args[1:]...); err != nil {
-			fmt.Printf("Error: %v\n", err)
-			os.Exit(1)
+			api.Error(fmt.Sprintf("Error: %v", err))
 		}
 
 	case "purge_packages":
 		if len(args) < 1 {
-			fmt.Println("Error: No app name specified")
-			fmt.Println("Usage: api purge_packages <app-name> [--update]")
+			api.ErrorNoExit("Error: No app name specified")
+			api.Status("Usage: api purge_packages <app-name> [--update]")
 			os.Exit(1)
 		}
 
@@ -529,82 +510,74 @@ func main() {
 		}
 
 		if err := api.PurgePackages(appName, isUpdate); err != nil {
-			fmt.Printf("Error: %v\n", err)
-			os.Exit(1)
+			api.Error(fmt.Sprintf("Error: %v", err))
 		}
 
 	case "get_icon_from_package":
 		if len(args) < 1 {
-			fmt.Println("Error: No package specified")
-			fmt.Println("Usage: api get_icon_from_package <package-name> [package-name2] [...]")
+			api.ErrorNoExit("Error: No package specified")
+			api.Status("Usage: api get_icon_from_package <package-name> [package-name2] [...]")
 			os.Exit(1)
 		}
 
 		iconPath, err := api.GetIconFromPackage(args...)
 		if err != nil {
-			fmt.Printf("Error: %v\n", err)
-			os.Exit(1)
+			api.Error(fmt.Sprintf("Error: %v", err))
 		}
 		fmt.Println(iconPath)
 
 	case "ubuntu_ppa_installer":
 		if len(args) < 1 {
-			fmt.Println("Error: No PPA name specified")
-			fmt.Println("Usage: api ubuntu_ppa_installer <ppa-name>")
+			api.ErrorNoExit("Error: No PPA name specified")
+			api.Status("Usage: api ubuntu_ppa_installer <ppa-name>")
 			os.Exit(1)
 		}
 
 		if err := api.UbuntuPPAInstaller(args[0]); err != nil {
-			fmt.Printf("Error: %v\n", err)
-			os.Exit(1)
+			api.Error(fmt.Sprintf("Error: %v", err))
 		}
 
 	case "debian_ppa_installer":
 		if len(args) < 3 {
-			fmt.Println("Error: Missing required arguments")
-			fmt.Println("Usage: api debian_ppa_installer <ppa-name> <distribution> <key>")
+			api.ErrorNoExit("Error: Missing required arguments")
+			api.Status("Usage: api debian_ppa_installer <ppa-name> <distribution> <key>")
 			os.Exit(1)
 		}
 
 		if err := api.DebianPPAInstaller(args[0], args[1], args[2]); err != nil {
-			fmt.Printf("Error: %v\n", err)
-			os.Exit(1)
+			api.Error(fmt.Sprintf("Error: %v", err))
 		}
 
 	case "apt_lock_wait":
 		if err := api.AptLockWait(); err != nil {
-			fmt.Printf("Error: %v\n", err)
-			os.Exit(1)
+			api.Error(fmt.Sprintf("Error: %v", err))
 		}
 
 	case "apt_update":
 		if err := api.AptUpdate(args...); err != nil {
-			fmt.Printf("Error: %v\n", err)
-			os.Exit(1)
+			api.Error(fmt.Sprintf("Error: %v", err))
 		}
 
 	case "flatpak_install":
 		if len(args) < 1 {
-			fmt.Println("Error: No app specified")
-			fmt.Println("Usage: api flatpak_install <app-id>")
+			api.ErrorNoExit("Error: No app specified")
+			api.Status("Usage: api flatpak_install <app-id>")
 			os.Exit(1)
 		}
 
 		if err := api.FlatpakInstall(args[0]); err != nil {
-			fmt.Printf("Error: %v\n", err)
-			os.Exit(1)
+			api.Error(fmt.Sprintf("Error: %v", err))
 		}
 
 	case "flatpak_uninstall":
 		if len(args) < 1 {
-			fmt.Println("Error: No app specified")
-			fmt.Println("Usage: api flatpak_uninstall <app-id>")
+			api.ErrorNoExit("Error: No app specified")
+			api.Status("Usage: api flatpak_uninstall <app-id>")
 			os.Exit(1)
 		}
 
 		if err := api.FlatpakUninstall(args[0]); err != nil {
-			fmt.Printf("Error: %v\n", err)
-			os.Exit(1)
+			api.Error(fmt.Sprintf("Error: %v", err))
 		}
 
 	case "list_apps":
@@ -615,8 +588,7 @@ func main() {
 
 		apps, err := api.ListApps(filter)
 		if err != nil {
-			fmt.Printf("Error: %v\n", err)
-			os.Exit(1)
+			api.Error(fmt.Sprintf("Error: %v", err))
 		}
 
 		// Print each app on a new line
@@ -626,16 +598,15 @@ func main() {
 
 	case "list_intersect":
 		if len(args) < 1 {
-			fmt.Println("Error: Missing list to intersect with")
-			fmt.Println("Usage: list_intersect <list2> (list1 from stdin)")
+			api.ErrorNoExit("Error: Missing list to intersect with")
+			api.Status("Usage: list_intersect <list2> (list1 from stdin)")
 			os.Exit(1)
 		}
 
 		// Read list1 from stdin
 		bytes, err := io.ReadAll(os.Stdin)
 		if err != nil {
-			fmt.Printf("Error reading from stdin: %v\n", err)
-			os.Exit(1)
+			api.Error(fmt.Sprintf("Error reading from stdin: %v", err))
 		}
 
 		// Parse list1 from stdin
@@ -663,16 +634,15 @@ func main() {
 
 	case "list_subtract":
 		if len(args) < 1 {
-			fmt.Println("Error: Missing list to subtract")
-			fmt.Println("Usage: list_subtract <list2> (list1 from stdin)")
+			api.ErrorNoExit("Error: Missing list to subtract")
+			api.Status("Usage: list_subtract <list2> (list1 from stdin)")
 			os.Exit(1)
 		}
 
 		// Read list1 from stdin
 		bytes, err := io.ReadAll(os.Stdin)
 		if err != nil {
-			fmt.Printf("Error reading from stdin: %v\n", err)
-			os.Exit(1)
+			api.Error(fmt.Sprintf("Error reading from stdin: %v", err))
 		}
 
 		// Parse list1 from stdin
@@ -700,16 +670,15 @@ func main() {
 
 	case "list_intersect_partial":
 		if len(args) < 1 {
-			fmt.Println("Error: Missing list to intersect with")
-			fmt.Println("Usage: list_intersect_partial <list2> (list1 from stdin)")
+			api.ErrorNoExit("Error: Missing list to intersect with")
+			api.Status("Usage: list_intersect_partial <list2> (list1 from stdin)")
 			os.Exit(1)
 		}
 
 		// Read list1 from stdin
 		bytes, err := io.ReadAll(os.Stdin)
 		if err != nil {
-			fmt.Printf("Error reading from stdin: %v\n", err)
-			os.Exit(1)
+			api.Error(fmt.Sprintf("Error reading from stdin: %v", err))
 		}
 
 		// Parse list1 from stdin
@@ -737,16 +706,15 @@ func main() {
 
 	case "list_subtract_partial":
 		if len(args) < 1 {
-			fmt.Println("Error: Missing list to subtract")
-			fmt.Println("Usage: list_subtract_partial <list2> (list1 from stdin)")
+			api.ErrorNoExit("Error: Missing list to subtract")
+			api.Status("Usage: list_subtract_partial <list2> (list1 from stdin)")
 			os.Exit(1)
 		}
 
 		// Read list1 from stdin
 		bytes, err := io.ReadAll(os.Stdin)
 		if err != nil {
-			fmt.Printf("Error reading from stdin: %v\n", err)
-			os.Exit(1)
+			api.Error(fmt.Sprintf("Error reading from stdin: %v", err))
 		}
 
 		// Parse list1 from stdin
@@ -776,8 +744,7 @@ func main() {
 		// Read category files and print in app|category format
 		entries, err := api.ReadCategoryFiles(getDirectory())
 		if err != nil {
-			fmt.Printf("Error: %v\n", err)
-			os.Exit(1)
+			api.Error(fmt.Sprintf("Error: %v", err))
 		}
 
 		for _, entry := range entries {
@@ -793,8 +760,7 @@ func main() {
 
 		result, err := api.AppPrefixCategory(getDirectory(), category)
 		if err != nil {
-			fmt.Printf("Error: %v\n", err)
-			os.Exit(1)
+			api.Error(fmt.Sprintf("Error: %v", err))
 		}
 
 		for _, item := range result {
@@ -810,16 +776,15 @@ func main() {
 			// Read from stdin
 			bytes, err := io.ReadAll(os.Stdin)
 			if err != nil {
-				fmt.Printf("Error reading from stdin: %v\n", err)
-				os.Exit(1)
+				api.Error(fmt.Sprintf("Error reading from stdin: %v", err))
 			}
 			input = string(bytes)
 		} else if len(args) > 0 {
 			// Use the argument as input
 			input = args[0]
 		} else {
-			fmt.Println("Error: No input provided")
-			fmt.Println("Usage: api less_apt <text> or <command> | api less_apt")
+			api.ErrorNoExit("Error: No input provided")
+			api.Status("Usage: api less_apt <text> or <command> | api less_apt")
 			os.Exit(1)
 		}
 
@@ -829,8 +794,7 @@ func main() {
 
 	case "add_external_repo":
 		if len(args) < 4 {
-			fmt.Println("add_external_repo: requires reponame, pubkeyurl, uris, and suites")
-			os.Exit(1)
+			api.Error("add_external_repo: requires reponame, pubkeyurl, uris, and suites")
 		}
 
 		// Get required parameters
@@ -853,14 +817,12 @@ func main() {
 
 		err := api.AddExternalRepo(reponame, pubkeyurl, uris, suites, components, additionalOptions...)
 		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
+			api.Error(fmt.Sprintf("Error: %v", err))
 		}
 
 	case "rm_external_repo":
 		if len(args) < 1 {
-			fmt.Println("rm_external_repo: requires reponame")
-			os.Exit(1)
+			api.Error("rm_external_repo: requires reponame")
 		}
 
 		// Check if force flag is provided
@@ -871,45 +833,38 @@ func main() {
 
 		err := api.RmExternalRepo(args[0], force)
 		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
+			api.Error(fmt.Sprintf("Error: %v", err))
 		}
 
 	case "adoptium_installer":
 		err := api.AdoptiumInstaller()
 		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
+			api.Error(fmt.Sprintf("Error: %v", err))
 		}
 
 	case "pipx_install":
 		if len(args) < 1 {
-			fmt.Println("pipx_install: requires at least one package name")
-			os.Exit(1)
+			api.Error("pipx_install: requires at least one package name")
 		}
 
 		err := api.PipxInstall(args...)
 		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
+			api.Error(fmt.Sprintf("Error: %v", err))
 		}
 
 	case "pipx_uninstall":
 		if len(args) < 1 {
-			fmt.Println("pipx_uninstall: requires at least one package name")
-			os.Exit(1)
+			api.Error("pipx_uninstall: requires at least one package name")
 		}
 
 		err := api.PipxUninstall(args...)
 		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
+			api.Error(fmt.Sprintf("Error: %v", err))
 		}
 
 	case "remove_deprecated_app":
 		if len(args) < 1 {
-			fmt.Println("remove_deprecated_app: requires an app name")
-			os.Exit(1)
+			api.Error("remove_deprecated_app: requires an app name")
 		}
 
 		app := args[0]
@@ -928,14 +883,12 @@ func main() {
 
 		err := api.RemoveDeprecatedApp(app, removalArch, message)
 		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
+			api.Error(fmt.Sprintf("Error: %v", err))
 		}
 
 	case "terminal_manage":
 		if len(args) < 2 {
-			fmt.Println("terminal_manage: requires an action and an app name")
-			os.Exit(1)
+			api.Error("terminal_manage: requires an action and an app name")
 		}
 
 		action := args[0]
@@ -943,28 +896,24 @@ func main() {
 
 		err := api.TerminalManage(action, app)
 		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
+			api.Error(fmt.Sprintf("Error: %v", err))
 		}
 
 	case "terminal_manage_multi":
 		if len(args) < 1 {
-			fmt.Println("terminal_manage_multi: requires a queue of actions")
-			os.Exit(1)
+			api.Error("terminal_manage_multi: requires a queue of actions")
 		}
 
 		queue := args[0]
 
 		err := api.TerminalManageMulti(queue)
 		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
+			api.Error(fmt.Sprintf("Error: %v", err))
 		}
 
 	case "userinput_func":
 		if len(args) < 2 {
-			fmt.Println("userinput_func: requires a description and at least one option")
-			os.Exit(1)
+			api.Error("userinput_func: requires a description and at least one option")
 		}
 
 		// First argument is the text description
@@ -975,8 +924,7 @@ func main() {
 
 		selection, err := api.UserInputFunc(text, options...)
 		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
+			api.Error(fmt.Sprintf("Error: %v", err))
 		}
 
 		// Print the selection so it can be captured by the calling script
@@ -984,26 +932,24 @@ func main() {
 
 	case "bitly_link":
 		if len(args) < 2 {
-			fmt.Println("Error: Missing required arguments")
-			fmt.Println("Usage: api bitly_link <app> <trigger>")
+			api.ErrorNoExit("Error: Missing required arguments")
+			api.Status("Usage: api bitly_link <app> <trigger>")
 			os.Exit(1)
 		}
 
 		if err := api.BitlyLink(args[0], args[1]); err != nil {
-			fmt.Printf("Error: %v\n", err)
-			os.Exit(1)
+			api.Error(fmt.Sprintf("Error: %v", err))
 		}
 
 	case "shlink_link":
 		if len(args) < 2 {
-			fmt.Println("Error: Missing required arguments")
-			fmt.Println("Usage: api shlink_link <app> <trigger>")
+			api.ErrorNoExit("Error: Missing required arguments")
+			api.Status("Usage: api shlink_link <app> <trigger>")
 			os.Exit(1)
 		}
 
 		if err := api.ShlinkLink(args[0], args[1]); err != nil {
-			fmt.Printf("Error: %v\n", err)
-			os.Exit(1)
+			api.Error(fmt.Sprintf("Error: %v", err))
 		}
 
 	case "usercount":
@@ -1014,83 +960,77 @@ func main() {
 
 		result, err := api.UserCount(app)
 		if err != nil {
-			fmt.Printf("Error: %v\n", err)
-			os.Exit(1)
+			api.Error(fmt.Sprintf("Error: %v", err))
 		}
 
 		fmt.Println(result)
 
 	case "script_name":
 		if len(args) < 1 {
-			fmt.Println("Error: No app specified")
-			fmt.Println("Usage: api script_name <app-name>")
+			api.ErrorNoExit("Error: No app specified")
+			api.Status("Usage: api script_name <app-name>")
 			os.Exit(1)
 		}
 
 		scriptName, err := api.ScriptName(args[0])
 		if err != nil {
-			fmt.Printf("Error: %v\n", err)
-			os.Exit(1)
+			api.Error(fmt.Sprintf("Error: %v", err))
 		}
 
 		fmt.Println(scriptName)
 
 	case "script_name_cpu":
 		if len(args) < 1 {
-			fmt.Println("Error: No app specified")
-			fmt.Println("Usage: api script_name_cpu <app-name>")
+			api.ErrorNoExit("Error: No app specified")
+			api.Status("Usage: api script_name_cpu <app-name>")
 			os.Exit(1)
 		}
 
 		scriptName, err := api.ScriptNameCPU(args[0])
 		if err != nil {
-			fmt.Printf("Error: %v\n", err)
-			os.Exit(1)
+			api.Error(fmt.Sprintf("Error: %v", err))
 		}
 
 		fmt.Println(scriptName)
 
 	case "app_status":
 		if len(args) < 1 {
-			fmt.Println("Error: No app specified")
-			fmt.Println("Usage: api app_status <app-name>")
+			api.ErrorNoExit("Error: No app specified")
+			api.Status("Usage: api app_status <app-name>")
 			os.Exit(1)
 		}
 
 		status, err := api.GetAppStatus(args[0])
 		if err != nil {
-			fmt.Printf("Error: %v\n", err)
-			os.Exit(1)
+			api.Error(fmt.Sprintf("Error: %v", err))
 		}
 
 		fmt.Println(status)
 
 	case "app_type":
 		if len(args) < 1 {
-			fmt.Println("Error: No app specified")
-			fmt.Println("Usage: api app_type <app-name>")
+			api.ErrorNoExit("Error: No app specified")
+			api.Status("Usage: api app_type <app-name>")
 			os.Exit(1)
 		}
 
 		appType, err := api.AppType(args[0])
 		if err != nil {
-			fmt.Printf("Error: %v\n", err)
-			os.Exit(1)
+			api.Error(fmt.Sprintf("Error: %v", err))
 		}
 
 		fmt.Println(appType)
 
 	case "pkgapp_packages_required":
 		if len(args) < 1 {
-			fmt.Println("Error: No app specified")
-			fmt.Println("Usage: api pkgapp_packages_required <app-name>")
+			api.ErrorNoExit("Error: No app specified")
+			api.Status("Usage: api pkgapp_packages_required <app-name>")
 			os.Exit(1)
 		}
 
 		packages, err := api.PkgAppPackagesRequired(args[0])
 		if err != nil {
-			fmt.Printf("Error: %v\n", err)
-			os.Exit(1)
+			api.Error(fmt.Sprintf("Error: %v", err))
 		}
 
 		fmt.Println(packages)
@@ -1099,8 +1039,7 @@ func main() {
 		// List apps with missing dummy debs
 		apps, err := api.ListAppsMissingDummyDebs()
 		if err != nil {
-			fmt.Printf("Error: %v\n", err)
-			os.Exit(1)
+			api.Error(fmt.Sprintf("Error: %v", err))
 		}
 
 		for _, app := range apps {
@@ -1111,27 +1050,24 @@ func main() {
 		// Read script from stdin
 		bytes, err := io.ReadAll(os.Stdin)
 		if err != nil {
-			fmt.Printf("Error reading from stdin: %v\n", err)
-			os.Exit(1)
+			api.Error(fmt.Sprintf("Error reading from stdin: %v", err))
 		}
 		script := string(bytes)
 
 		if err := api.Runonce(script); err != nil {
-			fmt.Printf("Error: %v\n", err)
-			os.Exit(1)
+			api.Error(fmt.Sprintf("Error: %v", err))
 		}
 
 	case "will_reinstall":
 		if len(args) < 1 {
-			fmt.Println("Error: No app specified")
-			fmt.Println("Usage: api will_reinstall <app-name>")
+			api.ErrorNoExit("Error: No app specified")
+			api.Status("Usage: api will_reinstall <app-name>")
 			os.Exit(1)
 		}
 
 		willReinstall, err := api.WillReinstall(args[0])
 		if err != nil {
-			fmt.Printf("Error: %v\n", err)
-			os.Exit(1)
+			api.Error(fmt.Sprintf("Error: %v", err))
 		}
 
 		if willReinstall {
@@ -1144,16 +1080,15 @@ func main() {
 
 	case "app_search":
 		if len(args) < 1 {
-			fmt.Println("Error: No query specified")
-			fmt.Println("Usage: api app_search <query> [file1 file2 ...]")
+			api.ErrorNoExit("Error: No query specified")
+			api.Status("Usage: api app_search <query> [file1 file2 ...]")
 			os.Exit(1)
 		}
 
 		// First argument is the query, remaining arguments are files to search
 		results, err := api.AppSearch(args[0], args[1:]...)
 		if err != nil {
-			fmt.Printf("Error: %v\n", err)
-			os.Exit(1)
+			api.Error(fmt.Sprintf("Error: %v", err))
 		}
 
 		for _, app := range results {
@@ -1164,8 +1099,7 @@ func main() {
 		// No arguments needed
 		app, err := api.AppSearchGUI()
 		if err != nil {
-			fmt.Printf("Error: %v\n", err)
-			os.Exit(1)
+			api.Error(fmt.Sprintf("Error: %v", err))
 		}
 
 		// If an app was selected, print it
@@ -1175,8 +1109,8 @@ func main() {
 
 	case "generate_app_icons":
 		if len(args) < 2 {
-			fmt.Println("Error: Missing required arguments")
-			fmt.Println("Usage: api generate_app_icons <icon-path> <app-name>")
+			api.ErrorNoExit("Error: Missing required arguments")
+			api.Status("Usage: api generate_app_icons <icon-path> <app-name>")
 			os.Exit(1)
 		}
 
@@ -1184,14 +1118,13 @@ func main() {
 		appName := args[1]
 
 		if err := api.GenerateAppIcons(iconPath, appName); err != nil {
-			fmt.Printf("Error: %v\n", err)
-			os.Exit(1)
+			api.Error(fmt.Sprintf("Error: %v", err))
 		}
 
 	case "refresh_pkgapp_status":
 		if len(args) < 1 {
-			fmt.Println("Error: No app specified")
-			fmt.Println("Usage: api refresh_pkgapp_status <app-name> [package-name]")
+			api.ErrorNoExit("Error: No app specified")
+			api.Status("Usage: api refresh_pkgapp_status <app-name> [package-name]")
 			os.Exit(1)
 		}
 
@@ -1202,20 +1135,17 @@ func main() {
 		}
 
 		if err := api.RefreshPkgAppStatus(appName, packageName); err != nil {
-			fmt.Printf("Error: %v\n", err)
-			os.Exit(1)
+			api.Error(fmt.Sprintf("Error: %v", err))
 		}
 
 	case "refresh_all_pkgapp_status":
 		if err := api.RefreshAllPkgAppStatus(); err != nil {
-			fmt.Printf("Error: %v\n", err)
-			os.Exit(1)
+			api.Error(fmt.Sprintf("Error: %v", err))
 		}
 
 	case "refresh_app_list":
 		if err := api.RefreshAppList(); err != nil {
-			fmt.Printf("Error: %v\n", err)
-			os.Exit(1)
+			api.Error(fmt.Sprintf("Error: %v", err))
 		}
 
 	case "is_supported_system":
@@ -1231,52 +1161,45 @@ func main() {
 
 	case "multi_install_gui":
 		if err := api.MultiInstallGUI(); err != nil {
-			fmt.Printf("Error: %v\n", err)
-			os.Exit(1)
+			api.Error(fmt.Sprintf("Error: %v", err))
 		}
 
 	case "multi_uninstall_gui":
 		if err := api.MultiUninstallGUI(); err != nil {
-			fmt.Printf("Error: %v\n", err)
-			os.Exit(1)
+			api.Error(fmt.Sprintf("Error: %v", err))
 		}
 
 	case "wget":
 		if err := api.Wget(args); err != nil {
-			fmt.Printf("Error: %v\n", err)
-			os.Exit(1)
+			api.Error(fmt.Sprintf("Error: %v", err))
 		}
 
 	case "git_clone":
 		if err := api.GitClone(args...); err != nil {
-			fmt.Printf("Error: %v\n", err)
-			os.Exit(1)
+			api.Error(fmt.Sprintf("Error: %v", err))
 		}
 
 	case "chmod":
 		if err := api.ChmodWithArgs(args...); err != nil {
-			fmt.Printf("Error: %v\n", err)
-			os.Exit(1)
+			api.Error(fmt.Sprintf("Error: %v", err))
 		}
 
 	case "unzip":
 		if err := api.UnzipWithArgs(args...); err != nil {
-			fmt.Printf("Error: %v\n", err)
-			os.Exit(1)
+			api.Error(fmt.Sprintf("Error: %v", err))
 		}
 
 	case "nproc":
 		nprocs, err := api.Nproc()
 		if err != nil {
-			fmt.Printf("Error: %v\n", err)
-			os.Exit(1)
+			api.Error(fmt.Sprintf("Error: %v", err))
 		}
 		fmt.Println(nprocs)
 
 	case "sudo_popup":
 		if len(args) < 1 {
-			fmt.Println("Error: No command specified")
-			fmt.Println("Usage: api sudo_popup <command> [args...]")
+			api.ErrorNoExit("Error: No command specified")
+			api.Status("Usage: api sudo_popup <command> [args...]")
 			os.Exit(1)
 		}
 
@@ -1284,21 +1207,19 @@ func main() {
 		commandArgs := args[1:]
 
 		if err := api.SudoPopup(command, commandArgs...); err != nil {
-			fmt.Printf("Error: %v\n", err)
-			os.Exit(1)
+			api.Error(fmt.Sprintf("Error: %v", err))
 		}
 
 	case "process_exists":
 		if len(args) < 1 {
-			fmt.Println("Error: No PID specified")
-			fmt.Println("Usage: api process_exists <pid>")
+			api.ErrorNoExit("Error: No PID specified")
+			api.Status("Usage: api process_exists <pid>")
 			os.Exit(1)
 		}
 
 		pid, err := strconv.Atoi(args[0])
 		if err != nil {
-			fmt.Printf("Error: Invalid PID '%s': %v\n", args[0], err)
-			os.Exit(1)
+			api.Error(fmt.Sprintf("Error: Invalid PID '%s': %v", args[0], err))
 		}
 
 		if api.ProcessExists(pid) {
@@ -1311,21 +1232,20 @@ func main() {
 
 	case "enable_module":
 		if len(args) < 1 {
-			fmt.Println("Error: No module name specified")
-			fmt.Println("Usage: api enable_module <module-name>")
+			api.ErrorNoExit("Error: No module name specified")
+			api.Status("Usage: api enable_module <module-name>")
 			os.Exit(1)
 		}
 
 		if err := api.EnableModule(args[0]); err != nil {
-			fmt.Printf("Error: %v\n", err)
-			os.Exit(1)
+			api.Error(fmt.Sprintf("Error: %v", err))
 		}
 
 	// UI/Output functions
 	case "status":
 		if len(args) < 1 {
-			fmt.Println("Error: No message specified")
-			fmt.Println("Usage: api status <message> [args...]")
+			api.ErrorNoExit("Error: No message specified")
+			api.Status("Usage: api status <message> [args...]")
 			os.Exit(1)
 		}
 
@@ -1338,8 +1258,8 @@ func main() {
 
 	case "status_green":
 		if len(args) < 1 {
-			fmt.Println("Error: No message specified")
-			fmt.Println("Usage: api status_green <message>")
+			api.ErrorNoExit("Error: No message specified")
+			api.Status("Usage: api status_green <message>")
 			os.Exit(1)
 		}
 
@@ -1347,8 +1267,8 @@ func main() {
 
 	case "debug":
 		if len(args) < 1 {
-			fmt.Println("Error: No message specified")
-			fmt.Println("Usage: api debug <message>")
+			api.ErrorNoExit("Error: No message specified")
+			api.Status("Usage: api debug <message>")
 			os.Exit(1)
 		}
 
@@ -1356,8 +1276,8 @@ func main() {
 
 	case "error":
 		if len(args) < 1 {
-			fmt.Println("Error: No message specified")
-			fmt.Println("Usage: api error <message>")
+			api.ErrorNoExit("Error: No message specified")
+			api.Status("Usage: api error <message>")
 			os.Exit(1)
 		}
 
@@ -1365,8 +1285,8 @@ func main() {
 
 	case "warning":
 		if len(args) < 1 {
-			fmt.Println("Error: No message specified")
-			fmt.Println("Usage: api warning <message>")
+			api.ErrorNoExit("Error: No message specified")
+			api.Status("Usage: api warning <message>")
 			os.Exit(1)
 		}
 
@@ -1381,88 +1301,82 @@ func main() {
 	case "createapp":
 		// Call without arguments to launch the createapp wizard
 		if err := api.CreateApp(""); err != nil {
-			fmt.Printf("Error: %v\n", err)
-			os.Exit(1)
+			api.Error(fmt.Sprintf("Error: %v", err))
 		}
 
 	case "importapp":
 		// Call without arguments to launch the importapp wizard
 		if err := api.ImportAppGUI(); err != nil {
-			fmt.Printf("Error: %v\n", err)
-			os.Exit(1)
+			api.Error(fmt.Sprintf("Error: %v", err))
 		}
 
 	case "install":
 		if len(args) < 1 {
-			fmt.Println("Error: No app specified")
-			fmt.Println("Usage: api install <app-name>")
+			api.ErrorNoExit("Error: No app specified")
+			api.Status("Usage: api install <app-name>")
 			os.Exit(1)
 		}
-		fmt.Printf("Note: This command may require sudo privileges for system operations.\n")
-		fmt.Printf("You may be prompted for your password during execution.\n\n")
-		fmt.Printf("Installing %s...\n", args[0])
+		api.Status("Note: This command may require sudo privileges for system operations.")
+		api.Status("You may be prompted for your password during execution.")
+		api.Status("Installing %s...", args[0])
 		if err := api.InstallApp(args[0]); err != nil {
-			fmt.Printf("Error: %v\n", err)
-			os.Exit(1)
+			api.Error(fmt.Sprintf("Error: %v", err))
 		}
-		fmt.Println("Installation completed successfully")
+		api.StatusGreen("Installation completed successfully")
 
 	case "uninstall":
 		if len(args) < 1 {
-			fmt.Println("Error: No app specified")
-			fmt.Println("Usage: api uninstall <app-name>")
+			api.ErrorNoExit("Error: No app specified")
+			api.Status("Usage: api uninstall <app-name>")
 			os.Exit(1)
 		}
-		fmt.Printf("Note: This command may require sudo privileges for system operations.\n")
-		fmt.Printf("You may be prompted for your password during execution.\n\n")
-		fmt.Printf("Uninstalling %s...\n", args[0])
+		api.Status("Note: This command may require sudo privileges for system operations.")
+		api.Status("You may be prompted for your password during execution.")
+		api.Status("Uninstalling %s...", args[0])
 		if err := api.UninstallApp(args[0]); err != nil {
-			fmt.Printf("Error: %v\n", err)
-			os.Exit(1)
+			api.Error(fmt.Sprintf("Error: %v", err))
 		}
-		fmt.Println("Uninstallation completed successfully")
+		api.StatusGreen("Uninstallation completed successfully")
 
 	case "update":
 		if len(args) < 1 {
-			fmt.Println("Error: No app specified")
-			fmt.Println("Usage: api update <app-name>")
+			api.ErrorNoExit("Error: No app specified")
+			api.Status("Usage: api update <app-name>")
 			os.Exit(1)
 		}
-		fmt.Printf("Note: This command may require sudo privileges for system operations.\n")
-		fmt.Printf("You may be prompted for your password during execution.\n\n")
-		fmt.Printf("Updating %s...\n", args[0])
+		api.Status("Note: This command may require sudo privileges for system operations.")
+		api.Status("You may be prompted for your password during execution.")
+		api.Status("Updating %s...", args[0])
 		if err := api.UpdateApp(args[0]); err != nil {
-			fmt.Printf("Error: %v\n", err)
-			os.Exit(1)
+			api.Error(fmt.Sprintf("Error: %v", err))
 		}
-		fmt.Println("Update completed successfully")
+		api.StatusGreen("Update completed successfully")
 
 	case "install-if-not-installed":
 		if len(args) < 1 {
-			fmt.Println("Error: No app specified")
-			fmt.Println("Usage: api install-if-not-installed <app-name>")
+			api.ErrorNoExit("Error: No app specified")
+			api.Status("Usage: api install-if-not-installed <app-name>")
 			os.Exit(1)
 		}
-		fmt.Printf("Note: This command may require sudo privileges for system operations.\n")
-		fmt.Printf("You may be prompted for your password during execution.\n\n")
-		fmt.Printf("Installing %s if not already installed...\n", args[0])
+		api.Status("Note: This command may require sudo privileges for system operations.")
+		api.Status("You may be prompted for your password during execution.")
+		api.Status("Installing %s if not already installed...", args[0])
 		if err := api.InstallIfNotInstalled(args[0]); err != nil {
-			fmt.Printf("Error: %v\n", err)
-			os.Exit(1)
+			api.Error(fmt.Sprintf("Error: %v", err))
 		}
-		fmt.Println("Command completed successfully")
+		api.StatusGreen("Command completed successfully")
 
 	case "manage":
 		// If no manage subcommand is specified, show usage
 		if len(args) < 1 {
-			fmt.Println("Usage: api manage <command> [args...]")
-			fmt.Println("Commands:")
-			fmt.Println("  install <app>           - Install specified app")
-			fmt.Println("  uninstall <app>         - Uninstall specified app")
-			fmt.Println("  update <app>            - Update specified app")
-			fmt.Println("  install-if-not-installed <app> - Install app only if not already installed")
-			fmt.Println("  multi-install <app1> <app2> ... - Install multiple apps")
-			fmt.Println("  multi-uninstall <app1> <app2> ... - Uninstall multiple apps")
+			api.Status("Usage: api manage <command> [args...]")
+			api.Status("Commands:")
+			api.Status("  install <app>           - Install specified app")
+			api.Status("  uninstall <app>         - Uninstall specified app")
+			api.Status("  update <app>            - Update specified app")
+			api.Status("  install-if-not-installed <app> - Install app only if not already installed")
+			api.Status("  multi-install <app1> <app2> ... - Install multiple apps")
+			api.Status("  multi-uninstall <app1> <app2> ... - Uninstall multiple apps")
 			os.Exit(1)
 		}
 
@@ -1477,14 +1391,13 @@ func main() {
 			if exitError, ok := err.(*exec.ExitError); ok {
 				os.Exit(exitError.ExitCode())
 			}
-			fmt.Printf("Error running manage command: %v\n", err)
-			os.Exit(1)
+			api.Error(fmt.Sprintf("Error running manage command: %v", err))
 		}
 
 	case "log_diagnose":
 		if len(args) < 1 {
-			fmt.Println("Error: No log file specified")
-			fmt.Println("Usage: api log_diagnose <logfile> [--allow-write]")
+			api.ErrorNoExit("Error: No log file specified")
+			api.Status("Usage: api log_diagnose <logfile> [--allow-write]")
 			os.Exit(1)
 		}
 
@@ -1495,8 +1408,7 @@ func main() {
 
 		diagnosis, err := api.LogDiagnose(args[0], allowWrite)
 		if err != nil {
-			fmt.Printf("Error: %v\n", err)
-			os.Exit(1)
+			api.Error(fmt.Sprintf("Error: %v", err))
 		}
 
 		// Print the diagnosis
@@ -1507,32 +1419,30 @@ func main() {
 
 	case "format_logfile":
 		if len(args) < 1 {
-			fmt.Println("Error: No log file specified")
-			fmt.Println("Usage: api format_logfile <logfile>")
+			api.ErrorNoExit("Error: No log file specified")
+			api.Status("Usage: api format_logfile <logfile>")
 			os.Exit(1)
 		}
 
 		if err := api.FormatLogfile(args[0]); err != nil {
-			fmt.Printf("Error: %v\n", err)
-			os.Exit(1)
+			api.Error(fmt.Sprintf("Error: %v", err))
 		}
 
 	case "send_error_report":
 		if len(args) < 1 {
-			fmt.Println("Error: No log file specified")
-			fmt.Println("Usage: api send_error_report <logfile>")
+			api.ErrorNoExit("Error: No log file specified")
+			api.Status("Usage: api send_error_report <logfile>")
 			os.Exit(1)
 		}
 
 		response, err := api.SendErrorReport(args[0])
 		if err != nil {
-			fmt.Printf("Error: %v\n", err)
-			os.Exit(1)
+			api.Error(fmt.Sprintf("Error: %v", err))
 		}
 		fmt.Println(response)
 
 	default:
-		fmt.Printf("Unknown command: %s\n", command)
+		api.ErrorNoExit(fmt.Sprintf("Unknown command: %s", command))
 		printUsage()
 		os.Exit(1)
 	}
@@ -1640,7 +1550,7 @@ func printUsage() {
 	fmt.Println("  generate_logo                                - Display Pi-Apps logo")
 	fmt.Println("")
 	fmt.Println("Additional Tools:")
-	fmt.Println("  adoptium_installer                           - Install Adoptium Java")
+	fmt.Println("  adoptium_installer                           - Install Adoptium Java Debian repository")
 	fmt.Println("  pipx_install <package-name> [package2]       - Install Python packages with pipx")
 	fmt.Println("  pipx_uninstall <package-name> [package2]     - Uninstall Python packages with pipx")
 	fmt.Println("  runonce                                      - Run script only if it's never been run before")
@@ -1662,7 +1572,7 @@ func printUsage() {
 func getDirectory() string {
 	dir := os.Getenv("PI_APPS_DIR")
 	if dir == "" {
-		fmt.Fprintln(os.Stderr, "Warning: PI_APPS_DIR environment variable not set, using current directory")
+		api.Warning("PI_APPS_DIR environment variable not set, using current directory")
 		dir = "."
 	}
 	return dir

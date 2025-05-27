@@ -211,7 +211,7 @@ func TerminalManageMulti(queue string) error {
 			// Send signal 0 to check if process is running
 			if err := process.Signal(syscall.Signal(0)); err == nil {
 				// Process exists, send the queue to the daemon and exit
-				daemonCmd := exec.Command(filepath.Join(directory, "manage"), "daemon", queue)
+				daemonCmd := exec.Command(filepath.Join(directory, "manage"), "-daemon", queue)
 				daemonCmd.Stdout = os.Stdout
 				daemonCmd.Stderr = os.Stderr
 
@@ -226,7 +226,7 @@ func TerminalManageMulti(queue string) error {
 
 	// If we reached here, there's no active daemon or the PID file doesn't exist
 	// We'll run the daemon with our queue
-	daemonCmd := exec.Command(filepath.Join(directory, "manage"), "daemon", queue)
+	daemonCmd := exec.Command(filepath.Join(directory, "manage"), "-daemon", queue)
 	daemonCmd.Stdout = os.Stdout
 	daemonCmd.Stderr = os.Stderr
 

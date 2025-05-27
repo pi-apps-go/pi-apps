@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -63,16 +64,33 @@ func main() {
 
 	// Check for daemon-terminal mode (called from terminal-run)
 	if len(args) > 0 && args[0] == "daemon-terminal" {
-		var queueStr, statusFile string
+		var queueStr, statusFile, queuePipe string
 		if len(args) > 1 {
 			queueStr = args[1]
 		}
 		if len(args) > 2 {
 			statusFile = args[2]
 		}
-		err := daemonTerminal(queueStr, statusFile)
+		if len(args) > 3 {
+			queuePipe = args[3]
+		}
+		err := daemonTerminal(queueStr, statusFile, queuePipe)
 		if err != nil {
 			api.ErrorNoExit("Daemon terminal error: " + err.Error())
+			os.Exit(1)
+		}
+		return
+	}
+
+	// Check for view_file mode (called from diagnosis dialog)
+	if len(args) > 0 && args[0] == "view_file" {
+		if len(args) < 2 {
+			api.ErrorNoExit("Error: view_file requires a file path")
+			os.Exit(1)
+		}
+		err := api.ViewFile(args[1])
+		if err != nil {
+			api.ErrorNoExit("View file error: " + err.Error())
 			os.Exit(1)
 		}
 		return
@@ -403,18 +421,17 @@ func addToExistingDaemon(queueFile, queueStr string) error {
 		return nil
 	}
 
-	// For now, just add to a simple text file
-	// In a full implementation, this would use a proper IPC mechanism
-	file, err := os.OpenFile(queueFile, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0644)
+	// Open the named pipe for writing
+	file, err := os.OpenFile(queueFile, os.O_WRONLY, 0644)
 	if err != nil {
-		return fmt.Errorf("failed to open queue file: %w", err)
+		return fmt.Errorf("failed to open queue pipe: %w", err)
 	}
 	defer file.Close()
 
-	// Write the queue items
+	// Write the queue items to the pipe
 	_, err = file.WriteString(queueStr + "\n")
 	if err != nil {
-		return fmt.Errorf("failed to write to queue file: %w", err)
+		return fmt.Errorf("failed to write to queue pipe: %w", err)
 	}
 
 	fmt.Println("Sending instructions to daemon.")
@@ -450,6 +467,9 @@ func startNewDaemon(piAppsDir, queueStr string) error {
 		}
 	}
 
+	// Add mutex for queue synchronization
+	var queueMutex sync.Mutex
+
 	// Write PID file
 	pidFile := filepath.Join(piAppsDir, "data", "manage-daemon", "pid")
 	err := os.WriteFile(pidFile, []byte(strconv.Itoa(os.Getpid())), 0644)
@@ -457,11 +477,22 @@ func startNewDaemon(piAppsDir, queueStr string) error {
 		return fmt.Errorf("failed to write PID file: %w", err)
 	}
 
+	// Create named pipe for IPC (like the bash version)
+	queuePipe := filepath.Join(piAppsDir, "data", "manage-daemon", "queue")
+	if _, err := os.Stat(queuePipe); os.IsNotExist(err) {
+		err = syscall.Mkfifo(queuePipe, 0644)
+		if err != nil {
+			return fmt.Errorf("failed to create queue pipe: %w", err)
+		}
+	}
+
 	// Create status file for IPC between GUI and terminal processes
 	statusFile := filepath.Join(piAppsDir, "data", "manage-daemon", "status")
 
 	// Write initial status
+	queueMutex.Lock()
 	err = writeQueueStatus(statusFile, guiQueue)
+	queueMutex.Unlock()
 	if err != nil {
 		return fmt.Errorf("failed to write initial status: %w", err)
 	}
@@ -470,6 +501,7 @@ func startNewDaemon(piAppsDir, queueStr string) error {
 	defer func() {
 		os.Remove(pidFile)
 		os.Remove(statusFile)
+		os.Remove(queuePipe)
 	}()
 
 	// Handle signals
@@ -479,46 +511,76 @@ func startNewDaemon(piAppsDir, queueStr string) error {
 		<-c
 		os.Remove(pidFile)
 		os.Remove(statusFile)
+		os.Remove(queuePipe)
 		os.Exit(0)
 	}()
 
-	// Start progress monitor in a goroutine that reads from status file
-	progressDone := make(chan bool)
+	// Start progress monitor with initial queue only (it will show static progress)
+	progressDone := make(chan bool, 1)
 	go func() {
-		defer func() { progressDone <- true }()
+		// Start with initial queue
+		progressQueue := make([]gui.QueueItem, len(guiQueue))
+		copy(progressQueue, guiQueue)
 
-		// Monitor the status file and update GUI
+		// Use daemon progress monitor with the initial queue
+		// It will read status updates from status file
+		err := gui.ProgressMonitorDaemon(progressQueue)
+		if err != nil {
+			fmt.Printf("Error with progress monitor: %v\n", err)
+		}
+		progressDone <- true
+	}()
+
+	// Start queue listener for new incoming requests
+	queueUpdate := make(chan string, 10) // Buffered channel for new queue items
+	go func() {
 		for {
-			// Read current status
-			currentQueue, err := readQueueStatus(statusFile)
+			// Open the named pipe for reading (this will block until something writes to it)
+			file, err := os.OpenFile(queuePipe, os.O_RDONLY, 0644)
 			if err != nil {
-				time.Sleep(500 * time.Millisecond)
+				fmt.Printf("Warning: failed to open queue pipe for reading: %v\n", err)
+				time.Sleep(1 * time.Second)
 				continue
 			}
 
-			// Update the GUI queue
-			copy(guiQueue, currentQueue)
+			scanner := bufio.NewScanner(file)
+			for scanner.Scan() {
+				line := strings.TrimSpace(scanner.Text())
+				if line != "" {
+					fmt.Printf("Received new queue request: %s\n", line)
+					queueUpdate <- line
+				}
+			}
+			file.Close()
 
-			// Check if all operations are complete
-			allComplete := true
-			for _, item := range currentQueue {
-				if item.Status != "success" && item.Status != "failure" {
-					allComplete = false
+			if err := scanner.Err(); err != nil {
+				fmt.Printf("Warning: error reading from queue pipe: %v\n", err)
+			}
+		}
+	}()
+
+	// Simplified status monitoring - just wait for terminal process to complete
+	statusMonitorDone := make(chan bool, 1)
+	go func() {
+		for {
+			// Check if terminal process is still running by checking PID file
+			pidBytes, err := os.ReadFile(pidFile)
+			if err != nil {
+				// PID file doesn't exist, terminal process is done
+				statusMonitorDone <- true
+				break
+			}
+
+			if pid, err := strconv.Atoi(strings.TrimSpace(string(pidBytes))); err == nil {
+				// Check if the process still exists
+				if process, err := os.FindProcess(pid); err != nil || process.Signal(syscall.Signal(0)) != nil {
+					// Process doesn't exist anymore, terminal process is done
+					statusMonitorDone <- true
 					break
 				}
 			}
 
-			if allComplete {
-				break
-			}
-
-			time.Sleep(500 * time.Millisecond)
-		}
-
-		// Show progress monitor
-		err := gui.ProgressMonitor(guiQueue)
-		if err != nil {
-			fmt.Printf("Error with progress monitor: %v\n", err)
+			time.Sleep(1 * time.Second)
 		}
 	}()
 
@@ -542,8 +604,8 @@ echo $$ > "%s"
 cd "%s"
 
 # Run the daemon terminal operations with logo and proper setup
-"%s" daemon-terminal "%s" "%s"
-`, piAppsDir, piAppsDir, pidFile, filepath.Dir(execPath), execPath, queueStr, statusFile)
+"%s" daemon-terminal "%s" "%s" "%s"
+`, piAppsDir, piAppsDir, pidFile, filepath.Dir(execPath), execPath, queueStr, statusFile, queuePipe)
 
 	// Start terminal-run with the daemon processing
 	terminalRunPath := filepath.Join(piAppsDir, "etc", "terminal-run")
@@ -557,11 +619,22 @@ cd "%s"
 		return runDaemonInCurrentShell(guiQueue, statusFile)
 	}
 
-	// Wait for progress monitor to finish
+	// Wait for status monitor to detect completion
+	<-statusMonitorDone
+
+	// Wait for progress monitor to close first
 	<-progressDone
 
+	// Read final queue state from status file for accurate summary
+	finalQueue, err := readQueueStatus(statusFile)
+	if err != nil {
+		fmt.Printf("Warning: failed to read final queue status: %v\n", err)
+		// Fall back to in-memory queue if status file read fails
+		finalQueue = guiQueue
+	}
+
 	// Show summary dialog
-	err = gui.ShowSummaryDialog(guiQueue)
+	err = gui.ShowSummaryDialog(finalQueue)
 	if err != nil {
 		fmt.Printf("Error showing summary dialog: %v\n", err)
 	}
@@ -576,37 +649,160 @@ func runDaemonInCurrentShell(guiQueue []gui.QueueItem, statusFile string) error 
 	// Display Pi-Apps logo
 	fmt.Print(api.GenerateLogo())
 
-	// Process the queue in current shell
-	for i := range guiQueue {
-		// Update status to in-progress
-		guiQueue[i].Status = "in-progress"
-		writeQueueStatus(statusFile, guiQueue)
-
-		// Execute the action - let API functions handle their own status messaging
-		var actionErr error
-		switch guiQueue[i].Action {
-		case "install":
-			actionErr = api.InstallApp(guiQueue[i].AppName)
-		case "uninstall":
-			actionErr = api.UninstallApp(guiQueue[i].AppName)
-		case "update":
-			actionErr = api.UpdateApp(guiQueue[i].AppName)
-		case "refresh":
-			actionErr = api.RefreshApp(guiQueue[i].AppName)
-		case "update-file":
-			actionErr = api.UpdateFile(guiQueue[i].AppName)
+	// Process the queue with retry loop for failed apps
+	for {
+		currentIndex := 0
+		// Find next unprocessed item
+		for i := range guiQueue {
+			if guiQueue[i].Status == "waiting" {
+				currentIndex = i
+				break
+			}
 		}
 
-		// Update status based on result
-		if actionErr != nil {
-			guiQueue[i].Status = "failure"
-			guiQueue[i].ErrorMessage = actionErr.Error()
-		} else {
-			guiQueue[i].Status = "success"
+		// Check if all items are processed
+		allProcessed := true
+		for _, item := range guiQueue {
+			if item.Status == "waiting" {
+				allProcessed = false
+				break
+			}
 		}
 
-		// Write updated status
-		writeQueueStatus(statusFile, guiQueue)
+		if allProcessed {
+			// Check for failed apps and run diagnosis
+			var failedApps []string
+			for _, item := range guiQueue {
+				if item.Status == "failure" {
+					failedApps = append(failedApps, fmt.Sprintf("%s;%s", item.Action, item.AppName))
+				}
+			}
+
+			if len(failedApps) > 0 {
+				// Run diagnosis on failed apps
+				fmt.Println("\nDiagnosing failed operations...")
+				failureList := strings.Join(failedApps, "\n")
+
+				// Call the diagnose_apps function from the API
+				results := api.DiagnoseApps(failureList)
+
+				// Process the diagnosis results
+				var retryApps []string
+				for _, result := range results {
+					if result.Action == "retry" {
+						retryApps = append(retryApps, result.ActionStr)
+					}
+				}
+
+				if len(retryApps) > 0 {
+					// User chose to retry some operations
+					// Mark failed apps as "diagnosed" to avoid repeated diagnosis
+					for i := range guiQueue {
+						if guiQueue[i].Status == "failure" {
+							guiQueue[i].Status = "diagnosed"
+						}
+					}
+
+					// Add retry operations to the queue
+					retryQueue := parseQueue(strings.Join(retryApps, "\n"))
+					for _, retryItem := range retryQueue {
+						// Ensure icon path is properly set for retry items
+						iconPath := filepath.Join(os.Getenv("PI_APPS_DIR"), "apps", retryItem.AppName, "icon-64.png")
+						if _, err := os.Stat(iconPath); os.IsNotExist(err) {
+							iconPath = filepath.Join(os.Getenv("PI_APPS_DIR"), "icons", "none-64.png")
+						}
+
+						newGuiItem := gui.QueueItem{
+							Action:   retryItem.Action,
+							AppName:  retryItem.AppName,
+							Status:   "waiting",
+							IconPath: iconPath,
+						}
+						guiQueue = append(guiQueue, newGuiItem)
+					}
+
+					// Write status update to show diagnosed items
+					writeQueueStatus(statusFile, guiQueue)
+
+					// Add a small delay before starting retries (like in original implementation)
+					fmt.Println("Preparing to retry operations...")
+					time.Sleep(2 * time.Second)
+
+					// Continue processing the new items
+					continue
+				} else {
+					// No retries requested, we're done
+					break
+				}
+			} else {
+				// No failed apps, we're done
+				break
+			}
+		}
+
+		// Process next waiting item
+		if currentIndex < len(guiQueue) && guiQueue[currentIndex].Status == "waiting" {
+			// Update status to in-progress
+			guiQueue[currentIndex].Status = "in-progress"
+			writeQueueStatus(statusFile, guiQueue)
+
+			// Execute the action - let API functions handle their own status messaging
+			var actionErr error
+			switch guiQueue[currentIndex].Action {
+			case "install":
+				actionErr = api.InstallApp(guiQueue[currentIndex].AppName)
+			case "uninstall":
+				actionErr = api.UninstallApp(guiQueue[currentIndex].AppName)
+			case "update":
+				actionErr = api.UpdateApp(guiQueue[currentIndex].AppName)
+			case "refresh":
+				actionErr = api.RefreshApp(guiQueue[currentIndex].AppName)
+			case "update-file":
+				actionErr = api.UpdateFile(guiQueue[currentIndex].AppName)
+			}
+
+			// Update status based on result
+			if actionErr != nil {
+				guiQueue[currentIndex].Status = "failure"
+				guiQueue[currentIndex].ErrorMessage = actionErr.Error()
+
+				// Format the log file to add device information for failed operations
+				logFile := api.GetLogfile(guiQueue[currentIndex].AppName)
+				if api.FileExists(logFile) {
+					err := api.FormatLogfile(logFile)
+					if err != nil {
+						fmt.Printf("Warning: failed to format log file %s: %v\n", logFile, err)
+					}
+				}
+			} else {
+				guiQueue[currentIndex].Status = "success"
+
+				// Format the log file for successful operations too (consistent with bash version)
+				logFile := api.GetLogfile(guiQueue[currentIndex].AppName)
+				if api.FileExists(logFile) {
+					err := api.FormatLogfile(logFile)
+					if err != nil {
+						fmt.Printf("Warning: failed to format log file %s: %v\n", logFile, err)
+					}
+				}
+			}
+
+			// Write updated status
+			writeQueueStatus(statusFile, guiQueue)
+		}
+	}
+
+	// Signal the progress monitor that daemon processing is complete
+	// Add a special completion marker to the queue
+	guiQueue = append(guiQueue, gui.QueueItem{
+		Action:   "daemon",
+		AppName:  "completed",
+		Status:   "daemon-complete",
+		IconPath: "",
+	})
+	err := writeQueueStatus(statusFile, guiQueue)
+	if err != nil {
+		fmt.Printf("Warning: failed to write completion status: %v\n", err)
 	}
 
 	return nil
@@ -705,7 +901,7 @@ func validateQueue(queue []QueueItem) ([]QueueItem, error) {
 }
 
 // daemonTerminal processes the queue in the terminal window spawned by terminal-run
-func daemonTerminal(queueStr, statusFile string) error {
+func daemonTerminal(queueStr, statusFile, queuePipe string) error {
 	// Display Pi-Apps logo first
 	fmt.Print(api.GenerateLogo())
 
@@ -736,44 +932,237 @@ func daemonTerminal(queueStr, statusFile string) error {
 		}
 	}
 
-	// Process the queue
-	for i := range guiQueue {
-		// Update status to in-progress
-		guiQueue[i].Status = "in-progress"
-		writeQueueStatus(statusFile, guiQueue)
+	// Write initial status
+	err := writeQueueStatus(statusFile, guiQueue)
+	if err != nil {
+		fmt.Printf("Warning: failed to write initial status: %v\n", err)
+	}
 
-		// Set terminal title
-		fmt.Printf("\033]0;%sing %s\007", strings.Title(guiQueue[i].Action), guiQueue[i].AppName)
+	// Start queue listener for new incoming requests (if pipe is provided)
+	if queuePipe != "" {
+		go func() {
+			for {
+				// Open the named pipe for reading (this will block until something writes to it)
+				file, err := os.OpenFile(queuePipe, os.O_RDONLY, 0644)
+				if err != nil {
+					fmt.Printf("Warning: failed to open queue pipe for reading: %v\n", err)
+					time.Sleep(1 * time.Second)
+					continue
+				}
 
-		// Execute the action - let API functions handle their own status messaging
-		var actionErr error
-		switch guiQueue[i].Action {
-		case "install":
-			actionErr = api.InstallApp(guiQueue[i].AppName)
-		case "uninstall":
-			actionErr = api.UninstallApp(guiQueue[i].AppName)
-		case "update":
-			actionErr = api.UpdateApp(guiQueue[i].AppName)
-		case "refresh":
-			actionErr = api.RefreshApp(guiQueue[i].AppName)
-		case "update-file":
-			actionErr = api.UpdateFile(guiQueue[i].AppName)
+				scanner := bufio.NewScanner(file)
+				for scanner.Scan() {
+					line := strings.TrimSpace(scanner.Text())
+					if line != "" {
+						fmt.Printf("Received new queue request: %s\n", line)
+
+						// Parse new queue items
+						newQueue := parseQueue(line)
+
+						// Validate new queue items
+						validatedNewQueue, err := validateQueue(newQueue)
+						if err != nil {
+							fmt.Printf("Warning: failed to validate new queue items: %v\n", err)
+							continue
+						}
+
+						// Add new items to the existing queue
+						for _, newItem := range validatedNewQueue {
+							newGuiItem := gui.QueueItem{
+								Action:   newItem.Action,
+								AppName:  newItem.AppName,
+								Status:   "waiting",
+								IconPath: newItem.IconPath,
+							}
+							guiQueue = append(guiQueue, newGuiItem)
+						}
+
+						// Update status file with new items
+						err = writeQueueStatus(statusFile, guiQueue)
+						if err != nil {
+							fmt.Printf("Warning: failed to write updated status: %v\n", err)
+						}
+					}
+				}
+				file.Close()
+
+				if err := scanner.Err(); err != nil {
+					fmt.Printf("Warning: error reading from queue pipe: %v\n", err)
+				}
+			}
+		}()
+	}
+
+	// Process the queue with retry loop for failed apps
+	for {
+		currentIndex := 0
+		// Find next unprocessed item
+		for i := range guiQueue {
+			if guiQueue[i].Status == "waiting" {
+				currentIndex = i
+				break
+			}
 		}
 
-		// Update status based on result
-		if actionErr != nil {
-			guiQueue[i].Status = "failure"
-			guiQueue[i].ErrorMessage = actionErr.Error()
-		} else {
-			guiQueue[i].Status = "success"
+		// Check if all items are processed
+		allProcessed := true
+		for _, item := range guiQueue {
+			if item.Status == "waiting" {
+				allProcessed = false
+				break
+			}
 		}
 
-		// Write updated status
-		writeQueueStatus(statusFile, guiQueue)
+		if allProcessed {
+			// Check for failed apps and run diagnosis
+			var failedApps []string
+			for _, item := range guiQueue {
+				if item.Status == "failure" {
+					failedApps = append(failedApps, fmt.Sprintf("%s;%s", item.Action, item.AppName))
+				}
+			}
+
+			if len(failedApps) > 0 {
+				// Run diagnosis on failed apps
+				fmt.Println("\nDiagnosing failed operations...")
+				failureList := strings.Join(failedApps, "\n")
+
+				// Call the diagnose_apps function from the API
+				results := api.DiagnoseApps(failureList)
+
+				// Process the diagnosis results
+				var retryApps []string
+				for _, result := range results {
+					if result.Action == "retry" {
+						retryApps = append(retryApps, result.ActionStr)
+					}
+				}
+
+				if len(retryApps) > 0 {
+					// User chose to retry some operations
+					// Mark failed apps as "diagnosed" to avoid repeated diagnosis
+					for i := range guiQueue {
+						if guiQueue[i].Status == "failure" {
+							guiQueue[i].Status = "diagnosed"
+						}
+					}
+
+					// Add retry operations to the queue with proper icon paths
+					retryQueue := parseQueue(strings.Join(retryApps, "\n"))
+					for _, retryItem := range retryQueue {
+						// Ensure icon path is properly set for retry items
+						iconPath := filepath.Join(os.Getenv("PI_APPS_DIR"), "apps", retryItem.AppName, "icon-64.png")
+						if _, err := os.Stat(iconPath); os.IsNotExist(err) {
+							iconPath = filepath.Join(os.Getenv("PI_APPS_DIR"), "icons", "none-64.png")
+						}
+
+						newGuiItem := gui.QueueItem{
+							Action:   retryItem.Action,
+							AppName:  retryItem.AppName,
+							Status:   "waiting",
+							IconPath: iconPath,
+						}
+						guiQueue = append(guiQueue, newGuiItem)
+					}
+
+					// Write status update to show diagnosed items and new retries
+					err := writeQueueStatus(statusFile, guiQueue)
+					if err != nil {
+						fmt.Printf("Warning: failed to write status: %v\n", err)
+					}
+
+					// Add a small delay before starting retries (like in original implementation)
+					fmt.Println("Preparing to retry operations...")
+					time.Sleep(2 * time.Second)
+
+					// Continue processing the new items
+					continue
+				} else {
+					// No retries requested, we're done
+					break
+				}
+			} else {
+				// No failed apps, we're done
+				break
+			}
+		}
+
+		// Process next waiting item
+		if currentIndex < len(guiQueue) && guiQueue[currentIndex].Status == "waiting" {
+			// Update status to in-progress
+			guiQueue[currentIndex].Status = "in-progress"
+			err := writeQueueStatus(statusFile, guiQueue)
+			if err != nil {
+				fmt.Printf("Warning: failed to write status: %v\n", err)
+			}
+
+			// Set terminal title
+			fmt.Printf("\033]0;%sing %s\007", strings.Title(guiQueue[currentIndex].Action), guiQueue[currentIndex].AppName)
+
+			// Execute the action - let API functions handle their own status messaging
+			var actionErr error
+			switch guiQueue[currentIndex].Action {
+			case "install":
+				actionErr = api.InstallApp(guiQueue[currentIndex].AppName)
+			case "uninstall":
+				actionErr = api.UninstallApp(guiQueue[currentIndex].AppName)
+			case "update":
+				actionErr = api.UpdateApp(guiQueue[currentIndex].AppName)
+			case "refresh":
+				actionErr = api.RefreshApp(guiQueue[currentIndex].AppName)
+			case "update-file":
+				actionErr = api.UpdateFile(guiQueue[currentIndex].AppName)
+			}
+
+			// Update status based on result
+			if actionErr != nil {
+				guiQueue[currentIndex].Status = "failure"
+				guiQueue[currentIndex].ErrorMessage = actionErr.Error()
+
+				// Format the log file to add device information for failed operations
+				logFile := api.GetLogfile(guiQueue[currentIndex].AppName)
+				if api.FileExists(logFile) {
+					err := api.FormatLogfile(logFile)
+					if err != nil {
+						fmt.Printf("Warning: failed to format log file %s: %v\n", logFile, err)
+					}
+				}
+			} else {
+				guiQueue[currentIndex].Status = "success"
+
+				// Format the log file for successful operations too (consistent with bash version)
+				logFile := api.GetLogfile(guiQueue[currentIndex].AppName)
+				if api.FileExists(logFile) {
+					err := api.FormatLogfile(logFile)
+					if err != nil {
+						fmt.Printf("Warning: failed to format log file %s: %v\n", logFile, err)
+					}
+				}
+			}
+
+			// Write updated status
+			err = writeQueueStatus(statusFile, guiQueue)
+			if err != nil {
+				fmt.Printf("Warning: failed to write status: %v\n", err)
+			}
+		}
 	}
 
 	fmt.Println("\nAll operations completed. Press Enter to close...")
 	fmt.Scanln()
+
+	// Signal the progress monitor that daemon processing is complete
+	// Add a special completion marker to the queue
+	guiQueue = append(guiQueue, gui.QueueItem{
+		Action:   "daemon",
+		AppName:  "completed",
+		Status:   "daemon-complete",
+		IconPath: "",
+	})
+	err = writeQueueStatus(statusFile, guiQueue)
+	if err != nil {
+		fmt.Printf("Warning: failed to write completion status: %v\n", err)
+	}
 
 	return nil
 }
@@ -791,8 +1180,18 @@ func writeQueueStatus(statusFile string, queue []gui.QueueItem) error {
 	defer file.Close()
 
 	for _, item := range queue {
+		// Ensure icon path is valid (not empty or a directory)
+		iconPath := item.IconPath
+		if iconPath == "" || iconPath == os.Getenv("PI_APPS_DIR") {
+			// Fix invalid icon paths
+			iconPath = filepath.Join(os.Getenv("PI_APPS_DIR"), "apps", item.AppName, "icon-64.png")
+			if _, err := os.Stat(iconPath); os.IsNotExist(err) {
+				iconPath = filepath.Join(os.Getenv("PI_APPS_DIR"), "icons", "none-64.png")
+			}
+		}
+
 		line := fmt.Sprintf("%s;%s;%s;%s;%s\n",
-			item.Action, item.AppName, item.Status, item.IconPath, item.ErrorMessage)
+			item.Action, item.AppName, item.Status, iconPath, item.ErrorMessage)
 		_, err := file.WriteString(line)
 		if err != nil {
 			return err
@@ -838,6 +1237,11 @@ func readQueueStatus(statusFile string) ([]gui.QueueItem, error) {
 	}
 
 	return queue, scanner.Err()
+}
+
+// readQueueStatusFromFile is a helper function that the GUI can use
+func readQueueStatusFromFile(statusFile string) ([]gui.QueueItem, error) {
+	return readQueueStatus(statusFile)
 }
 
 // printUsage prints usage information

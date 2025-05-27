@@ -31,6 +31,10 @@ import (
 )
 
 // WillReinstall returns true if the given app will be reinstalled during an update, false otherwise
+//
+//	false - app will not be reinstalled
+//	true - app will be reinstalled
+//	error - error if app is not specified
 func WillReinstall(app string) (bool, error) {
 	if app == "" {
 		return false, fmt.Errorf("will_reinstall(): requires an argument")
@@ -130,6 +134,10 @@ func WillReinstall(app string) (bool, error) {
 }
 
 // filesMatch returns true if the contents of the two files match, false otherwise
+//
+//	false - files do not match
+//	true - files match
+//	error - error if files do not exist
 func filesMatch(file1, file2 string) (bool, error) {
 	// Check if files exist
 	if !FileExists(file1) || !FileExists(file2) {
@@ -152,6 +160,9 @@ func filesMatch(file1, file2 string) (bool, error) {
 }
 
 // AppSearch searches all apps for the given query in the specified files
+//
+//	[]string - list of apps
+//	error - error if query is not specified
 func AppSearch(query string, searchFiles ...string) ([]string, error) {
 	if query == "" {
 		return nil, fmt.Errorf("app_search(): requires a search query")
@@ -254,6 +265,10 @@ func AppSearch(query string, searchFiles ...string) ([]string, error) {
 }
 
 // fileContainsText returns true if the file contains the given text (case-insensitive)
+//
+//	false - file does not contain text
+//	true - file contains text
+//	error - error if file does not exist
 func fileContainsText(filePath, text string) (bool, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
@@ -275,6 +290,9 @@ func fileContainsText(filePath, text string) (bool, error) {
 }
 
 // stringInSlice returns true if the string is in the slice
+//
+//	false - string is not in slice
+//	true - string is in slice
 func stringInSlice(s string, slice []string) bool {
 	for _, item := range slice {
 		if item == s {
@@ -285,6 +303,8 @@ func stringInSlice(s string, slice []string) bool {
 }
 
 // listAppDirs returns a list of app directories
+//
+//	[]string - list of app directories
 func listAppDirs(directory string) []string {
 	appsDir := filepath.Join(directory, "apps")
 	entries, err := os.ReadDir(appsDir)
@@ -304,6 +324,9 @@ func listAppDirs(directory string) []string {
 }
 
 // AppSearchGUI provides a graphical interface for searching apps using GTK3
+//
+//	"" - no app selected
+//	error - error if GTK is not initialized
 func AppSearchGUI() (string, error) {
 	directory := os.Getenv("PI_APPS_DIR")
 	if directory == "" {
@@ -697,6 +720,9 @@ func showSearchResults(directory string, results []string, query string) string 
 }
 
 // getAppDescription returns the first line of the app's description
+//
+//	"" - description unavailable
+//	description - description
 func getAppDescription(directory, app string) string {
 	descFile := filepath.Join(directory, "apps", app, "description")
 	if !FileExists(descFile) {

@@ -31,6 +31,10 @@ import (
 
 // AnythingInstalledFromURISuiteComponent checks if any packages from a specific APT repository
 // (identified by URI, suite, and optional component) are currently installed.
+//
+//	false - no packages are installed from the repository
+//	true - at least one package is installed from the repository
+//	error - error if repository URI, suite, or component is not specified
 func AnythingInstalledFromURISuiteComponent(uri, suite, component string) (bool, error) {
 	if uri == "" {
 		Error("AnythingInstalledFromURISuiteComponent: A repository uri must be specified.")
@@ -116,7 +120,10 @@ func AnythingInstalledFromURISuiteComponent(uri, suite, component string) (bool,
 }
 
 // RemoveRepofileIfUnused removes a sources.list.d file if nothing from that repository is currently installed.
+//
 // If testMode is "test", it only outputs the status without removing anything.
+//
+//	error - error if file is not specified or testMode is not "test"
 func RemoveRepofileIfUnused(file, testMode, key string) error {
 	if file == "" {
 		Error("RemoveRepofileIfUnused: no sources.list.d file specified!")

@@ -32,6 +32,7 @@ import (
 )
 
 // BitlyLink is a compatibility function that redirects to ShlinkLink
+//
 // It's maintained for backward compatibility with scripts that might use it
 func BitlyLink(app, trigger string) error {
 	return ShlinkLink(app, trigger)
@@ -112,6 +113,9 @@ func ShlinkLink(app, trigger string) error {
 // Helper functions
 
 // getModel returns the device model and SOC_ID
+//
+//	model - device model
+//	socID - SOC_ID
 func getModel() (string, string) {
 	var model, socID string
 
@@ -143,6 +147,9 @@ func getModel() (string, string) {
 }
 
 // getHashedFileContent reads a file and returns its SHA1 hash if the file exists and has content
+//
+//	"" - file does not exist or has no content
+//	hash - file exists and has content
 func getHashedFileContent(filePath string) string {
 	// Check if file exists and has content
 	fileInfo, err := os.Stat(filePath)

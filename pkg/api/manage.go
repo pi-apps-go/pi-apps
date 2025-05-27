@@ -234,6 +234,12 @@ func ManageApp(action Action, appName string, isUpdate bool) error {
 		fmt.Printf("Please ask on Github: \033[94m\033[4mhttps://github.com/pi-apps-go/pi-apps/issues/new/choose\033[24m\033[93m\n")
 		fmt.Printf("Or on Discord: \033[94m\033[4mhttps://discord.gg/RXSTvaUvuu\033[0m\n")
 
+		// Format the log file to add device information (consistent with bash version)
+		formatErr := FormatLogfile(logPath)
+		if formatErr != nil {
+			fmt.Printf("Warning: failed to format log file %s: %v\n", logPath, formatErr)
+		}
+
 		// Rename log file to indicate failure
 		newLogPath := strings.Replace(logPath, "-incomplete-", "-fail-", 1)
 		os.Rename(logPath, newLogPath)
@@ -259,6 +265,12 @@ func ManageApp(action Action, appName string, isUpdate bool) error {
 	// Success
 	fmt.Fprintf(logFile, "\n%s %sed successfully.\n", action, appName)
 	StatusGreen(fmt.Sprintf("%s %sed successfully.", action, appName))
+
+	// Format the log file to add device information (consistent with bash version)
+	formatErr := FormatLogfile(logPath)
+	if formatErr != nil {
+		fmt.Printf("Warning: failed to format log file %s: %v\n", logPath, formatErr)
+	}
 
 	// Rename log file to indicate success
 	newLogPath := strings.Replace(logPath, "-incomplete-", "-success-", 1)
@@ -845,6 +857,12 @@ cd "%s"
 		fmt.Printf("Please ask on Github: \033[94m\033[4mhttps://github.com/pi-apps-go/pi-apps/issues/new/choose\033[24m\033[93m\n")
 		fmt.Printf("Or on Discord: \033[94m\033[4mhttps://discord.gg/RXSTvaUvuu\033[0m\n")
 
+		// Format the log file to add device information (consistent with bash version)
+		err := FormatLogfile(logPath)
+		if err != nil {
+			fmt.Printf("Warning: failed to format log file %s: %v\n", logPath, err)
+		}
+
 		// Rename log file to indicate failure
 		newLogPath := strings.Replace(logPath, "-incomplete-", "-fail-", 1)
 		os.Rename(logPath, newLogPath)
@@ -871,6 +889,12 @@ cd "%s"
 	// Success
 	fmt.Fprintf(logFile, "\n%s %sed successfully.\n", scriptName, appName)
 	StatusGreen(fmt.Sprintf("%sed %s successfully.", strings.Title(scriptName), appName))
+
+	// Format the log file to add device information (consistent with bash version)
+	err = FormatLogfile(logPath)
+	if err != nil {
+		fmt.Printf("Warning: failed to format log file %s: %v\n", logPath, err)
+	}
 
 	// Rename log file to indicate success
 	newLogPath := strings.Replace(logPath, "-incomplete-", "-success-", 1)

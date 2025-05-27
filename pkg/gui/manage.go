@@ -19,6 +19,7 @@
 package gui
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -46,10 +47,12 @@ type QueueItem struct {
 
 // StatusIconMapping maps status to icon paths
 var StatusIconMapping = map[string]string{
-	"waiting":     "icons/wait.png",
-	"in-progress": "icons/prompt.png",
-	"success":     "icons/success.png",
-	"failure":     "icons/failure.png",
+	"waiting":         "icons/wait.png",
+	"in-progress":     "icons/prompt.png",
+	"success":         "icons/success.png",
+	"failure":         "icons/failure.png",
+	"diagnosed":       "icons/failure.png", // Use failure icon for diagnosed items
+	"daemon-complete": "icons/success.png", // Use success icon for daemon completion
 }
 
 // ActionIconMapping maps actions to icon paths
@@ -59,6 +62,7 @@ var ActionIconMapping = map[string]string{
 	"update":      "icons/update.png",
 	"refresh":     "icons/refresh.png",
 	"update-file": "icons/update.png",
+	"daemon":      "icons/none-24.png", // Special daemon completion marker
 }
 
 // GTK initialization state
@@ -274,6 +278,16 @@ func ValidateAppsGUI(queue []QueueItem) ([]QueueItem, error) {
 
 // ProgressMonitor shows a dialog with the current progress of operations
 func ProgressMonitor(queue []QueueItem) error {
+	return ProgressMonitorWithOptions(queue, false)
+}
+
+// ProgressMonitorDaemon shows a progress dialog that doesn't auto-close (for daemon mode)
+func ProgressMonitorDaemon(queue []QueueItem) error {
+	return ProgressMonitorWithOptions(queue, true)
+}
+
+// ProgressMonitorWithOptions shows a dialog with the current progress of operations
+func ProgressMonitorWithOptions(queue []QueueItem, daemonMode bool) error {
 	// If we can't use GTK, use a simple CLI progress reporter
 	if !canUseGTK() {
 		return progressMonitorCLI(queue)
@@ -447,23 +461,38 @@ func ProgressMonitor(queue []QueueItem) error {
 			return false // Stop the timer
 		}
 
+		// In daemon mode, try to read updated queue from status file
+		currentQueue := queue // Default to original queue
+		if daemonMode {
+			// Try to read from a well-known status file location
+			piAppsDir := getPiAppsDir()
+			statusFile := filepath.Join(piAppsDir, "data", "manage-daemon", "status")
+			if updatedQueue, err := readQueueFromStatusFile(statusFile); err == nil && len(updatedQueue) > 0 {
+				currentQueue = updatedQueue
+			}
+		}
+
 		// Update list store with current status
 		listStore.Clear()
-		for _, item := range queue {
+		for _, item := range currentQueue {
 			addQueueItemToPixbufListStore(listStore, item)
 		}
 
 		// Check if all operations are complete (success or failure)
 		allComplete := true
-		for _, item := range queue {
-			if item.Status != "success" && item.Status != "failure" {
+		daemonShouldClose := false
+		for _, item := range currentQueue {
+			if item.Status == "daemon-complete" {
+				daemonShouldClose = true
+			}
+			if item.Status != "success" && item.Status != "failure" && item.Status != "daemon-complete" && item.Status != "diagnosed" {
 				allComplete = false
-				break
 			}
 		}
 
-		// If all operations are complete, close after a short delay
-		if allComplete {
+		// If all operations are complete, close after a short delay (unless in daemon mode)
+		// In daemon mode, only close when explicitly signaled
+		if (allComplete && !daemonMode) || (daemonMode && daemonShouldClose) {
 			// Wait 1 second so user can see the status, then close
 			time.Sleep(1 * time.Second)
 
@@ -809,21 +838,26 @@ func ShowBrokenPackagesDialog() (string, error) {
 func getIconPath(iconName string) string {
 	piAppsDir := getPiAppsDir()
 
-	// If iconName is already an absolute path, verify it exists
+	// If iconName is empty, return default icon immediately
+	if iconName == "" {
+		return filepath.Join(piAppsDir, "icons", "none-24.png")
+	}
+
+	// If iconName is already an absolute path, verify it exists and is a file
 	if filepath.IsAbs(iconName) {
-		if _, err := os.Stat(iconName); err == nil {
+		if info, err := os.Stat(iconName); err == nil && !info.IsDir() {
 			return iconName
 		}
-		// If absolute path doesn't exist, fall back to default icon
+		// If absolute path doesn't exist or is a directory, fall back to default icon
 		return filepath.Join(piAppsDir, "icons", "none-24.png")
 	}
 
 	// Otherwise, construct the path relative to PI_APPS_DIR
 	iconPath := filepath.Join(piAppsDir, iconName)
 
-	// Verify the icon exists
-	if _, err := os.Stat(iconPath); os.IsNotExist(err) {
-		// Fall back to a default icon if the requested icon doesn't exist
+	// Verify the icon exists and is a file (not a directory)
+	if info, err := os.Stat(iconPath); err != nil || info.IsDir() {
+		// Fall back to a default icon if the requested icon doesn't exist or is a directory
 		return filepath.Join(piAppsDir, "icons", "none-24.png")
 	}
 
@@ -838,7 +872,13 @@ func addQueueItemToPixbufListStore(listStore *gtk.ListStore, item QueueItem) {
 	const largeAppIconHeight = 64 // Larger icon size for completed installations/uninstalls
 
 	// --- Status Icon ---
-	statusIconPath := getIconPath(StatusIconMapping[item.Status])
+	statusIconName, exists := StatusIconMapping[item.Status]
+	if !exists {
+		// If status is unknown, default to waiting icon
+		statusIconName = StatusIconMapping["waiting"]
+		fmt.Printf("Warning: unknown status '%s' for app %s, using waiting icon\n", item.Status, item.AppName)
+	}
+	statusIconPath := getIconPath(statusIconName)
 	statusPixbuf, err := gdk.PixbufNewFromFile(statusIconPath)
 	if err != nil {
 		fmt.Printf("Error loading status icon %s: %v\n", statusIconPath, err)
@@ -864,7 +904,13 @@ func addQueueItemToPixbufListStore(listStore *gtk.ListStore, item QueueItem) {
 	}
 
 	// --- Action Icon ---
-	actionIconPath := getIconPath(ActionIconMapping[item.Action])
+	actionIconName, exists := ActionIconMapping[item.Action]
+	if !exists {
+		// If action is unknown, default to install icon
+		actionIconName = ActionIconMapping["install"]
+		fmt.Printf("Warning: unknown action '%s' for app %s, using install icon\n", item.Action, item.AppName)
+	}
+	actionIconPath := getIconPath(actionIconName)
 	actionPixbuf, err := gdk.PixbufNewFromFile(actionIconPath)
 	if err != nil {
 		fmt.Printf("Error loading action icon %s: %v\n", actionIconPath, err)
@@ -942,9 +988,17 @@ func addQueueItemToPixbufListStore(listStore *gtk.ListStore, item QueueItem) {
 	case "success":
 		actionText = fmt.Sprintf("%sed", capitalize(item.Action))
 	case "failure":
-		// For failures, just show the action that failed without the error message
-		// The error icon will indicate there was a problem
+		// For failures, show the action that failed
 		actionText = fmt.Sprintf("<span foreground='red'>%s failed</span>", capitalize(item.Action))
+	case "diagnosed":
+		// For diagnosed items, show that they were diagnosed
+		actionText = fmt.Sprintf("<span foreground='orange'>%s failed (diagnosed)</span>", capitalize(item.Action))
+	case "daemon-complete":
+		// For daemon completion, don't add this item to the display
+		return
+	default:
+		// Fallback for unknown statuses
+		actionText = fmt.Sprintf("%s (%s)", capitalize(item.Action), item.Status)
 	}
 
 	// Fix "updateed" text
@@ -1137,7 +1191,9 @@ func ShowErrorDialogWithRetry(appName, action, message string) bool {
 	}
 
 	// Format the error message with app name and action
-	formattedMessage := fmt.Sprintf("Failed to %s <b>%s</b>:\n%s", action, appName, message)
+	// Use glib.MarkupEscapeText to properly escape the message content
+	escapedMessage := glib.MarkupEscapeText(message)
+	formattedMessage := fmt.Sprintf("Failed to %s <b>%s</b>:\n%s", action, appName, escapedMessage)
 	label.SetMarkup(formattedMessage) // Use SetMarkup for rich text formatting
 	contentArea.Add(label)
 
@@ -1484,6 +1540,44 @@ func DisplayUnsupportedSystemWarning(message string, useGUI bool) {
 
 	// Wait 10 seconds as in the original implementation
 	time.Sleep(10 * time.Second)
+}
+
+// readQueueFromStatusFile reads queue status from a file (helper for progress monitor)
+func readQueueFromStatusFile(statusFile string) ([]QueueItem, error) {
+	if statusFile == "" {
+		return nil, fmt.Errorf("no status file specified")
+	}
+
+	file, err := os.Open(statusFile)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	var queue []QueueItem
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" {
+			continue
+		}
+
+		parts := strings.SplitN(line, ";", 5)
+		if len(parts) >= 4 {
+			item := QueueItem{
+				Action:   parts[0],
+				AppName:  parts[1],
+				Status:   parts[2],
+				IconPath: parts[3],
+			}
+			if len(parts) >= 5 {
+				item.ErrorMessage = parts[4]
+			}
+			queue = append(queue, item)
+		}
+	}
+
+	return queue, scanner.Err()
 }
 
 // canUseGTK is already defined elsewhere in the package, so we've removed it

@@ -36,7 +36,6 @@ import (
 )
 
 // RepoAdd adds local package files to the /tmp/pi-apps-local-packages repository
-// This is a Go implementation of the original bash repo_add function
 func RepoAdd(files ...string) error {
 	if len(files) == 0 {
 		return fmt.Errorf("no files specified")
@@ -78,7 +77,6 @@ func RepoAdd(files ...string) error {
 }
 
 // RepoRefresh indexes the Pi-Apps local apt repository by creating a Packages file
-// This is a Go implementation of the original bash repo_refresh function
 func RepoRefresh() error {
 	repoDir := "/tmp/pi-apps-local-packages"
 
@@ -154,7 +152,6 @@ Origin "pi-apps-local-packages";
 }
 
 // AptLockWait waits until other apt processes are finished before proceeding
-// This is a Go implementation of the original bash apt_lock_wait function
 func AptLockWait() error {
 	// First ensure English locale is added
 	AddEnglish()
@@ -222,6 +219,7 @@ func AptLockWait() error {
 
 	// Try to install a non-existent package to see if apt fails due to a lock-file
 	// NOTE: This check needs to be resilient to APT 3.0's UI changes, which may affect the error message format
+	// APT 3.0 is on Debian 13+/Ubuntu 25.04+ which uses colors extensively for the UI and as a result partially changed the output format
 	for {
 		cmd := exec.Command("sudo", "-E", "apt", "install", "lkqecjhxwqekc")
 		output, _ := cmd.CombinedOutput()
@@ -257,6 +255,7 @@ func AptLockWait() error {
 }
 
 // LessApt filters out unwanted lines from apt output
+//
 // This is a helper function for apt-related operations
 func LessApt(input string) string {
 	// First, strip ANSI color codes from the input
@@ -341,7 +340,6 @@ func stripAnsiCodes(s string) string {
 }
 
 // AptUpdate runs an apt update with error-checking and minimal output
-// This is a Go implementation of the original bash apt_update function
 func AptUpdate(args ...string) error {
 	// Wait for APT locks to be released first
 	if err := AptLockWait(); err != nil {
@@ -468,7 +466,6 @@ func AptUpdate(args ...string) error {
 }
 
 // RepoRm removes the local apt repository
-// This is a Go implementation of the original bash repo_rm function
 func RepoRm() error {
 	// Wait for other operations to finish before continuing
 	// This helps solve cases when the pi-apps local repository was removed unexpectedly by a second process

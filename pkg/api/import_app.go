@@ -201,7 +201,7 @@ func handleImport(source, piAppsDir string) ([]string, error) {
 		importedApps = append(importedApps, apps...)
 	} else if isNumeric(expandedSource) {
 		// PR number
-		account, repo := getGitUrl()
+		account, repo := GetGitUrl()
 		prURL := fmt.Sprintf("https://github.com/%s/%s/pull/%s", account, repo, expandedSource)
 		apps, err := importFromPullRequest(prURL, piAppsDir)
 		if err != nil {
@@ -759,7 +759,7 @@ func isNumeric(s string) bool {
 	return true
 }
 
-func getGitUrl() (account, repo string) {
+func GetGitUrl() (account, repo string) {
 	piAppsDir := os.Getenv("PI_APPS_DIR")
 	gitURLPath := filepath.Join(piAppsDir, "etc", "git_url")
 	if FileExists(gitURLPath) {

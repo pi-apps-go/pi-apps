@@ -29,6 +29,12 @@ import (
 )
 
 // GetAppStatus gets the app's current status (installed, uninstalled, corrupted, disabled)
+//
+//	"" - error if app is not specified or PI_APPS_DIR environment variable is not set
+//	installed - app is installed
+//	uninstalled - app is uninstalled
+//	corrupted - app is corrupted
+//	disabled - app is disabled
 func GetAppStatus(app string) (string, error) {
 	if app == "" {
 		return "", fmt.Errorf("app_status(): requires an argument")
@@ -55,8 +61,14 @@ func GetAppStatus(app string) (string, error) {
 }
 
 // AppType determines if an app is a 'standard' app or a 'package' app
-// 'standard' apps have install/uninstall scripts
-// 'package' apps are aliases to install apt packages from existing repositories
+//
+// standard - apps have install/uninstall scripts
+//
+// package - apps are aliases to install apt packages from existing repositories
+//
+//	"" - error if app is not specified or PI_APPS_DIR environment variable is not set
+//	standard - app is a standard app
+//	package - app is a package app
 func AppType(app string) (string, error) {
 	if app == "" {
 		return "", fmt.Errorf("app_type(): no app specified")
@@ -89,8 +101,12 @@ func AppType(app string) (string, error) {
 }
 
 // PkgAppPackagesRequired returns which packages are required during installation of a package-app
+//
 // It handles the '|' separator and checks for package availability
-// Returns no output if not all required packages are available
+//
+//	"" - error if app is not specified or PI_APPS_DIR environment variable is not set
+//	packages - packages required for installation
+//	error - error if packages file does not exist
 func PkgAppPackagesRequired(app string) (string, error) {
 	if app == "" {
 		return "", fmt.Errorf("pkgapp_packages_required(): no app specified")
@@ -177,7 +193,11 @@ func PkgAppPackagesRequired(app string) (string, error) {
 
 // ListAppsMissingDummyDebs lists any installed apps that have had their dummy deb
 // uninstalled more recently than the app was installed
+//
 // This helps track apps that might have broken package management
+//
+//	[]string - list of apps
+//	error - error if PI_APPS_DIR environment variable is not set
 func ListAppsMissingDummyDebs() ([]string, error) {
 	directory := os.Getenv("PI_APPS_DIR")
 	if directory == "" {

@@ -44,7 +44,7 @@ func Error(msg string) {
 	os.Exit(1)
 }
 
-// Error displays an error message in red but does not wexit the program
+// ErrorNoExit displays an error message in red but does not exit the program
 func ErrorNoExit(msg string) {
 	// Use the exact same ANSI sequence as the original bash script
 	fmt.Fprintln(os.Stderr, "\033[91m"+msg+"\033[0m")
@@ -89,6 +89,10 @@ func SetDebugMode(enabled bool) {
 }
 
 // GenerateLogo displays colorized Pi-Apps logo in terminal
+//
+// To use this function, you must call it like this:
+//
+//	fmt.Println(api.GenerateLogo())
 func GenerateLogo() string {
 	// Check if Unicode 13 is supported (libicu66+)
 	unicodeSupported := checkUnicodeSupport()
@@ -144,6 +148,9 @@ func GenerateLogo() string {
 }
 
 // checkUnicodeSupport checks if the system supports Unicode 13 (libicu66+)
+//
+//	false - no Unicode 13 support
+//	true - Unicode 13 support
 func checkUnicodeSupport() bool {
 	version := GetICUVersion()
 	parts := strings.Split(version, ".")
@@ -270,6 +277,9 @@ func PackageAvailable(packageName string, dpkgArch string) bool {
 }
 
 // PackageDependencies outputs the list of dependencies for the specified package
+//
+//	[]string - list of dependencies
+//	error - error if package is not specified
 func PackageDependencies(packageName string) ([]string, error) {
 	if packageName == "" {
 		Error("PackageDependencies(): no package specified!")
@@ -299,6 +309,9 @@ func PackageDependencies(packageName string) ([]string, error) {
 }
 
 // PackageInstalledVersion returns the installed version of the specified package
+//
+//	"" - package is not installed
+//	version - package is installed
 func PackageInstalledVersion(packageName string) (string, error) {
 	if packageName == "" {
 		Error("PackageInstalledVersion(): no package specified!")
@@ -316,6 +329,9 @@ func PackageInstalledVersion(packageName string) (string, error) {
 }
 
 // PackageLatestVersion returns the latest available version of the specified package
+//
+//	"" - package is not available
+//	version - package is available
 func PackageLatestVersion(packageName string, repo ...string) (string, error) {
 	if packageName == "" {
 		Error("PackageLatestVersion(): no package specified!")
@@ -359,6 +375,9 @@ func PackageLatestVersion(packageName string, repo ...string) (string, error) {
 }
 
 // PackageIsNewEnough checks if the package has an available version greater than or equal to compareVersion
+//
+//	false - package is not new enough
+//	true - package is new enough
 func PackageIsNewEnough(packageName, compareVersion string) bool {
 	if packageName == "" {
 		Error("PackageIsNewEnough(): no package specified!")
@@ -381,8 +400,8 @@ func PackageIsNewEnough(packageName, compareVersion string) bool {
 }
 
 // compareVersions compares two version strings and returns:
-// -1 if version1 < version2
 //
+//	-1 if version1 < version2
 //	0 if version1 == version2
 //	1 if version1 > version2
 func compareVersions(version1, version2 string) int {
@@ -480,6 +499,9 @@ func DownloadFile(url, destination string) error {
 }
 
 // FileExists checks if a file exists
+//
+//	false - file does not exist
+//	true - file exists
 func FileExists(path string) bool {
 	info, err := os.Stat(path)
 	if err != nil {
@@ -489,6 +511,9 @@ func FileExists(path string) bool {
 }
 
 // DirExists checks if a directory exists
+//
+//	false - directory does not exist
+//	true - directory exists
 func DirExists(path string) bool {
 	info, err := os.Stat(path)
 	if err != nil {
@@ -541,6 +566,8 @@ func RunCommand(command string, args ...string) int {
 }
 
 // EnsureDir ensures a directory exists, creating it if necessary
+//
+//	error - error if path is not specified
 func EnsureDir(path string) error {
 	if path == "" {
 		return fmt.Errorf("no path specified")
@@ -559,6 +586,8 @@ func EnsureDir(path string) error {
 }
 
 // InstallPackage installs a package using apt-get
+//
+//	error - error if package is not specified
 func InstallPackage(packageName string) error {
 	if packageName == "" {
 		return fmt.Errorf("no package specified")
@@ -580,6 +609,8 @@ func InstallPackage(packageName string) error {
 }
 
 // RemovePackage removes a package using apt-get
+//
+//	error - error if package is not specified
 func RemovePackage(packageName string) error {
 	if packageName == "" {
 		return fmt.Errorf("no package specified")
@@ -601,6 +632,8 @@ func RemovePackage(packageName string) error {
 }
 
 // UpdatePackages updates package lists
+//
+//	error - error if package lists are not updated
 func UpdatePackages() error {
 	// Use direct command execution for more control
 	cmd := exec.Command("sudo", "apt-get", "update")
@@ -618,6 +651,8 @@ func UpdatePackages() error {
 }
 
 // UpgradePackages upgrades all packages
+//
+//	error - error if packages are not upgraded
 func UpgradePackages() error {
 	// Use direct command execution for more control
 	cmd := exec.Command("sudo", "apt-get", "upgrade", "-y")

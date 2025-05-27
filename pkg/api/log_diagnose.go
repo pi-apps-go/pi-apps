@@ -41,6 +41,10 @@ import (
 )
 
 // ErrorDiagnosis contains the results of diagnosing a log file
+//
+// ErrorType - the type of error (system, package, internet, or unknown)
+//
+// Captions - a user-friendly explanation of the error
 type ErrorDiagnosis struct {
 	// ErrorType is the type of error (system, package, internet, or unknown)
 	ErrorType string
@@ -49,8 +53,11 @@ type ErrorDiagnosis struct {
 }
 
 // LogDiagnose analyzes a logfile and returns diagnostic information
+//
 // It takes a logfile path and an allowWrite parameter
-// Returns the error type and captions for the user
+//
+//	ErrorDiagnosis - the error diagnosis
+//	error - error if logfile is not specified
 func LogDiagnose(logfilePath string, allowWrite bool) (*ErrorDiagnosis, error) {
 	// Read the logfile
 	content, err := os.ReadFile(logfilePath)
@@ -75,7 +82,6 @@ func LogDiagnose(logfilePath string, allowWrite bool) (*ErrorDiagnosis, error) {
 	}
 
 	// Check for various error patterns
-	// Following the same logic as the bash script
 
 	//------------------------------------------
 	// Repo issues
@@ -105,6 +111,10 @@ func LogDiagnose(logfilePath string, allowWrite bool) (*ErrorDiagnosis, error) {
 	}
 
 	// Check for 'Could not resolve' or 'Failed to fetch'
+	// This message can happen not just in APT, but in other programs as well.
+	// For example, when installing a package from a remote repository, if the repository/package is down,
+	// the program will report an unresolvable repository/package..
+	// This is why we check for this message in other programs as well.
 	if containsAny(errors, []string{
 		"Could not resolve",
 		"Failed to fetch",
@@ -112,7 +122,7 @@ func LogDiagnose(logfilePath string, allowWrite bool) (*ErrorDiagnosis, error) {
 		"Internal Server Error",
 		"404 .*Not Found"}) {
 		diagnosis.Captions = append(diagnosis.Captions,
-			"APT reported an unresolvable repository.\n\n"+
+			"APT reported an unresolvable repository or another program is having an unresolvable URL to download remote resources.\n\n"+
 				"Check your Internet connection and try again.")
 		diagnosis.ErrorType = "internet"
 	}
@@ -366,7 +376,7 @@ func LogDiagnose(logfilePath string, allowWrite bool) (*ErrorDiagnosis, error) {
 
 					// Get clean package names without architecture suffix
 					for _, match := range matchesCase1 {
-						cleanName := regexp.MustCompile(`:(armhf|arm64|all)`).ReplaceAllString(match, "")
+						cleanName := regexp.MustCompile(`:(armhf|arm64|amd64|riscv64|i686|all)`).ReplaceAllString(match, "")
 						packagesCase1 = append(packagesCase1, cleanName)
 					}
 					packagesCase1 = uniqueStrings(packagesCase1)
@@ -448,7 +458,7 @@ func LogDiagnose(logfilePath string, allowWrite bool) (*ErrorDiagnosis, error) {
 
 					// Get clean package names without architecture suffix
 					for _, match := range matchesCase2 {
-						cleanName := regexp.MustCompile(`:(armhf|arm64|all)`).ReplaceAllString(match, "")
+						cleanName := regexp.MustCompile(`:(armhf|arm64|amd64|riscv64|i686|all)`).ReplaceAllString(match, "")
 						packagesCase2 = append(packagesCase2, cleanName)
 					}
 					packagesCase2 = uniqueStrings(packagesCase2)
@@ -554,7 +564,7 @@ func LogDiagnose(logfilePath string, allowWrite bool) (*ErrorDiagnosis, error) {
 					// Get clean package names without architecture suffix for apt list
 					var cleanPackages []string
 					for _, pkg := range packagesCase3 {
-						cleanName := regexp.MustCompile(`:(armhf|arm64|all)`).ReplaceAllString(pkg, "")
+						cleanName := regexp.MustCompile(`:(armhf|arm64|amd64|riscv64|i686|all)`).ReplaceAllString(pkg, "")
 						cleanPackages = append(cleanPackages, cleanName)
 					}
 					cleanPackages = uniqueStrings(cleanPackages)
@@ -701,8 +711,7 @@ func LogDiagnose(logfilePath string, allowWrite bool) (*ErrorDiagnosis, error) {
 					"2. Incompatible package versions\n"+
 					"3. Held packages preventing installation\n\n"+
 					"Try running: sudo apt --fix-broken install")
-			// Note: We're not setting error_type here, following the original script behavior
-			// which leaves it as unknown so error reporting is still possible
+			// Note: We're not setting error_type here, which leaves it as unknown so error reporting is still possible
 		}
 	}
 
@@ -755,7 +764,7 @@ func LogDiagnose(logfilePath string, allowWrite bool) (*ErrorDiagnosis, error) {
 				// Get clean package names without architecture suffix
 				var cleanPackages []string
 				for _, pkg := range packageNames {
-					cleanName := regexp.MustCompile(`:(armhf|arm64|all)`).ReplaceAllString(pkg, "")
+					cleanName := regexp.MustCompile(`:(armhf|arm64|amd64|riscv64|i686|all)`).ReplaceAllString(pkg, "")
 					cleanPackages = append(cleanPackages, cleanName)
 				}
 				cleanPackages = uniqueStrings(cleanPackages)
@@ -1791,9 +1800,9 @@ func LogDiagnose(logfilePath string, allowWrite bool) (*ErrorDiagnosis, error) {
 	// Check for user errors - these are errors that scripts deliberately output to diagnose issues
 
 	// Regular user error (reporting blocked)
-	regexUserError := regexp.MustCompile(`^User error: `)
+	regexUserError := regexp.MustCompile(`(?m)^User error: `)
 	if regexUserError.MatchString(errors) {
-		// Extract the error message - get all lines after the "User error: " line
+		// Extract the error message - get only the lines that are part of the actual error
 		scanner := bufio.NewScanner(strings.NewReader(errors))
 		var errorMessage string
 		found := false
@@ -1801,6 +1810,14 @@ func LogDiagnose(logfilePath string, allowWrite bool) (*ErrorDiagnosis, error) {
 		for scanner.Scan() {
 			line := scanner.Text()
 			if found {
+				// Stop capturing if we hit an empty line or common boilerplate patterns
+				if line == "" ||
+					strings.HasPrefix(line, "Failed to install") ||
+					strings.HasPrefix(line, "Need help?") ||
+					strings.HasPrefix(line, "Please ask on Github:") ||
+					strings.HasPrefix(line, "Or on Discord:") {
+					break
+				}
 				errorMessage += line + "\n"
 			} else if strings.HasPrefix(line, "User error: ") {
 				found = true
@@ -1808,14 +1825,16 @@ func LogDiagnose(logfilePath string, allowWrite bool) (*ErrorDiagnosis, error) {
 			}
 		}
 
+		// Remove trailing newline
+		errorMessage = strings.TrimSuffix(errorMessage, "\n")
 		diagnosis.Captions = append(diagnosis.Captions, errorMessage)
 		diagnosis.ErrorType = "system" // Blocks error reporting
 	}
 
 	// User error with reporting allowed
-	regexUserErrorAllowed := regexp.MustCompile(`^User error \(reporting allowed\): `)
+	regexUserErrorAllowed := regexp.MustCompile(`(?m)^User error \(reporting allowed\): `)
 	if regexUserErrorAllowed.MatchString(errors) {
-		// Extract the error message - get all lines after the "User error (reporting allowed): " line
+		// Extract the error message - get only the lines that are part of the actual error
 		scanner := bufio.NewScanner(strings.NewReader(errors))
 		var errorMessage string
 		found := false
@@ -1823,6 +1842,14 @@ func LogDiagnose(logfilePath string, allowWrite bool) (*ErrorDiagnosis, error) {
 		for scanner.Scan() {
 			line := scanner.Text()
 			if found {
+				// Stop capturing if we hit an empty line or common boilerplate patterns
+				if line == "" ||
+					strings.HasPrefix(line, "Failed to install") ||
+					strings.HasPrefix(line, "Need help?") ||
+					strings.HasPrefix(line, "Please ask on Github:") ||
+					strings.HasPrefix(line, "Or on Discord:") {
+					break
+				}
 				errorMessage += line + "\n"
 			} else if strings.HasPrefix(line, "User error (reporting allowed): ") {
 				found = true
@@ -1830,6 +1857,8 @@ func LogDiagnose(logfilePath string, allowWrite bool) (*ErrorDiagnosis, error) {
 			}
 		}
 
+		// Remove trailing newline
+		errorMessage = strings.TrimSuffix(errorMessage, "\n")
 		diagnosis.Captions = append(diagnosis.Captions, errorMessage)
 		diagnosis.ErrorType = "unknown" // Allows error reporting
 	}
@@ -2455,7 +2484,7 @@ func findBackportsConflicts(errors string) ([]string, error) {
 	// Clean package names (remove architecture suffixes)
 	var cleanCandidates []string
 	for _, pkg := range candidates {
-		cleanPkg := regexp.MustCompile(`:(armhf|arm64|all)`).ReplaceAllString(pkg, "")
+		cleanPkg := regexp.MustCompile(`:(armhf|arm64|amd64|riscv64|i686|all)`).ReplaceAllString(pkg, "")
 		cleanCandidates = append(cleanCandidates, cleanPkg)
 	}
 

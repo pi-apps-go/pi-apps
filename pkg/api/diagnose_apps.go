@@ -424,7 +424,7 @@ func DiagnoseApps(failureList string) []DiagnoseResult {
 		scrollWin.Add(textView)
 		contentArea.PackStart(scrollWin, true, true, 0)
 
-		// Add buttons
+		// Add View Log button as action widget with custom response ID
 		viewLogButton, err := gtk.ButtonNewWithLabel("View Log")
 		if err != nil {
 			dialog.Destroy()
@@ -436,27 +436,8 @@ func DiagnoseApps(failureList string) []DiagnoseResult {
 			viewLogButton.SetImage(icon)
 			viewLogButton.SetAlwaysShowImage(true)
 		}
-		// Connect signal
-		viewLogButton.Connect("clicked", func() {
-			// Get the directory where the binary is running from
-			exePath, err := os.Executable()
-			if err != nil {
-				fmt.Printf("Error getting executable path: %v\n", err)
-				return
-			}
-
-			// Launch a separate process for viewing the log file
-			// to avoid conflicts with the current GTK main loop
-			cmd := exec.Command(exePath, "view_file", logFile)
-			cmd.Env = append(os.Environ(), "DISPLAY="+os.Getenv("DISPLAY"))
-			err = cmd.Start()
-			if err != nil {
-				fmt.Printf("Error opening log viewer: %v\n", err)
-			}
-		})
-
-		// Add buttons to the dialog
-		dialog.AddActionWidget(viewLogButton, gtk.RESPONSE_NONE) // RESPONSE_NONE for view log (doesn't close dialog)
+		// Add to dialog with custom response ID (we'll handle this specially)
+		dialog.AddActionWidget(viewLogButton, 100) // Custom response ID for View Log
 
 		// Send Report button (if applicable)
 		if canSend {
@@ -520,35 +501,65 @@ func DiagnoseApps(failureList string) []DiagnoseResult {
 		// Show all widgets
 		dialog.ShowAll()
 
-		// Run the dialog and process the response
-		response := dialog.Run()
+		// Run the dialog and process the response in a loop to handle View Log
+		for {
+			response := dialog.Run()
 
-		// Process response
-		switch response {
-		case gtk.RESPONSE_OK: // Retry
-			results = append(results, DiagnoseResult{
-				Action:    "retry",
-				AppName:   appName,
-				ActionStr: failure,
-			})
-		case gtk.RESPONSE_APPLY: // Send Report
-			results = append(results, DiagnoseResult{
-				Action:    "send",
-				AppName:   appName,
-				ActionStr: failure,
-			})
-		case gtk.RESPONSE_CANCEL: // Close/Next
-			results = append(results, DiagnoseResult{
-				Action:    "next",
-				AppName:   appName,
-				ActionStr: failure,
-			})
-		default: // Any other response (e.g., window closed)
-			results = append(results, DiagnoseResult{
-				Action:    "close",
-				AppName:   appName,
-				ActionStr: failure,
-			})
+			// Process response
+			switch response {
+			case 100: // View Log - handle without closing dialog
+				// Get the directory where the binary is running from
+				exePath, err := os.Executable()
+				if err != nil {
+					fmt.Printf("Error getting executable path: %v\n", err)
+					continue // Stay in loop, don't close dialog
+				}
+
+				// Launch a separate process for viewing the log file
+				// to avoid conflicts with the current GTK main loop
+				cmd := exec.Command(exePath, "view_file", logFile)
+				cmd.Env = append(os.Environ(), "DISPLAY="+os.Getenv("DISPLAY"))
+				err = cmd.Start()
+				if err != nil {
+					fmt.Printf("Error opening log viewer: %v\n", err)
+				}
+				// Continue the loop to keep dialog open
+				continue
+			case gtk.RESPONSE_OK: // Retry
+				results = append(results, DiagnoseResult{
+					Action:    "retry",
+					AppName:   appName,
+					ActionStr: failure,
+				})
+				// Exit the loop to close dialog
+				break
+			case gtk.RESPONSE_APPLY: // Send Report
+				results = append(results, DiagnoseResult{
+					Action:    "send",
+					AppName:   appName,
+					ActionStr: failure,
+				})
+				// Exit the loop to close dialog
+				break
+			case gtk.RESPONSE_CANCEL: // Close/Next
+				results = append(results, DiagnoseResult{
+					Action:    "next",
+					AppName:   appName,
+					ActionStr: failure,
+				})
+				// Exit the loop to close dialog
+				break
+			default: // Any other response (e.g., window closed)
+				results = append(results, DiagnoseResult{
+					Action:    "close",
+					AppName:   appName,
+					ActionStr: failure,
+				})
+				// Exit the loop to close dialog
+				break
+			}
+			// Break out of the for loop when we want to close the dialog
+			break
 		}
 
 		// Destroy the dialog
