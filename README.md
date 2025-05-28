@@ -32,6 +32,8 @@
     <a href="https://github.com/pi-apps-go/pi-apps/issues?q=is%3Aopen+is%3Aissue+label%3A%22App+Request%22"><img src="https://img.shields.io/github/issues/pi-apps-go/pi-apps/App%20Request?color=Green&label=app%20requests"></a>
     <a href="https://github.com/pi-apps-go/pi-apps/blob/main/COPYING"><img src="https://img.shields.io/github/license/pi-apps-go/pi-apps" alt="license"></a>
     <a href="https://discord.gg/RXSTvaUvuu"><img src="https://img.shields.io/discord/770629697909424159.svg?color=7289da&label=Discord%20server&logo=discord" alt="Join the Discord server"></a>
+    <img src="https://img.shields.io/github/go-mod/go-version/pi-apps-go/pi-apps" alt="go.mod Go version">
+    <img src="https://img.shields.io/github/languages/count/pi-apps-go/pi-apps" alt="Language count">
 
 <p align="center"><strong> Original made with &#10084; by <a href="https://github.com/Botspot">Botspot</a></strong>, <strong><a href="https://github.com/theofficialgman">theofficialgman</a></strong>, and <a href="https://github.com/pi-apps-go/pi-apps/graphs/contributors">contributors</a>, while rewrite with <strong><a href="https://github.com/matu6968">matu6968</a></strong>
 
