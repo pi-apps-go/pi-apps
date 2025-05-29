@@ -33,6 +33,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -2099,6 +2100,9 @@ func GetDeviceInfo() (string, error) {
 			info.WriteString("Language: " + lcAll + "\n")
 		}
 	}
+
+	// Get Go runtime information
+	info.WriteString("Go runtime used: " + runtime.Version() + "\n")
 
 	return info.String(), nil
 }

@@ -28,7 +28,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/botspot/pi-apps/pkg/api"
 	"github.com/gotk3/gotk3/gdk"
 	"github.com/gotk3/gotk3/glib"
 	"github.com/gotk3/gotk3/gtk"
@@ -91,38 +90,6 @@ func ensureGTKInitialized() bool {
 		gtkInitialized = true
 	}
 	return true
-}
-
-// runOnce returns true if a function is being run for the first time
-// This helps avoid repeating warnings
-var onceChecks = make(map[string]bool)
-var onceMutex sync.Mutex
-
-func runOnce(key string) bool {
-	onceMutex.Lock()
-	defer onceMutex.Unlock()
-
-	if onceChecks[key] {
-		return false
-	}
-
-	onceChecks[key] = true
-	return true
-}
-
-// isSystemSupported checks if the current system is supported
-// Returns true if supported, false if not, along with a message explaining why
-func isSystemSupported() (bool, string) {
-	// If the environment variable is set to simulate an unsupported system, return false
-	if os.Getenv("PI_APPS_SIMULATE_UNSUPPORTED") == "true" {
-		return false, "Your system is actually fine, this is just a drill :)\nThis would be a example of this error in the Go reimplementation if it did happen."
-	}
-
-	isSupported, message := api.IsSupportedSystem()
-	if message != "" {
-		fmt.Println(message)
-	}
-	return isSupported, message
 }
 
 // runGtkDialog runs a GTK dialog and returns the response

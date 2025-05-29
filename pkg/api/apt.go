@@ -103,7 +103,7 @@ func RepoRefresh() error {
 	// Check if the Packages file actually exists
 	if _, err := os.Stat(packagesPath); os.IsNotExist(err) {
 		errorMsg := fmt.Sprintf("apt-ftparchive failed to index the repository: %s\nThe Pi-Apps developers have been receiving a few of these errors recently, but we can't figure out what the problem is without your help. Could you please reach out so we can solve this?", repoDir)
-		return fmt.Errorf(errorMsg)
+		return fmt.Errorf("%s", errorMsg)
 	}
 
 	// Modify the Packages file - remove "./" from Filename entries
@@ -495,7 +495,10 @@ func RepoRm() error {
 }
 
 // AppToPkgName converts an app-name to a unique, valid package-name that starts with 'pi-apps-'
-// This is a Go implementation of the original bash app_to_pkgname function
+//
+//	"" - error if app is not specified
+//	packageName - package name
+//	error - error if app is not specified
 func AppToPkgName(app string) (string, error) {
 	if app == "" {
 		return "", fmt.Errorf("no app-name specified")
@@ -515,7 +518,9 @@ func AppToPkgName(app string) (string, error) {
 
 // InstallPackages installs packages and makes them dependencies of the specified app
 // Supports package names, regex, local files, and URLs
-// This is a Go implementation of the original bash install_packages function
+//
+//	"" - error if app is not specified
+//	error - error if app is not specified
 func InstallPackages(app string, args ...string) error {
 	if app == "" {
 		return fmt.Errorf("install_packages function can only be used by apps to install packages (the app variable was not set)")
@@ -879,8 +884,7 @@ Package: %s
 
 	// Check if local repo still exists
 	if usingLocalPackages && !FileExists("/tmp/pi-apps-local-packages/Packages") {
-		return fmt.Errorf("user error: Uh-oh, the /tmp/pi-apps-local-packages folder went missing while installing packages." +
-			"\nThis usually happens if you try to install several apps at the same time in multiple terminals.")
+		return fmt.Errorf("user error: the /tmp/pi-apps-local-packages folder went missing while installing packages - this usually happens if you try to install several apps at the same time in multiple terminals")
 	}
 
 	// Run apt update and install with retry loop

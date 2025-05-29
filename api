@@ -213,6 +213,25 @@ view_file() {
     return $?
 }
 
+
+# Log viewer GUI - shows all log files in a graphical interface
+logviewer() {
+    "$GO_API_BIN" $GO_API_ARGS logviewer
+    return $?
+}
+
+# Category editor - manage app categories
+categoryedit() {
+    if [ $# -eq 2 ]; then
+        # Command line usage: categoryedit <app> <category>
+        "$GO_API_BIN" $GO_API_ARGS categoryedit "$1" "$2"
+    else
+        # GUI usage: show category editor
+        "$GO_API_BIN" $GO_API_ARGS categoryedit
+    fi
+    return $?
+}
+
 # Device information
 get_device_info() {
     "$GO_API_BIN" $GO_API_ARGS get_device_info

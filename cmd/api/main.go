@@ -328,6 +328,34 @@ func main() {
 			api.Error(fmt.Sprintf("Error viewing file: %v", err))
 		}
 
+	case "logviewer":
+		// Show the log viewer GUI
+		err := api.ShowLogViewer()
+		if err != nil {
+			api.Error(fmt.Sprintf("Error showing log viewer: %v", err))
+		}
+
+	case "categoryedit":
+		if len(args) == 2 {
+			// Command line usage: categoryedit <app> <category>
+			err := api.EditAppCategory(args[0], args[1])
+			if err != nil {
+				api.Error(fmt.Sprintf("Error editing app category: %v", err))
+			}
+		} else if len(args) == 0 {
+			// GUI usage: show category editor
+			err := api.ShowCategoryEditor()
+			if err != nil {
+				api.Error(fmt.Sprintf("Error showing category editor: %v", err))
+			}
+		} else {
+			api.ErrorNoExit("Error: Invalid number of arguments")
+			api.Status("Usage: api categoryedit [<app-name> <category>]")
+			api.Status("  Without arguments: Shows GUI category editor")
+			api.Status("  With arguments: Sets category for specific app")
+			os.Exit(1)
+		}
+
 	case "get_device_info":
 		// Call GetDeviceInfo and output the result
 		info, err := api.GetDeviceInfo()
@@ -1518,6 +1546,8 @@ func printUsage() {
 	fmt.Println("  createapp                                    - Launch the Create App wizard")
 	fmt.Println("  importapp                                    - Launch the Import App wizard")
 	fmt.Println("  manage                                       - Manage apps")
+	fmt.Println("  logviewer                                    - View log files in a graphical interface")
+	fmt.Println("  categoryedit [<app-name> <category>]         - Edit app categories (GUI without args, CLI with args)")
 	fmt.Println("")
 	fmt.Println("List Operations:")
 	fmt.Println("  list_intersect <list2> (list1 from stdin)    - Show items in both lists")

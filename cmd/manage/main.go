@@ -266,8 +266,32 @@ func main() {
 				api.ErrorNoExit("Error validating apps: " + err.Error())
 			}
 		} else {
-			// TODO: Implement command-line validation
-			// For now, we just proceed with the queue as is
+			// Use command-line validation - convert types
+			internalQueue := make([]QueueItem, len(queue))
+			for i, item := range queue {
+				internalQueue[i] = QueueItem{
+					Action:   item.Action,
+					AppName:  item.AppName,
+					Status:   item.Status,
+					IconPath: item.IconPath,
+				}
+			}
+
+			validatedQueue, err := validateQueue(internalQueue)
+			if err != nil {
+				api.ErrorNoExit("Error validating apps: " + err.Error())
+			}
+
+			// Convert back to gui.QueueItem
+			queue = make([]gui.QueueItem, len(validatedQueue))
+			for i, item := range validatedQueue {
+				queue[i] = gui.QueueItem{
+					Action:   item.Action,
+					AppName:  item.AppName,
+					Status:   item.Status,
+					IconPath: item.IconPath,
+				}
+			}
 		}
 	}
 
@@ -642,6 +666,11 @@ cd "%s"
 	err = terminalCmd.Run()
 	if err != nil {
 		fmt.Printf("Unable to open a terminal.\nError: %v\n", err)
+
+		// Show GUI error dialog if this was a GUI request (similar to bash version)
+		errorText := fmt.Sprintf("Unable to open a terminal.\nDebug output below.\n%v", err)
+		gui.ShowMessageDialog("Error occurred when calling terminal-run", errorText, 3) // MessageType 3 is ERROR
+
 		// Fall back to running in current shell if terminal-run fails
 		return runDaemonInCurrentShell(guiQueue, statusFile)
 	}
@@ -748,8 +777,14 @@ func runDaemonInCurrentShell(guiQueue []gui.QueueItem, statusFile string) error 
 						guiQueue = append(guiQueue, newGuiItem)
 					}
 
+					// Reorder the queue to prioritize updates and refreshes
+					guiQueue = reorderList(guiQueue)
+
 					// Write status update to show diagnosed items
-					writeQueueStatus(statusFile, guiQueue)
+					err := writeQueueStatus(statusFile, guiQueue)
+					if err != nil {
+						fmt.Printf("Warning: failed to write updated status: %v\n", err)
+					}
 
 					// Add a small delay before starting retries (like in original implementation)
 					fmt.Println("Preparing to retry operations...")
@@ -771,7 +806,13 @@ func runDaemonInCurrentShell(guiQueue []gui.QueueItem, statusFile string) error 
 		if currentIndex < len(guiQueue) && guiQueue[currentIndex].Status == "waiting" {
 			// Update status to in-progress
 			guiQueue[currentIndex].Status = "in-progress"
-			writeQueueStatus(statusFile, guiQueue)
+			err := writeQueueStatus(statusFile, guiQueue)
+			if err != nil {
+				fmt.Printf("Warning: failed to write status: %v\n", err)
+			}
+
+			// Set terminal title
+			fmt.Printf("\033]0;%sing %s\007", strings.Title(guiQueue[currentIndex].Action), guiQueue[currentIndex].AppName)
 
 			// Execute the action - let API functions handle their own status messaging
 			var actionErr error
@@ -815,7 +856,10 @@ func runDaemonInCurrentShell(guiQueue []gui.QueueItem, statusFile string) error 
 			}
 
 			// Write updated status
-			writeQueueStatus(statusFile, guiQueue)
+			err = writeQueueStatus(statusFile, guiQueue)
+			if err != nil {
+				fmt.Printf("Warning: failed to write status: %v\n", err)
+			}
 		}
 	}
 
@@ -874,8 +918,13 @@ func parseQueue(queueStr string) []QueueItem {
 	return queue
 }
 
-// validateQueue validates the queue items
+// validateQueue validates the queue items and shows GUI dialogs for errors if in GUI mode
 func validateQueue(queue []QueueItem) ([]QueueItem, error) {
+	return validateQueueWithGUI(queue, false)
+}
+
+// validateQueueWithGUI validates the queue items with optional GUI error dialogs
+func validateQueueWithGUI(queue []QueueItem, useGUI bool) ([]QueueItem, error) {
 	piAppsDir := os.Getenv("PI_APPS_DIR")
 	var validQueue []QueueItem
 
@@ -891,7 +940,12 @@ func validateQueue(queue []QueueItem) ([]QueueItem, error) {
 		}
 
 		if !isValidAction {
-			fmt.Printf("Invalid action '%s' for app '%s', skipping\n", item.Action, item.AppName)
+			errorMsg := fmt.Sprintf("Invalid action '%s' for app '%s', skipping", item.Action, item.AppName)
+			if useGUI {
+				gui.ShowMessageDialog("Error", fmt.Sprintf("Invalid action: <b>%s</b>", item.Action), 3)
+			} else {
+				fmt.Println(errorMsg)
+			}
 			continue
 		}
 
@@ -903,21 +957,32 @@ func validateQueue(queue []QueueItem) ([]QueueItem, error) {
 
 		// Check if app exists
 		var appDir string
-		if item.Action == "update" {
+		if item.Action == "update" || item.Action == "refresh" {
 			appDir = filepath.Join(piAppsDir, "update", "pi-apps", "apps", item.AppName)
 		} else {
 			appDir = filepath.Join(piAppsDir, "apps", item.AppName)
 		}
 
 		if _, err := os.Stat(appDir); os.IsNotExist(err) {
-			fmt.Printf("App '%s' does not exist, skipping\n", item.AppName)
+			errorMsg := fmt.Sprintf("App '%s' does not exist, skipping", item.AppName)
+			if useGUI {
+				gui.ShowMessageDialog("Error", fmt.Sprintf("Invalid app \"<b>%s</b>\". Cannot %s it.", item.AppName, item.Action), 3)
+			} else {
+				fmt.Println(errorMsg)
+			}
 			continue
 		}
 
 		// Check for redundant operations
 		if (item.Action == "install" && api.IsAppInstalled(item.AppName)) ||
 			(item.Action == "uninstall" && !api.IsAppInstalled(item.AppName)) {
-			fmt.Printf("App '%s' is already %sed, skipping\n", item.AppName, item.Action)
+			infoMsg := fmt.Sprintf("App '%s' is already %sed, skipping", item.AppName, item.Action)
+			if useGUI {
+				// In GUI mode, this would typically be handled by ValidateAppsGUI, so just inform
+				fmt.Println(infoMsg)
+			} else {
+				fmt.Println(infoMsg)
+			}
 			continue
 		}
 
@@ -925,6 +990,51 @@ func validateQueue(queue []QueueItem) ([]QueueItem, error) {
 	}
 
 	return validQueue, nil
+}
+
+// reorderList reorders the queue to prioritize app refreshes and file updates over installs/uninstalls
+func reorderList(queue []gui.QueueItem) []gui.QueueItem {
+	// Split queue into completed and pending items
+	var completedItems []gui.QueueItem
+	var pendingItems []gui.QueueItem
+
+	for _, item := range queue {
+		// Check if item is completed (has a numeric status code)
+		if _, err := strconv.Atoi(item.Status); err == nil {
+			completedItems = append(completedItems, item)
+		} else {
+			pendingItems = append(pendingItems, item)
+		}
+	}
+
+	// Split pending items by type
+	var pendingRefreshes []gui.QueueItem
+	var pendingFileUpdates []gui.QueueItem
+	var pendingOther []gui.QueueItem
+
+	for _, item := range pendingItems {
+		switch item.Action {
+		case "refresh":
+			pendingRefreshes = append(pendingRefreshes, item)
+		case "update-file":
+			pendingFileUpdates = append(pendingFileUpdates, item)
+		default:
+			pendingOther = append(pendingOther, item)
+		}
+	}
+
+	// Reconstruct queue in priority order:
+	// 1. Completed items (unchanged)
+	// 2. File updates
+	// 3. App refreshes
+	// 4. Other operations (installs/uninstalls)
+	var reorderedQueue []gui.QueueItem
+	reorderedQueue = append(reorderedQueue, completedItems...)
+	reorderedQueue = append(reorderedQueue, pendingFileUpdates...)
+	reorderedQueue = append(reorderedQueue, pendingRefreshes...)
+	reorderedQueue = append(reorderedQueue, pendingOther...)
+
+	return reorderedQueue
 }
 
 // daemonTerminal processes the queue in the terminal window spawned by terminal-run
@@ -1074,7 +1184,7 @@ func daemonTerminal(queueStr, statusFile, queuePipe string) error {
 						}
 					}
 
-					// Add retry operations to the queue with proper icon paths
+					// Add retry operations to the queue
 					retryQueue := parseQueue(strings.Join(retryApps, "\n"))
 					for _, retryItem := range retryQueue {
 						// Ensure icon path is properly set for retry items
@@ -1092,10 +1202,13 @@ func daemonTerminal(queueStr, statusFile, queuePipe string) error {
 						guiQueue = append(guiQueue, newGuiItem)
 					}
 
-					// Write status update to show diagnosed items and new retries
+					// Reorder the queue to prioritize updates and refreshes
+					guiQueue = reorderList(guiQueue)
+
+					// Write status update to show diagnosed items
 					err := writeQueueStatus(statusFile, guiQueue)
 					if err != nil {
-						fmt.Printf("Warning: failed to write status: %v\n", err)
+						fmt.Printf("Warning: failed to write updated status: %v\n", err)
 					}
 
 					// Add a small delay before starting retries (like in original implementation)
@@ -1264,11 +1377,6 @@ func readQueueStatus(statusFile string) ([]gui.QueueItem, error) {
 	}
 
 	return queue, scanner.Err()
-}
-
-// readQueueStatusFromFile is a helper function that the GUI can use
-func readQueueStatusFromFile(statusFile string) ([]gui.QueueItem, error) {
-	return readQueueStatus(statusFile)
 }
 
 // printUsage prints usage information

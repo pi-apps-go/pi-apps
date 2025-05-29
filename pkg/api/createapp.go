@@ -1631,6 +1631,11 @@ func showAppDetailsDialog(appName, appType string) (string, *AppDetails, error) 
 
 // getIconFromPackage tries to find an icon for the given package
 func getIconFromPackage(packageName, piAppsDir string) string {
+	// ensure piAppsDir is set
+	if piAppsDir == "" {
+		piAppsDir = GetPiAppsDir()
+		os.Setenv("PI_APPS_DIR", piAppsDir)
+	}
 	// Try running dpkg -L command to list files in the package
 	cmd := exec.Command("dpkg", "-L", packageName)
 	output, err := cmd.Output()
@@ -1674,6 +1679,7 @@ func getIconFromPackage(packageName, piAppsDir string) string {
 }
 
 // createAppDirectory creates the directory structure for a new app
+// TODO: this is not used anywhere and giving warnings in gopls, either remove or use it
 func createAppDirectory(appName, appType string) error {
 	if appName == "" {
 		return fmt.Errorf("app name cannot be empty")

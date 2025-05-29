@@ -1430,9 +1430,7 @@ func parseURL(rawURL string) (*url.URL, error) {
 	}
 
 	// Remove /download suffix that some file hosting services use
-	if strings.HasSuffix(parsedURL.Path, "/download") {
-		parsedURL.Path = strings.TrimSuffix(parsedURL.Path, "/download")
-	}
+	parsedURL.Path = strings.TrimSuffix(parsedURL.Path, "/download")
 
 	return parsedURL, nil
 }

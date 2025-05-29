@@ -759,6 +759,10 @@ func isNumeric(s string) bool {
 	return true
 }
 
+// Helper function to get the git URL from the git_url file
+//
+//	account - the account name
+//	repo - the repository name
 func GetGitUrl() (account, repo string) {
 	piAppsDir := os.Getenv("PI_APPS_DIR")
 	gitURLPath := filepath.Join(piAppsDir, "etc", "git_url")
