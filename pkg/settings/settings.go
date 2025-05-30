@@ -16,6 +16,8 @@
 // Module: settings.go
 // Description: Provides a native GTK3 settings interface for Pi-Apps using GOTK3 bindings
 
+// general TODO: add plugin section as we are going to allow users to add plugins to Pi-Apps Go thanks to the plugin package
+
 package settings
 
 import (
@@ -24,6 +26,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/gotk3/gotk3/glib"
 	"github.com/gotk3/gotk3/gtk"
 )
 
@@ -47,6 +50,10 @@ type Setting struct {
 
 // NewSettingsWindow creates and initializes a new settings window
 func NewSettingsWindow() (*SettingsWindow, error) {
+
+	// Set approprative name
+	glib.SetPrgname("Pi-Apps Settings")
+
 	// Initialize GTK
 	gtk.Init(nil)
 

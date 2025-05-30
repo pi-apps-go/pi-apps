@@ -221,6 +221,36 @@ func LogDiagnose(logfilePath string, allowWrite bool) (*ErrorDiagnosis, error) {
 		diagnosis.ErrorType = "system"
 	}
 
+	// Check for unsupported foreign architectures
+	regexForeignArch := regexp.MustCompile(`(404.*Not Found.*) (i386|amd64|armhf|arm64|riscv64) Packages|Ign:.*/(i386|amd64|armhf|arm64|riscv64) Packages`)
+	if regexForeignArch.MatchString(errors) {
+		// Get current system architecture
+		currentArch, err := getCurrentSystemArchitecture()
+		if err == nil {
+			// Extract foreign architectures from the error
+			foreignArchs := extractForeignArchitectures(errors)
+			unsupportedArchs := []string{}
+
+			for _, foreignArch := range foreignArchs {
+				if !isArchitectureSupported(currentArch, foreignArch) {
+					unsupportedArchs = append(unsupportedArchs, foreignArch)
+				}
+			}
+
+			if len(unsupportedArchs) > 0 {
+				archList := strings.Join(unsupportedArchs, ", ")
+				diagnosis.Captions = append(diagnosis.Captions,
+					"APT is failing because you have added unsupported foreign architecture(s): "+archList+"\n\n"+
+						"Your system architecture ("+currentArch+") does not support these architectures. "+
+						"This commonly happens when users add i386 architecture to ARM systems or vice versa.\n\n"+
+						"To fix this, remove the unsupported architecture(s) with these commands:\n"+
+						generateRemoveArchCommands(unsupportedArchs)+"\n\n"+
+						"Then run: sudo apt update")
+				diagnosis.ErrorType = "system"
+			}
+		}
+	}
+
 	// check for "package is in a very bad inconsistent state;"
 	regexInconsistent := regexp.MustCompile(`package is in a very bad inconsistent state;`)
 	if regexInconsistent.MatchString(errors) {
@@ -2584,7 +2614,7 @@ func GetDeviceModel() (string, string) {
 				"tegra186": "tegra-x2",
 				"tegra194": "xavier",
 				"tegra234": "orin",
-				"tegra239": "switch-pro-chip",
+				"tegra239": "switch-2-chip",
 			}
 
 			for key, value := range tegraMapping {
@@ -2602,10 +2632,30 @@ func GetDeviceModel() (string, string) {
 			// Rockchip SoC detection
 			rockchipIDs := []string{
 				"rk3399", "rk3308", "rk3326", "rk3328",
-				"rk3368", "rk3566", "rk3568",
+				"rk3368", "rk3566", "rk3568", "rk3588",
+				"rk3588s",
 			}
 
 			for _, id := range rockchipIDs {
+				if strings.Contains(chip, id) {
+					socID = id
+					break
+				}
+			}
+
+			// RISC-V SoC detection
+			riscvIDs := []string{
+				"jh7100", "jh7110", "jh7120", // StarFive VisionFive series
+				"cv1800b", "cv1812h", // Milk-V Duo series
+				"th1520", // T-Head TH1520
+				"k230",   // Kendryte K230
+				"sg2042", // Sophgo SG2042
+				"u74",    // SiFive U74
+				"fu740",  // SiFive FU740
+				"kyu",    // Kyu SoC
+			}
+
+			for _, id := range riscvIDs {
 				if strings.Contains(chip, id) {
 					socID = id
 					break
@@ -2673,4 +2723,114 @@ func GetDeviceModel() (string, string) {
 	}
 
 	return model, socID
+}
+
+// getCurrentSystemArchitecture returns the current system's native architecture
+func getCurrentSystemArchitecture() (string, error) {
+	// Try dpkg first (most reliable on Debian-based systems)
+	output, err := runCommand("dpkg", "--print-architecture")
+	if err == nil {
+		arch := strings.TrimSpace(output)
+		if arch != "" {
+			return arch, nil
+		}
+	}
+
+	// Try uname as fallback
+	output, err = runCommand("uname", "-m")
+	if err == nil {
+		unameArch := strings.TrimSpace(output)
+		// Convert uname output to dpkg architecture names
+		switch unameArch {
+		case "x86_64":
+			return "amd64", nil
+		case "i386", "i686":
+			return "i386", nil
+		case "aarch64":
+			return "arm64", nil
+		case "armv7l", "armv6l":
+			return "armhf", nil
+		case "riscv64":
+			return "riscv64", nil
+		default:
+			return unameArch, nil
+		}
+	}
+
+	return "", fmt.Errorf("unable to determine system architecture")
+}
+
+// extractForeignArchitectures extracts foreign architectures from APT error messages
+func extractForeignArchitectures(errors string) []string {
+	var architectures []string
+
+	// Regex to match architecture names in APT error messages
+	regexArchExtract := regexp.MustCompile(`(?:404.*Not Found.*|Ign:.*/) (i386|amd64|armhf|arm64|riscv64) Packages`)
+	matches := regexArchExtract.FindAllStringSubmatch(errors, -1)
+
+	for _, match := range matches {
+		if len(match) > 1 {
+			arch := match[1]
+			// Avoid duplicates
+			found := false
+			for _, existing := range architectures {
+				if existing == arch {
+					found = true
+					break
+				}
+			}
+			if !found {
+				architectures = append(architectures, arch)
+			}
+		}
+	}
+
+	return architectures
+}
+
+// isArchitectureSupported checks if a foreign architecture is supported on the current system
+func isArchitectureSupported(currentArch, foreignArch string) bool {
+	// If it's the same architecture, it's always supported
+	if currentArch == foreignArch {
+		return true
+	}
+
+	// Define supported combinations
+	switch currentArch {
+	case "amd64":
+		// x86_64 systems support i386 packages
+		return foreignArch == "i386"
+	case "arm64":
+		// ARM64 systems support armhf packages (except on ARMv9 systems that dropped 32-bit support)
+		// ARMv9 check to check if the system supports 32-bit ARM
+		if CPUOpMode32 {
+			return foreignArch == "armhf"
+		} else {
+			return false
+		}
+	case "armhf":
+		// 32-bit ARM systems don't typically support other architectures
+		if CPUOpMode32 {
+			return true
+		}
+		return false
+	case "i386":
+		// 32-bit x86 systems don't typically support other architectures
+		return false
+	case "riscv64":
+		// RISC-V systems don't support other architectures
+		return false
+	default:
+		// For unknown architectures, be conservative and only allow same-arch
+		return false
+	}
+}
+
+// generateRemoveArchCommands generates the appropriate commands to remove unsupported architectures
+func generateRemoveArchCommands(architectures []string) string {
+	var commands []string
+	for _, arch := range architectures {
+		commands = append(commands, "sudo dpkg --remove-architecture "+arch)
+	}
+	return strings.Join(commands, "\n")
 }

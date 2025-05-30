@@ -1,0 +1,20 @@
+#!/bin/bash
+
+PI_APPS_DIR="$(readlink -f "$(dirname "$0")")"
+
+#click new uninstallation analytics link
+"${PI_APPS_DIR}/api" shlink_link script uninstall
+
+echo "Removing menu button..."
+rm -f ~/.local/share/applications/pi-apps-go.desktop
+rm -f ~/.local/share/applications/pi-apps-go-settings.desktop
+rm -f ~/.config/autostart/pi-apps-go-updater.desktop
+rm -f ~/Desktop/pi-apps-go.desktop
+
+echo "Removing terminal command..."
+sudo rm -f /usr/local/bin/pi-apps-go
+
+echo -e "\e[32mUninstallation complete.\e[97m Only $HOME/pi-apps still remains.
+If Pi-apps didn"\'"t work for you, \e[4m\e[21m\e[5mPLEASE\e[0m\e[97m consider submitting a \e[1mbug report\e[0m!
+--> \e[96mhttps://github.com/pi-apps-go/pi-apps/issues/new\e[39m"
+

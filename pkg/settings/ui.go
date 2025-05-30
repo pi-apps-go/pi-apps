@@ -191,43 +191,43 @@ func (sw *SettingsWindow) createActionsTab() error {
 		name    string
 		icon    string
 		tooltip string
-		script  string
+		action  string
 	}{
 		{
 			name:    "Categories",
 			icon:    "categories.png",
 			tooltip: "Does an App belong in Editors instead of Tools? This lets you move it.",
-			script:  "etc/categoryedit",
+			action:  "category_editor",
 		},
 		{
 			name:    "Log files",
 			icon:    "log-file.png",
 			tooltip: "View past installation logs. Useful for debugging, or to see what you installed yesterday.",
-			script:  "etc/logviewer",
+			action:  "log_viewer",
 		},
 		{
 			name:    "Multi-Install",
 			icon:    "multi-select.png",
 			tooltip: "Install multiple apps at the same time.",
-			script:  "multi_install_gui",
+			action:  "multi_install",
 		},
 		{
 			name:    "New App",
 			icon:    "create.png",
 			tooltip: "Make your own app! It's pretty easy if you follow the instructions.",
-			script:  "createapp",
+			action:  "create_app",
 		},
 		{
 			name:    "Import App",
 			icon:    "categories/Imported.png",
 			tooltip: "Did someone else make an app but it's not on Pi-Apps yet? Import it here.",
-			script:  "etc/import-app",
+			action:  "import_app",
 		},
 		{
 			name:    "Multi-Uninstall",
 			icon:    "multi-select.png",
 			tooltip: "Uninstall multiple apps at the same time.",
-			script:  "multi_uninstall_gui",
+			action:  "multi_uninstall",
 		},
 	}
 
@@ -279,7 +279,7 @@ func (sw *SettingsWindow) createActionsTab() error {
 		button.SetSizeRequest(140, 100)
 
 		// Connect button click
-		script := action.script
+		script := action.action
 		button.Connect("clicked", func() {
 			sw.runAction(script)
 		})
@@ -354,19 +354,28 @@ func (sw *SettingsWindow) createButtons(buttonBox *gtk.Box) error {
 	return nil
 }
 
-// runAction executes a script or command
-func (sw *SettingsWindow) runAction(script string) {
+// runAction executes an action using the api-go binary via shell command
+// This avoids GTK threading issues and memory corruption
+func (sw *SettingsWindow) runAction(action string) {
 	var cmd *exec.Cmd
+	apiPath := filepath.Join(sw.directory, "api-go")
 
-	// Handle special cases for API functions
-	if script == "multi_install_gui" || script == "multi_uninstall_gui" {
-		// These are API functions that need to be called differently
-		apiPath := filepath.Join(sw.directory, "api-go")
-		cmd = exec.Command("bash", "-c", fmt.Sprintf("%s %s", apiPath, script))
-	} else {
-		// Regular script files
-		scriptPath := filepath.Join(sw.directory, script)
-		cmd = exec.Command("bash", scriptPath)
+	switch action {
+	case "category_editor":
+		cmd = exec.Command(apiPath, "categoryedit")
+	case "log_viewer":
+		cmd = exec.Command(apiPath, "logviewer")
+	case "multi_install":
+		cmd = exec.Command(apiPath, "multi_install_gui")
+	case "create_app":
+		cmd = exec.Command(apiPath, "createapp")
+	case "import_app":
+		cmd = exec.Command(apiPath, "importapp")
+	case "multi_uninstall":
+		cmd = exec.Command(apiPath, "multi_uninstall_gui")
+	default:
+		fmt.Printf("Unknown action: %s\n", action)
+		return
 	}
 
 	// Apply current theme environment for launched applications
@@ -377,7 +386,11 @@ func (sw *SettingsWindow) runAction(script string) {
 	cmd.Env = GetThemeEnvironmentForLaunch(currentTheme)
 
 	// Run in background
-	cmd.Start()
+	go func() {
+		if err := cmd.Start(); err != nil {
+			fmt.Printf("Failed to start %s: %v\n", action, err)
+		}
+	}()
 }
 
 // resetSettings resets all settings to their default values

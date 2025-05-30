@@ -1,0 +1,325 @@
+#!/bin/bash
+
+function error {
+  echo -e "\e[91m$1\e[39m"
+  exit 1
+}
+
+cd "$HOME"
+
+#ensure non-root
+if [[ "$(id -u)" == 0 ]]; then
+  error "Pi-Apps Go is not designed to be installed as root! Please try again as a regular user."
+fi
+
+#ensure debian
+command -v apt >/dev/null || error "apt: command not found. Most likely this system is not running Debian."
+# TODO: add check if it's running on anything other then Debian systems, and if so change install commands to use the correct package manager
+
+#Ensure running supported processors
+if uname -m | grep -qi 'x86\|i686\|i386\|amd64\|armv6l\|armv7l\|aarch64\|riscv64' ;then
+  error "Pi-Apps Go is not supported on your CPU architecture. Your architecture is $(uname -m). Please use a supported architecture."
+fi
+
+# display warning if running on a RISC-V architecture since it is untested
+if uname -m | grep -qi 'riscv64' ;then
+  echo "Warning: Pi-Apps Go has not been tested and confirmed to work on RISC-V architectures. Please report any issues you encounter."
+fi
+
+sudo apt update || error "The command 'sudo apt update' failed. Before Pi-Apps Go will work, you must fix your apt package-management system."
+
+#install dependencies
+dependencies='libgtk-3-dev gcc make curl wget aria2 lsb-release software-properties-common apt-utils apt-transport-https gnupg libvips-dev bc librsvg2-bin locales shellcheck git wmctrl xdotool x11-utils rsync unzip debsums libgtk3-perl bzip2'
+
+if ! dpkg -s $dependencies &>/dev/null ;then
+  sudo apt install $dependencies -y -f --no-install-recommends || error "Pi-Apps Go dependencies failed to install and so the Pi-Apps Go install has been aborted. Before Pi-Apps Go can be installed you must solve any errors above."
+fi
+
+# Check if Go is installed and version is at least 1.18
+if ! command -v go &>/dev/null; then
+  echo "Go is not installed. Installing Go..."
+  # Download and install Go
+  GO_VERSION="1.24.2"
+  ARCH=$(uname -m)
+  case $ARCH in
+    x86_64) GO_ARCH="amd64" ;;
+    x86) GO_ARCH="386" ;;
+    aarch64) GO_ARCH="arm64" ;;
+    armv6l|armv7l) GO_ARCH="armv6l" ;;
+    riscv64) GO_ARCH="riscv64" ;;
+    *) error "Unsupported architecture: $ARCH" ;;
+  esac
+  
+  cd /tmp
+  wget "https://golang.org/dl/go${GO_VERSION}.linux-${GO_ARCH}.tar.gz" || error "Failed to download Go"
+  sudo rm -rf /usr/local/go
+  sudo tar -C /usr/local -xzf "go${GO_VERSION}.linux-${GO_ARCH}.tar.gz" || error "Failed to extract Go"
+  
+  # Add Go to PATH if not already there
+  if ! grep -q "/usr/local/go/bin" ~/.bashrc; then
+    echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bashrc
+  fi
+  export PATH=$PATH:/usr/local/go/bin
+  
+  cd "$HOME"
+else
+  # Check Go version
+  GO_VERSION_OUTPUT=$(go version 2>/dev/null)
+  if [ $? -eq 0 ]; then
+    GO_VERSION_NUM=$(echo "$GO_VERSION_OUTPUT" | grep -oP 'go\K[0-9]+\.[0-9]+' | head -1)
+    MAJOR=$(echo "$GO_VERSION_NUM" | cut -d. -f1)
+    MINOR=$(echo "$GO_VERSION_NUM" | cut -d. -f2)
+    
+    if [ "$MAJOR" -lt 1 ] || ([ "$MAJOR" -eq 1 ] && [ "$MINOR" -lt 18 ]); then
+      echo "Go version $GO_VERSION_NUM is too old (need 1.18+). Updating Go..."
+      # Download and install newer Go
+      GO_VERSION="1.24.2"
+      ARCH=$(uname -m)
+      case $ARCH in
+        x86_64) GO_ARCH="amd64" ;;
+        x86) GO_ARCH="386" ;;
+        aarch64) GO_ARCH="arm64" ;;
+        armv6l|armv7l) GO_ARCH="armv6l" ;;
+        riscv64) GO_ARCH="riscv64" ;;
+        *) error "Unsupported architecture: $ARCH" ;;
+      esac
+      
+      cd /tmp
+      wget "https://golang.org/dl/go${GO_VERSION}.linux-${GO_ARCH}.tar.gz" || error "Failed to download Go"
+      sudo rm -rf /usr/local/go
+      sudo tar -C /usr/local -xzf "go${GO_VERSION}.linux-${GO_ARCH}.tar.gz" || error "Failed to extract Go"
+      
+      # Add Go to PATH if not already there
+      if ! grep -q "/usr/local/go/bin" ~/.bashrc; then
+        echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bashrc
+      fi
+      export PATH=$PATH:/usr/local/go/bin
+      
+      cd "$HOME"
+    else
+      echo "Go version $GO_VERSION_NUM is sufficient (1.18+ required)"
+    fi
+  else
+    error "Go is installed but 'go version' command failed"
+  fi
+fi
+
+#download pi-apps if folder missing
+PI_APPS_DIR="$(readlink -f "$(dirname "$0")")"
+if [ -z "$PI_APPS_DIR" ] || [ "$PI_APPS_DIR" == "$HOME" ] || [ "$PI_APPS_DIR" == bash ] || [ ! -f "${PI_APPS_DIR}/api" ] || [ ! -f "${PI_APPS_DIR}/gui" ];then
+  PI_APPS_DIR="$HOME/pi-apps"
+fi
+
+# Add PI_APPS_DIR to .bashrc if not already there
+if ! grep -q "export PI_APPS_DIR=" ~/.bashrc; then
+  echo "export PI_APPS_DIR=\"$PI_APPS_DIR\"" >> ~/.bashrc
+fi
+downloaded=0 #track if pi-apps was downloaded this time
+migrated=0 #track if pi-apps was migrated this time
+
+#Check if pi-apps folder exists and handle migration/reinstallation
+# make it symlink the old DIRECTORY variable to PI_APPS_DIR
+if [ -d "$DIRECTORY" ];then
+  PI_APPS_DIR="$DIRECTORY"
+  echo "export PI_APPS_DIR=\"$PI_APPS_DIR\"" >> ~/.bashrc
+fi
+
+if [ -d "$PI_APPS_DIR" ] || [ -d "$DIRECTORY" ];then    
+  # Check if this is the original pi-apps (bash) or the rewrite (go)
+  if [ -d "${PI_APPS_DIR}/pkg" ] && [ -d "${PI_APPS_DIR}/cmd" ] && [ -d "${PI_APPS_DIR}/bin" ] && [ -f "${PI_APPS_DIR}/api-go" ] && [ -f "${PI_APPS_DIR}/go.mod" ] && [ -f "${PI_APPS_DIR}/go.sum" ]; then
+    # This is already the Go rewrite, just reinstall
+    rm -rf ~/pi-apps-forced-update
+    
+    echo "Reinstalling Pi-Apps..."
+    downloaded=1
+    output="$(git clone --depth 1 https://github.com/pi-apps-go/pi-apps ~/pi-apps-forced-update 2>&1)"
+    if [ $? != 0 ] || [ ! -d ~/pi-apps-forced-update ];then
+      error "Pi-Apps download failed!\ngit clone output was: $output"
+    fi
+    cp -af "${PI_APPS_DIR}/data" ~/pi-apps-forced-update
+    cp -af "${PI_APPS_DIR}/apps" ~/pi-apps-forced-update
+    rm -rf "$PI_APPS_DIR"
+    mv -f ~/pi-apps-forced-update "$PI_APPS_DIR"
+    cd "$PI_APPS_DIR"
+    echo "Compiling Pi-Apps Go..."
+    make install || error "Failed to compile Pi-Apps Go!"
+  else
+    # This is the original bash version, ask user about migration
+    echo "Found existing Pi-Apps installation (original bash version)."
+    echo "Would you like to migrate to the new Go rewrite? This will preserve your data and apps."
+    echo "Type 'yes' to migrate, or anything else to cancel:"
+    read -r response
+    
+    if [ "$response" = "yes" ]; then
+      echo "Migrating to Pi-Apps Go rewrite..."
+      downloaded=1
+      migrated=1
+      
+      # Backup data folder
+      cp -af "${PI_APPS_DIR}/data" ~/pi-apps-migration-backup
+      
+      # Remove everything except data folder
+      find "$PI_APPS_DIR" -mindepth 1 -maxdepth 1 ! -name 'data' -exec rm -rf {} +
+      
+      # Clone new version
+      output="$(git clone --depth 1 https://github.com/pi-apps-go/pi-apps ~/pi-apps-forced-update 2>&1)"
+      if [ $? != 0 ] || [ ! -d ~/pi-apps-forced-update ];then
+        error "Pi-Apps download failed!\ngit clone output was: $output"
+      fi
+      
+      # Move new files to pi-apps directory
+      mv ~/pi-apps-forced-update/* "$PI_APPS_DIR/"
+      mv ~/pi-apps-forced-update/.* "$PI_APPS_DIR/" 2>/dev/null || true
+      rmdir ~/pi-apps-forced-update
+      
+      # Restore data if backup exists
+      if [ -d ~/pi-apps-migration-backup ]; then
+        cp -af ~/pi-apps-migration-backup/* "${PI_APPS_DIR}/data/"
+        rm -rf ~/pi-apps-migration-backup
+      fi
+      
+      cd "$PI_APPS_DIR"
+      echo "Compiling Pi-Apps Go..."
+      echo "Note: please be patient as the first time compilation will take a while due to compiling cgo modules."
+      make install || error "Failed to compile Pi-Apps Go!"
+      #click new installation analytics link
+      "${PI_APPS_DIR}/api" shlink_link script install
+    else
+      echo "Migration cancelled. Exiting."
+      exit 0
+    fi
+  fi
+  
+#if pi-apps folder does not exist, download it
+elif [ ! -d "$PI_APPS_DIR" ];then
+  echo "Downloading Pi-Apps..."
+  downloaded=1
+  output="$(git clone --depth 1 https://github.com/pi-apps-go/pi-apps "$PI_APPS_DIR" 2>&1)"
+  if [ $? != 0 ] || [ ! -d "$PI_APPS_DIR" ];then
+    error "Pi-Apps download failed!\ngit clone output was: $output"
+  fi
+  cd "$PI_APPS_DIR"
+  echo "Compiling Pi-Apps Go..."
+  echo "Note: please be patient as the first time compilation will take a while due to compiling cgo modules."
+  make install || error "Failed to compile Pi-Apps Go!"
+  #click new installation analytics link
+  "${PI_APPS_DIR}/api" shlink_link script install
+fi
+
+#Past this point, PI_APPS_DIR variable populated with valid pi-apps directory
+
+#if ChromeOS, install lxterminal
+if command -v garcon-terminal-handler >/dev/null ;then
+  echo "In order to install apps on ChromeOS, a working terminal emulator is required.
+Installing lxterminal in 10 seconds... (press Ctrl+C to cancel)"
+  sleep 10
+  sudo apt install -yf lxterminal || error "Failed to install lxterminal on ChromeOS!"
+fi
+
+#menu button
+if [ ! -f ~/.local/share/applications/pi-apps-go.desktop ];then
+  echo "Creating menu button..."
+fi
+mkdir -p ~/.local/share/applications
+if [ -f /etc/xdg/menus/lxde-pi-applications.menu ];then #If on PiOS, place launcher in Accessories as it has always been there and is more intuitive there
+echo "[Desktop Entry]
+Name=Pi-Apps Go
+Comment=Raspberry Pi App Store for open source projects
+Exec=${PI_APPS_DIR}/gui
+Icon=${PI_APPS_DIR}/icons/logo-go.png
+Terminal=false
+StartupWMClass=Pi-Apps Go
+Type=Application
+Categories=Utility
+StartupNotify=true" > ~/.local/share/applications/pi-apps-go.desktop
+else #if not on PiOS, place launcher in Preferences to match the wider decision of putting app installers there (see PR #2388)
+echo "[Desktop Entry]
+Name=Pi-Apps Go
+Comment=Raspberry Pi App Store for open source projects
+Exec=${PI_APPS_DIR}/gui
+Icon=${PI_APPS_DIR}/icons/logo-go.png
+Terminal=false
+StartupWMClass=Pi-Apps Go
+Type=Application
+Categories=Utility;System;PackageManager;
+StartupNotify=true" > ~/.local/share/applications/pi-apps-go.desktop
+fi
+chmod 755 ~/.local/share/applications/pi-apps-go.desktop
+gio set ~/.local/share/applications/pi-apps-go.desktop "metadata::trusted" yes
+
+#copy menu button to Desktop
+mkdir -p ~/Desktop
+cp -f ~/.local/share/applications/pi-apps-go.desktop ~/Desktop/
+
+chmod 755 ~/Desktop/pi-apps-go.desktop
+gio set ~/Desktop/pi-apps-go.desktop "metadata::trusted" yes
+
+#copy icon to local icons directory (necessary on some wayland DEs like on PiOS Wayfire)
+mkdir -p ~/.local/share/icons
+cp -f ${PI_APPS_DIR}/icons/logo.png ~/.local/share/icons/pi-apps-go.png
+cp -f ${PI_APPS_DIR}/icons/settings.png ~/.local/share/icons/pi-apps-go-settings.png
+
+#settings menu button
+if [ ! -f ~/.local/share/applications/pi-apps-go-settings.desktop ];then
+  echo "Creating Settings menu button..."
+fi
+echo "[Desktop Entry]
+Name=Pi-Apps Go Settings
+Comment=Configure Pi-Apps or create an App
+Exec=${PI_APPS_DIR}/settings
+Icon=${PI_APPS_DIR}/icons/settings.png
+Terminal=false
+StartupWMClass=Pi-Apps Go-Settings
+Type=Application
+Categories=Settings;
+StartupNotify=true" > ~/.local/share/applications/pi-apps-go-settings.desktop
+
+if [ ! -f ~/.config/autostart/pi-apps-go-updater.desktop ];then
+  echo "Creating autostarted updater..."
+fi
+mkdir -p ~/.config/autostart
+echo "[Desktop Entry]
+Name=Pi-Apps Go Updater
+Exec=${PI_APPS_DIR}/updater onboot
+Icon=${PI_APPS_DIR}/icons/logo-go.png
+Terminal=false
+StartupWMClass=Pi-Apps Go
+Type=Application
+X-GNOME-Autostart-enabled=true
+Hidden=false
+NoDisplay=false" > ~/.config/autostart/pi-apps-go-updater.desktop
+
+mkdir -p "${PI_APPS_DIR}/data/status" "${PI_APPS_DIR}/data/update-status" \
+  "${PI_APPS_DIR}/data/preload" "${PI_APPS_DIR}/data/settings" \
+  "${PI_APPS_DIR}/data/status" "${PI_APPS_DIR}/data/update-status" \
+  "${PI_APPS_DIR}/data/categories"
+
+#pi-apps terminal command
+if [ ! -f /usr/local/bin/pi-apps-go ] || ! cat /usr/local/bin/pi-apps-go | grep -q "${PI_APPS_DIR}/gui" ;then
+  echo "#!/bin/bash
+${PI_APPS_DIR}/gui"' "$@"' | sudo tee /usr/local/bin/pi-apps-go >/dev/null
+  sudo chmod +x /usr/local/bin/pi-apps-go
+fi
+
+#check if system is broken
+errors="$("${PI_APPS_DIR}/api" is_supported_system)" || error "$errors"
+
+#Run runonce entries
+"${PI_APPS_DIR}/etc/runonce-entries" &>/dev/null
+
+#Determine message of the day. If announcements file missing or over a day old, download it.
+if [ ! -f "${PI_APPS_DIR}/data/announcements" ] || [ ! -z "$(find "${PI_APPS_DIR}/data/announcements" -mtime +1 -print)" ]; then
+  wget https://raw.githubusercontent.com/pi-apps-go/pi-apps-announcements/main/message -qO "${PI_APPS_DIR}/data/announcements"
+fi
+
+if [ $downloaded == 1 ] && [ $migrated == 0 ];then
+  echo "Installation complete. Pi-Apps Go can be launched from the start menu or by running the command 'pi-apps-go'."
+  echo "Further explanation for how to use Pi-Apps Go can be found on our getting started webpage: https://pi-apps.io/wiki/getting-started/running-pi-apps/"
+else
+  if [ $migrated == 1 ];then
+    echo -e "Migration complete. Pi-Apps Go can be launched from the start menu like before the migration or by running the command 'pi-apps (commands have been unchanged)'."
+    echo "Further explanation for how to use Pi-Apps Go can be found on our getting started webpage: https://pi-apps.io/wiki/getting-started/running-pi-apps/"
+  else
+    echo -e "Please note that Pi-Apps Go has NOT been freshly downloaded, because $PI_APPS_DIR already exists."
+  fi
+fi

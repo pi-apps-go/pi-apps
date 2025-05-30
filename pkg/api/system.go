@@ -37,6 +37,7 @@ import (
 	"syscall"
 	"time"
 
+	"golang.org/x/term"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 )
@@ -60,8 +61,13 @@ type SystemOSInfo struct {
 }
 
 // IsSystemSupported checks if the current system is supported by Pi-Apps
-// It returns a status object containing information about support status
+//
+// # It returns a status object containing information about support status
+//
 // If the system is not supported, the message field will contain the reason
+//
+//	IsSupported - is the current system supported or not (true - supported, otherwaise false)
+//	Message - A message explaining in the current state if the system is supported or not
 func IsSystemSupported() (*SystemSupportStatus, error) {
 	status := &SystemSupportStatus{
 		IsSupported: true,
@@ -88,11 +94,17 @@ func IsSystemSupported() (*SystemSupportStatus, error) {
 		status.Message = "Running on x86 architecture. ARM-specific apps will be hidden from the app list."
 	}
 
+	// Check for riscv64 architecture
+	if strings.HasPrefix(runtime.GOARCH, "riscv64") {
+		// We're adding riscv64 support in the future, so we'll just show a warning but not mark as unsupported
+		Warning("You are running on riscv64 architecture. Pi-Apps Go is not yet to be confirmed to be supported on this architecture due to lack of hardware to test on.\nTo help us test, please report any issues you encounter while running Pi-Apps Go on this architecture by reporting an issue on the Pi-Apps Go GitHub repository/Discord server or consider donating to the project to fund RISC-V hardware.")
+	}
+
 	// Check for non-glibc C library (like musl)
-	// Note: This check is currently being marked as supported as there are plans for Alpine Linux to be supported in Pi-Apps.
+	// Note: This check is currently being marked as supported as there are plans for Alpine Linux to be supported in Pi-Apps Go.
 	if isMuslSystem() {
 		//status.IsSupported = false
-		Warning("While Pi-Apps Go is meant to be portable, you are running a system with non-glibc C library (like musl). Many apps, especially Electron-based ones, will fail to run properly without a glibc-based compatibility layer. Pi-Apps will automatically hide apps that are proven to be broken on non-glibc systems even with a glibc compatiblity layer.")
+		Warning("While Pi-Apps Go (and the Go ecosystem in general) is meant to be portable, you are running a system with non-glibc C library (like musl). Many apps, especially Electron-based ones, will fail to run properly without a glibc-based compatibility layer. Pi-Apps will automatically hide apps that are proven to be broken on non-glibc systems even with a glibc compatiblity layer.")
 		//return status, nil
 	}
 
@@ -112,6 +124,8 @@ func IsSystemSupported() (*SystemSupportStatus, error) {
 	}
 
 	// Check for BusyBox commands
+	// Pi-Apps Go does not use any shell commands because this is a rewrite, so checking for BusyBox commands is not needed.
+	// TODO: Remove the check for BusyBox commands once Pi-Apps Go ditches the use of shell specific commands.
 	if busyboxIssue := checkBusyBoxIssue(); busyboxIssue != "" {
 		status.IsSupported = false
 		status.Message = busyboxIssue
@@ -305,6 +319,8 @@ func isWSLSystem() bool {
 }
 
 // checkBusyBoxIssue checks if the system has BusyBox commands that could cause issues
+// Note: The Go based rewrite does not heavily depend on shell commands like date or ps unlike the original.
+// this check should be removed as Alpine Linux uses busybox for base userspace and we are going to support it
 func checkBusyBoxIssue() string {
 	dateHelp, err := exec.Command("date", "--help").CombinedOutput()
 	if err == nil && strings.HasPrefix(string(dateHelp), "BusyBox") {
@@ -436,7 +452,7 @@ func checkOSVersion(osInfo *SystemOSInfo) string {
 		}
 
 		// Fallback to static check if API fails
-		if !isVersionGreaterOrEqual(osInfo.Release, "20.04") {
+		if !isVersionGreaterOrEqual(osInfo.Release, "22.04") {
 			return fmt.Sprintf("Pi-Apps is not supported on your outdated %s %s operating system. Expect many apps to fail. Consider installing a newer operating system.",
 				osInfo.ID, cases.Title(language.English).String(osInfo.Codename))
 		}
@@ -445,6 +461,38 @@ func checkOSVersion(osInfo *SystemOSInfo) string {
 	// Check for Manjaro
 	if strings.Contains(strings.ToLower(osInfo.PrettyName), "manjaro") {
 		return "Pi-Apps is not supported on Manjaro."
+	}
+
+	// Below are checks which require a plugin before it will be supported
+
+	// Check for Arch Linux
+	// Don't mark system as unsupported, but show a warning since we are going to add support for it.
+	if strings.Contains(strings.ToLower(osInfo.PrettyName), "arch") {
+		// For now, give a warning saying it isn't supported without a plugin.
+		// TODO: Remove this warning once we have support for Arch Linux and instead check for the plugin once the plugin interface is implemented.
+		Warning("Pi-Apps is not supported on Arch Linux without a plugin. To enable support, please install the Pi-Apps Arch Linux plugin in the Pi-Apps Settings app.")
+	}
+
+	// Check for Alpine Linux
+	// This is already detected in the form of checking C libraies (musl is used in Alpine Linux) but still add a separate check for it.
+	if strings.Contains(strings.ToLower(osInfo.PrettyName), "alpine") {
+		// Don't mark system as unsupported, but show a warning since we are going to add support for it.
+		// TODO: Remove this warning once we have support for Alpine Linux and instead check for the plugin once the plugin interface is implemented.
+		Warning("Pi-Apps is not supported on Alpine Linux without a plugin. To enable support, please install the Pi-Apps Alpine Linux plugin in the Pi-Apps Settings app.")
+	}
+
+	// Check for RHEL like distributions (this includes Fedora, CentOS, etc.)
+	if strings.Contains(strings.ToLower(osInfo.PrettyName), "rhel") || strings.Contains(strings.ToLower(osInfo.PrettyName), "fedora") || strings.Contains(strings.ToLower(osInfo.PrettyName), "centos") || strings.Contains(strings.ToLower(osInfo.PrettyName), "rocky") || strings.Contains(strings.ToLower(osInfo.PrettyName), "alma") {
+		// Don't mark system as unsupported, but show a warning since we are going to add support for it.
+		// TODO: Remove this warning once we have support for RHEL like distributions and instead check for the plugin once the plugin interface is implemented.
+		Warning("Pi-Apps is not supported on RHEL like distributions without a plugin. To enable support, please install the Pi-Apps RHEL like plugin in the Pi-Apps Settings app.")
+	}
+
+	// Check for openSUSE (please note that we will not be officially supporting openSUSE due to the bit harder learning curve of the package manager until the plugin interface is implemented to let the community support it)
+	if strings.Contains(strings.ToLower(osInfo.PrettyName), "opensuse") {
+		// Don't mark system as unsupported, but show a warning since the community can add support for it.
+		// TODO: Remove this warning once the community has support for openSUSE and instead check for the plugin once the plugin interface is implemented.
+		Warning("Pi-Apps is not supported on openSUSE without a plugin. To enable support, please install the Pi-Apps openSUSE plugin in the Pi-Apps Settings app.")
 	}
 
 	// Check for ARMv6
@@ -897,7 +945,9 @@ func EnableModule(moduleName string) error {
 	if _, err := os.Stat(procModulesPath); err == nil {
 		if _, err := os.Stat(moduleConfPath); os.IsNotExist(err) {
 			// Create the module configuration file
-			cmd := exec.Command("sudo", "bash", "-c", fmt.Sprintf("echo %s > %s", moduleName, moduleConfPath))
+			content := moduleName + "\n"
+			cmd := exec.Command("sudo", "tee", moduleConfPath)
+			cmd.Stdin = strings.NewReader(content)
 			if err := cmd.Run(); err != nil {
 				return fmt.Errorf("failed to create module load configuration: %w", err)
 			}
@@ -1362,10 +1412,8 @@ func (pw *progressWriter) showProgress(done chan bool) {
 
 	// Get terminal width
 	termWidth := 80
-	if termWidthStr, err := exec.Command("tput", "cols").Output(); err == nil {
-		if width, err := strconv.Atoi(strings.TrimSpace(string(termWidthStr))); err == nil {
-			termWidth = width
-		}
+	if width, _, err := term.GetSize(int(os.Stdout.Fd())); err == nil {
+		termWidth = width
 	}
 
 	ticker := time.NewTicker(100 * time.Millisecond)
@@ -1498,17 +1546,131 @@ func parseChmodMode(modeStr string) (os.FileMode, error) {
 		return os.FileMode(modeInt), nil
 	}
 
-	// Handle symbolic mode (basic support)
-	// This is a simplified implementation that doesn't handle all chmod symbols
+	// Handle symbolic mode
+	return parseSymbolicMode(modeStr)
+}
 
-	// Handle +x case (commonly used)
-	if modeStr == "+x" {
-		// Get current mode and add execute permissions
-		return 0755, nil
+// parseSymbolicMode handles symbolic chmod modes like "u+x", "go-w", "a=r", etc.
+func parseSymbolicMode(modeStr string) (os.FileMode, error) {
+	// Default starting mode (644 - rw-r--r--)
+	mode := os.FileMode(0644)
+
+	// Split by comma for multiple operations
+	operations := strings.Split(modeStr, ",")
+
+	for _, op := range operations {
+		op = strings.TrimSpace(op)
+		if op == "" {
+			continue
+		}
+
+		// Parse who, operator, and permissions
+		var who, operator, perms string
+
+		// Find the operator (+, -, =)
+		opIndex := -1
+		for i, char := range op {
+			if char == '+' || char == '-' || char == '=' {
+				who = op[:i]
+				operator = string(char)
+				perms = op[i+1:]
+				opIndex = i
+				break
+			}
+		}
+
+		if opIndex == -1 {
+			return 0, fmt.Errorf("invalid symbolic mode: %s", op)
+		}
+
+		// Default to 'a' (all) if no who is specified
+		if who == "" {
+			who = "a"
+		}
+
+		// Calculate permission bits
+		permBits := os.FileMode(0)
+		for _, perm := range perms {
+			switch perm {
+			case 'r':
+				permBits |= 0444 // read for all
+			case 'w':
+				permBits |= 0222 // write for all
+			case 'x':
+				permBits |= 0111 // execute for all
+			default:
+				return 0, fmt.Errorf("invalid permission: %c", perm)
+			}
+		}
+
+		// Apply to specific users
+		var targetBits os.FileMode
+		for _, user := range who {
+			switch user {
+			case 'u': // user/owner
+				if permBits&0444 != 0 {
+					targetBits |= 0400
+				}
+				if permBits&0222 != 0 {
+					targetBits |= 0200
+				}
+				if permBits&0111 != 0 {
+					targetBits |= 0100
+				}
+			case 'g': // group
+				if permBits&0444 != 0 {
+					targetBits |= 0040
+				}
+				if permBits&0222 != 0 {
+					targetBits |= 0020
+				}
+				if permBits&0111 != 0 {
+					targetBits |= 0010
+				}
+			case 'o': // others
+				if permBits&0444 != 0 {
+					targetBits |= 0004
+				}
+				if permBits&0222 != 0 {
+					targetBits |= 0002
+				}
+				if permBits&0111 != 0 {
+					targetBits |= 0001
+				}
+			case 'a': // all (user, group, others)
+				targetBits = permBits
+			default:
+				return 0, fmt.Errorf("invalid user specification: %c", user)
+			}
+		}
+
+		// Apply the operation
+		switch operator {
+		case "+":
+			mode |= targetBits
+		case "-":
+			mode &^= targetBits
+		case "=":
+			// For '=', we need to clear existing bits for the specified users first
+			var clearBits os.FileMode
+			for _, user := range who {
+				switch user {
+				case 'u':
+					clearBits |= 0700
+				case 'g':
+					clearBits |= 0070
+				case 'o':
+					clearBits |= 0007
+				case 'a':
+					clearBits |= 0777
+				}
+			}
+			mode &^= clearBits
+			mode |= targetBits
+		}
 	}
 
-	// For other symbolic modes, we would need a more complex parser
-	return 0, fmt.Errorf("symbolic modes not fully implemented")
+	return mode, nil
 }
 
 // SudoPopup executes a command with sudo if available without password, otherwise with pkexec

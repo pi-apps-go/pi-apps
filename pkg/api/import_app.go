@@ -34,7 +34,7 @@ import (
 	"github.com/gotk3/gotk3/gtk"
 )
 
-// ImportAppGUI provides a graphical interface for importing apps
+// ImportAppGUI provides a graphical interface for importing apps in Pi-Apps Go
 func ImportAppGUI() error {
 
 	// Set program name
@@ -82,7 +82,12 @@ func ImportAppGUI() error {
 	if err != nil {
 		return fmt.Errorf("error creating label: %w", err)
 	}
-	label.SetMarkup(fmt.Sprintf("Import an app from somewhere else.\nApps are saved in <b>%s/apps</b>.\nPut something in the blank below.\nExamples:\n\n    <b>https://github.com/Botspot/pi-apps/pull/1068</b>\n    <b>1068</b>\n    <b>https://link/to/app.zip</b>\n    <b>$HOME/my-app.zip</b>", piAppsDir))
+	account, repo := GetGitUrl()
+	if account == "" || repo == "" {
+		label.SetMarkup(fmt.Sprintf("Import an app from somewhere else.\nApps are saved in <b>%s/apps</b>.\nPut something in the blank below.\nExamples:\n\n    <b>https://github.com/pi-apps-go/pi-apps-go/pull/1068</b>\n    <b>1068</b>\n    <b>https://link/to/app.zip</b>\n    <b>$HOME/my-app.zip</b>", piAppsDir))
+	} else {
+		label.SetMarkup(fmt.Sprintf("Import an app from somewhere else.\nApps are saved in <b>%s/apps</b>.\nPut something in the blank below.\nExamples:\n\n    <b>https://github.com/%s/%s/pull/1068</b>\n    <b>1068</b>\n    <b>https://link/to/app.zip</b>\n    <b>$HOME/my-app.zip</b>", piAppsDir, account, repo))
+	}
 	label.SetHAlign(gtk.ALIGN_START)
 	vbox.PackStart(label, false, false, 5)
 

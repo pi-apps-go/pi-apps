@@ -40,9 +40,9 @@ func commandExists(cmd string) bool {
 	return err == nil
 }
 
-// CreateApp implements the Pi-Apps app creation wizard
-// It replaces the bash createapp script with a native GTK3 implementation
-// If appName is provided, it will edit that app, otherwise it will create a new app
+// CreateApp provides a graphical interface for creating new apps in Pi-Apps Go
+//
+//	appName - the name of the app to edit, or empty to create a new app
 func CreateApp(appName string) error {
 
 	// Initialize application name

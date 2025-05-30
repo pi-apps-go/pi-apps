@@ -16,6 +16,8 @@
 // Module: manage.go
 // Description: Provides functions for managing apps on Pi-Apps Go via the command line.
 
+// general TODO: add plugin section as we are going to allow users to add plugins to Pi-Apps Go thanks to the plugin package
+
 package gui
 
 import (
