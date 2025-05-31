@@ -7,8 +7,8 @@ LDFLAGS=-X main.BuildDate="$(BUILD_DATE)" -X main.GitCommit="$(GIT_COMMIT_HASH)"
 
 all: build
 
-build: build-api build-pi-apps build-manage build-settings
-build-debug: build-api-debug build-pi-apps-debug build-manage-debug build-settings-debug
+build: build-api build-pi-apps build-manage build-settings build-updater
+build-debug: build-api-debug build-pi-apps-debug build-manage-debug build-settings-debug build-updater-debug
 
 build-api:
 	go build -o bin/api -ldflags "$(LDFLAGS) -w -s" -trimpath ./cmd/api
@@ -33,6 +33,12 @@ build-settings:
 
 build-settings-debug:
 	go build -o bin/settings -ldflags "$(LDFLAGS)" ./cmd/settings
+
+build-updater:
+	go build -o bin/updater -ldflags "$(LDFLAGS) -w -s" -trimpath ./cmd/updater
+
+build-updater-debug:
+	go build -o bin/updater -ldflags "$(LDFLAGS)" ./cmd/updater
 
 # Note: error-report-server is not meant to be compiled by a user and is not included during compiling unless you are hosting the error report server yourself.
 build-error-report-server:
