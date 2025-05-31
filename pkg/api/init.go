@@ -413,12 +413,6 @@ func GetPiAppsDir() string {
 		return piAppsPath
 	}
 
-	// Check the Videos directory path (only during development purposes)
-	//videosPath := filepath.Join(os.Getenv("HOME"), "Videos", "pi-apps")
-	//if isValidPiAppsDir(videosPath) {
-	//	return videosPath
-	//}
-
 	// Fall back to the original path
 	return PIAppsDir
 }

@@ -16,8 +16,6 @@
 // Module: manage.go
 // Description: Provides functions for managing apps on Pi-Apps Go via the command line.
 
-// general TODO: add plugin section as we are going to allow users to add plugins to Pi-Apps Go thanks to the plugin package
-
 package gui
 
 import (
@@ -34,6 +32,7 @@ import (
 	"github.com/gotk3/gotk3/glib"
 	"github.com/gotk3/gotk3/gtk"
 	"github.com/toqueteos/webbrowser"
+	"golang.org/x/term"
 )
 
 // QueueItem represents an item in the installation/uninstallation queue
@@ -189,29 +188,17 @@ func ValidateAppsGUI(queue []QueueItem) ([]QueueItem, error) {
 			continue
 		}
 
-		// If app is already installed/uninstalled, ask for confirmation
+		// Check for redundant operations and inform user
 		if isAppInstalled(item.AppName) && item.Action == "install" {
-			// Add a pre-validation check to avoid trying to install an already installed app
-			// which would result in an error later
-			if !showConfirmDialog(fmt.Sprintf("<b>%s</b> is already installed. Are you sure you want to install it again?",
-				item.AppName)) {
-				// User chose not to reinstall, skip this app
-				fmt.Printf("Skipping reinstallation of %s as requested by user.\n", item.AppName)
-				continue
-			} else {
-				// User chose to reinstall, mark it with a special flag
-				item.ForceReinstall = true
-			}
+			// App is already installed, inform user and skip
+			showErrorDialog(fmt.Sprintf("<b>%s</b> is already installed. Skipping redundant installation.", item.AppName))
+			fmt.Printf("Skipping redundant installation of %s (already installed).\n", item.AppName)
+			continue
 		} else if !isAppInstalled(item.AppName) && item.Action == "uninstall" {
-			if !showConfirmDialog(fmt.Sprintf("<b>%s</b> is already uninstalled. Are you sure you want to uninstall it again?",
-				item.AppName)) {
-				// User chose not to uninstall, skip this app
-				fmt.Printf("Skipping uninstallation of %s as requested by user.\n", item.AppName)
-				continue
-			} else {
-				// User chose to uninstall anyway, mark it with a special flag
-				item.ForceReinstall = true
-			}
+			// App is already uninstalled, inform user and skip
+			showErrorDialog(fmt.Sprintf("<b>%s</b> is already uninstalled. Skipping redundant uninstallation.", item.AppName))
+			fmt.Printf("Skipping redundant uninstallation of %s (already uninstalled).\n", item.AppName)
+			continue
 		}
 
 		// Check if update is available (for install action)
@@ -413,7 +400,7 @@ func ProgressMonitorWithOptions(queue []QueueItem, daemonMode bool) error {
 
 	// Update the list store with queue items
 	for _, item := range queue {
-		addQueueItemToPixbufListStore(listStore, item)
+		addQueueItemToPixbufListStore(listStore, item, false)
 	}
 
 	// Show all widgets
@@ -444,7 +431,7 @@ func ProgressMonitorWithOptions(queue []QueueItem, daemonMode bool) error {
 		// Update list store with current status
 		listStore.Clear()
 		for _, item := range currentQueue {
-			addQueueItemToPixbufListStore(listStore, item)
+			addQueueItemToPixbufListStore(listStore, item, false)
 		}
 
 		// Check if all operations are complete (success or failure)
@@ -672,7 +659,7 @@ func ShowSummaryDialog(completedQueue []QueueItem) error {
 
 	// Update the list store with completed queue items
 	for _, item := range completedQueue {
-		addQueueItemToPixbufListStore(listStore, item)
+		addQueueItemToPixbufListStore(listStore, item, true)
 	}
 
 	// Add donation reminders
@@ -834,11 +821,11 @@ func getIconPath(iconName string) string {
 }
 
 // addQueueItemToPixbufListStore adds a queue item to the list store using pixbufs instead of file paths
-func addQueueItemToPixbufListStore(listStore *gtk.ListStore, item QueueItem) {
+func addQueueItemToPixbufListStore(listStore *gtk.ListStore, item QueueItem, useLargeIconsForCompleted bool) {
 	// Target heights for icons
 	const targetStatusActionHeight = 22
 	const targetAppHeight = 20
-	const largeAppIconHeight = 64 // Larger icon size for completed installations/uninstalls
+	const largeAppIconHeight = 64 // Larger icon size for completed installations/uninstalls in summary dialog
 
 	// --- Status Icon ---
 	statusIconName, exists := StatusIconMapping[item.Status]
@@ -914,13 +901,14 @@ func addQueueItemToPixbufListStore(listStore *gtk.ListStore, item QueueItem) {
 		appIconPath = getIconPath("icons/none-64.png")
 	}
 
-	// Determine if this is a completed installation or uninstallation
+	// Determine if this is a completed installation or uninstallation and if we should use large icons
 	isCompletedInstallOrUninstall := item.Status == "success" &&
 		(item.Action == "install" || item.Action == "uninstall")
 
 	// Define the target app icon height based on whether this is a completed installation/uninstall
+	// and whether we're configured to use large icons for completed items
 	appIconTargetHeight := targetAppHeight
-	if isCompletedInstallOrUninstall {
+	if isCompletedInstallOrUninstall && useLargeIconsForCompleted {
 		appIconTargetHeight = largeAppIconHeight
 	}
 
@@ -977,8 +965,8 @@ func addQueueItemToPixbufListStore(listStore *gtk.ListStore, item QueueItem) {
 	// Prepare the app name display
 	appNameDisplay := item.AppName
 
-	// Apply bold formatting to app names for completed installations/uninstalls
-	if isCompletedInstallOrUninstall {
+	// Apply bold formatting to app names for completed installations/uninstalls only if configured to do so
+	if isCompletedInstallOrUninstall && useLargeIconsForCompleted {
 		appNameDisplay = fmt.Sprintf("<span size='large'><b>%s</b></span>", item.AppName)
 	}
 
@@ -1473,13 +1461,17 @@ func showSummaryDialogCLI(completedQueue []QueueItem) error {
 // showBrokenPackagesDialogCLI asks for sudo password in CLI
 func showBrokenPackagesDialogCLI() (string, error) {
 	fmt.Println("\n=== Broken Local Packages Repo Detected ===")
-	fmt.Print("Please enter your user password to repair: ")
+	fmt.Println("Please enter your user password to repair:")
+	fmt.Println("Password will not be visible as you type.")
 
-	// Note: This is not secure as the password will be visible,
-	// but it's a simple fallback for testing
-	var password string
-	fmt.Scanln(&password)
+	// Use secure password input
+	passwordBytes, err := term.ReadPassword(int(os.Stdin.Fd()))
+	if err != nil {
+		return "", fmt.Errorf("failed to read password: %v", err)
+	}
+	fmt.Println() // Add newline after password input
 
+	password := string(passwordBytes)
 	if password == "" {
 		return "", fmt.Errorf("canceled by user")
 	}

@@ -132,7 +132,7 @@ This will not uninstall any apps that you installed through Pi-Apps.
 
 ## To run Pi-Apps Go
 - From the start menu: Accessories -> Pi-Apps
-- Use the terminal command: `pi-apps`
+- Use the terminal command: `pi-apps-go`
 - Run Pi-Apps from its directory: `~/pi-apps/gui`
 
 ## To update Pi-Apps Go

@@ -178,9 +178,18 @@ func ManageApp(action Action, appName string, isUpdate bool) error {
 
 		// Set up command
 		cmd = exec.Command(scriptPath)
+
+		// Set up environment variables for the script
+		env := os.Environ()
+		env = append(env, fmt.Sprintf("PI_APPS_DIR=%s", getPiAppsDir()))
+		env = append(env, fmt.Sprintf("app=%s", appName))
+		env = append(env, "DEBIAN_FRONTEND=noninteractive")
+
 		if isUpdate {
-			cmd.Env = append(os.Environ(), "script_input=update")
+			env = append(env, "script_input=update")
 		}
+
+		cmd.Env = env
 	} else if appType == "package" {
 		// Package-based app
 		packages, err := PkgAppPackagesRequired(appName)
@@ -207,9 +216,6 @@ func ManageApp(action Action, appName string, isUpdate bool) error {
 
 	// Set command working directory to user's home
 	cmd.Dir = os.Getenv("HOME")
-
-	// Set environment variable for non-interactive installation
-	cmd.Env = append(os.Environ(), "DEBIAN_FRONTEND=noninteractive")
 
 	// Create ANSI-stripping writer for log file to avoid escape codes in logs
 	ansiStripLogWriter := NewAnsiStripWriter(logFile)
@@ -259,7 +265,11 @@ func ManageApp(action Action, appName string, isUpdate bool) error {
 			}
 		}
 
-		return fmt.Errorf("command failed: %w", err)
+		// Extract exit code from error if available
+		if exitError, ok := err.(*exec.ExitError); ok {
+			return fmt.Errorf("command failed: exit code %d", exitError.ExitCode())
+		}
+		return fmt.Errorf("command failed: %v", err)
 	}
 
 	// Success
@@ -310,7 +320,8 @@ func InstallApp(appName string) error {
 	case "package":
 		return installPackageApp(appName)
 	case "standard":
-		return installScriptApp(appName)
+		err := installScriptApp(appName)
+		return err
 	default:
 		return fmt.Errorf("unsupported app type: %s", appType)
 	}
@@ -652,7 +663,8 @@ func uninstallPackageApp(appName string) error {
 
 // installScriptApp installs a script-based app
 func installScriptApp(appName string) error {
-	return runAppScript(appName, "install")
+	err := runAppScript(appName, "install")
+	return err
 }
 
 // uninstallScriptApp uninstalls a script-based app
@@ -828,17 +840,17 @@ cd "%s"
 	cmd.Dir = appDir
 
 	// Set environment variables that scripts might need
-	cmd.Env = append(os.Environ(),
-		fmt.Sprintf("PI_APPS_DIR=%s", getPiAppsDir()),
-		fmt.Sprintf("APP=%s", appName),
-	)
+	env := os.Environ()
+	env = append(env, fmt.Sprintf("PI_APPS_DIR=%s", getPiAppsDir()))
+	env = append(env, fmt.Sprintf("app=%s", appName)) // Use lowercase 'app' to match bash API
+	env = append(env, "DEBIAN_FRONTEND=noninteractive")
 
-	// Print debug info if in debug mode
-	if os.Getenv("pi_apps_debug") == "true" {
-		fmt.Fprintf(os.Stderr, "runAppScript: Running script from: %s\n", tempScriptPath)
-		fmt.Fprintf(os.Stderr, "runAppScript: Original script: %s\n", scriptPath)
-		fmt.Fprintf(os.Stderr, "runAppScript: Using API from: %s\n", apiBashWrapper)
+	// Add script_input=update if this is an update operation
+	if scriptName == "update" || strings.Contains(scriptName, "update") {
+		env = append(env, "script_input=update")
 	}
+
+	cmd.Env = env
 
 	// Run the command
 	err = cmd.Run()
@@ -883,7 +895,11 @@ cd "%s"
 			}
 		}
 
-		return fmt.Errorf("failed to run %s script: %v", scriptName, err)
+		// Extract exit code from error if available
+		if exitError, ok := err.(*exec.ExitError); ok {
+			return fmt.Errorf("command failed: exit code %d", exitError.ExitCode())
+		}
+		return fmt.Errorf("command failed: %v", err)
 	}
 
 	// Success

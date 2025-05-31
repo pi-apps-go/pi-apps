@@ -1,5 +1,6 @@
 #!/bin/bash
 
+install_packages hello
 error "Testing error"
 #status "dummy message to ensure api bash wrapper is properly sourced, waiting 5 seconds"
 #sleep 5

@@ -512,28 +512,39 @@ func main() {
 
 	case "install_packages":
 		if len(args) < 1 {
-			api.ErrorNoExit("Error: No app name specified")
-			api.Status("Usage: api install_packages <app-name> <package1> [package2] ... [-t repo]")
+			api.ErrorNoExit("Error: No packages specified")
+			api.Status("Usage: api install_packages <package1> [package2] ... [-t repo] - Install packages (requires $app environment variable)")
+			api.Status("Note: This command should be used within an app installation context where $app is set")
 			os.Exit(1)
 		}
 
-		appName := args[0]
-		if err := api.InstallPackages(appName, args[1:]...); err != nil {
+		// Check if we're in an app installation context (has $app environment variable)
+		appName := os.Getenv("app")
+		if appName == "" {
+			api.ErrorNoExit("Error: install_packages function can only be used by apps to install packages")
+			api.ErrorNoExit("The $app environment variable was not set")
+			api.Status("This command should be called from within an app installation script")
+			os.Exit(1)
+		}
+
+		if err := api.InstallPackages(appName, args...); err != nil {
 			api.Error(fmt.Sprintf("Error: %v", err))
 		}
 
 	case "purge_packages":
-		if len(args) < 1 {
-			api.ErrorNoExit("Error: No app name specified")
-			api.Status("Usage: api purge_packages <app-name> [--update]")
+		// Check if we're in an app installation context (has $app environment variable)
+		appName := os.Getenv("app")
+		if appName == "" {
+			api.ErrorNoExit("Error: purge_packages function can only be used by apps to install packages")
+			api.ErrorNoExit("The $app environment variable was not set")
+			api.Status("This command should be called from within an app installation script")
 			os.Exit(1)
 		}
 
-		appName := args[0]
 		isUpdate := false
 
-		// Check if update flag is present
-		if len(args) > 1 && args[1] == "--update" {
+		// Check if update flag is present in arguments
+		if len(args) > 0 && args[0] == "--update" {
 			isUpdate = true
 		}
 
@@ -1346,7 +1357,6 @@ func main() {
 		}
 		api.Status("Note: This command may require sudo privileges for system operations.")
 		api.Status("You may be prompted for your password during execution.")
-		api.Status("Installing %s...", args[0])
 		if err := api.InstallApp(args[0]); err != nil {
 			api.Error(fmt.Sprintf("Error: %v", err))
 		}
@@ -1360,7 +1370,6 @@ func main() {
 		}
 		api.Status("Note: This command may require sudo privileges for system operations.")
 		api.Status("You may be prompted for your password during execution.")
-		api.Status("Uninstalling %s...", args[0])
 		if err := api.UninstallApp(args[0]); err != nil {
 			api.Error(fmt.Sprintf("Error: %v", err))
 		}
@@ -1374,7 +1383,6 @@ func main() {
 		}
 		api.Status("Note: This command may require sudo privileges for system operations.")
 		api.Status("You may be prompted for your password during execution.")
-		api.Status("Updating %s...", args[0])
 		if err := api.UpdateApp(args[0]); err != nil {
 			api.Error(fmt.Sprintf("Error: %v", err))
 		}
@@ -1388,7 +1396,6 @@ func main() {
 		}
 		api.Status("Note: This command may require sudo privileges for system operations.")
 		api.Status("You may be prompted for your password during execution.")
-		api.Status("Installing %s if not already installed...", args[0])
 		if err := api.InstallIfNotInstalled(args[0]); err != nil {
 			api.Error(fmt.Sprintf("Error: %v", err))
 		}
@@ -1487,8 +1494,8 @@ func printUsage() {
 	fmt.Println("  package_installed_version <package-name>     - Get installed package version")
 	fmt.Println("  package_latest_version <package-name> [-t <repo>] - Get latest available package version")
 	fmt.Println("  package_is_new_enough <package-name> <version> - Check if package meets version requirement")
-	fmt.Println("  install_packages <app-name> <package1> [package2] ... [-t repo] - Install packages for an app")
-	fmt.Println("  purge_packages <app-name> [--update]         - Remove packages for an app")
+	fmt.Println("  install_packages <package1> [package2] ... [-t repo] - Install packages (requires $app environment variable)")
+	fmt.Println("  purge_packages [--update]                    - Remove packages for app (requires $app environment variable)")
 	fmt.Println("  get_icon_from_package <package-name> [package-name2] ... - Get package icon")
 	fmt.Println("")
 	fmt.Println("Repository Management:")

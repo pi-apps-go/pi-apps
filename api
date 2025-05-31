@@ -33,7 +33,10 @@ fi
 # Output functions
 error() {
     "$GO_API_BIN" $GO_API_ARGS error "$1"
-    # No need to explicitly exit, as the Go implementation already does this
+    local exit_code=$?
+    # The Go implementation prints the error and should exit with code 1
+    # We need to also exit the bash script with the same code
+    exit $exit_code
 }
 
 warning() {
@@ -408,22 +411,17 @@ sudo_popup() {
 
 # Package installation functions
 install_packages() {
-    local app="$1"
-    shift
-    
     if [ -z "$app" ]; then
         error "install_packages function can only be used by apps to install packages. (the \$app variable was not set)"
         return 1
     fi
     
-    "$GO_API_BIN" $GO_API_ARGS install_packages "$app" "$@"
+    "$GO_API_BIN" $GO_API_ARGS install_packages "$@"
     return $?
 }
 
 # Package purging function
 purge_packages() {
-    local app="$1"
-    
     if [ -z "$app" ]; then
         error "purge_packages function can only be used by apps to install packages. (the \$app variable was not set)"
         return 1
@@ -431,9 +429,9 @@ purge_packages() {
     
     # Check if script_input is set to "update"
     if [ "$script_input" == "update" ]; then
-        "$GO_API_BIN" $GO_API_ARGS purge_packages "$app" "--update"
+        "$GO_API_BIN" $GO_API_ARGS purge_packages "--update"
     else
-        "$GO_API_BIN" $GO_API_ARGS purge_packages "$app"
+        "$GO_API_BIN" $GO_API_ARGS purge_packages
     fi
     return $?
 }
