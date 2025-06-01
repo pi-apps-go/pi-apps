@@ -329,10 +329,22 @@ func main() {
 		}
 
 	case "logviewer":
-		// Show the log viewer GUI
-		err := api.ShowLogViewer()
-		if err != nil {
-			api.Error(fmt.Sprintf("Error showing log viewer: %v", err))
+		if len(args) >= 1 {
+			// If a log file is specified, view it directly
+			if _, err := os.Stat(args[0]); os.IsNotExist(err) {
+				api.Error(fmt.Sprintf("Error: File does not exist: %s", args[0]))
+			}
+
+			err := api.ViewFile(args[0])
+			if err != nil {
+				api.Error(fmt.Sprintf("Error viewing log file: %v", err))
+			}
+		} else {
+			// Show the log viewer GUI
+			err := api.ShowLogViewer()
+			if err != nil {
+				api.Error(fmt.Sprintf("Error showing log viewer: %v", err))
+			}
 		}
 
 	case "categoryedit":

@@ -7,8 +7,8 @@ LDFLAGS=-X main.BuildDate="$(BUILD_DATE)" -X main.GitCommit="$(GIT_COMMIT_HASH)"
 
 all: build
 
-build: build-api build-pi-apps build-manage build-settings build-updater
-build-debug: build-api-debug build-pi-apps-debug build-manage-debug build-settings-debug build-updater-debug
+build: build-api build-pi-apps build-manage build-settings build-updater build-gui
+build-debug: build-api-debug build-pi-apps-debug build-manage-debug build-settings-debug build-updater-debug build-gui-debug
 
 build-api:
 	go build -o bin/api -ldflags "$(LDFLAGS) -w -s" -trimpath ./cmd/api
@@ -27,6 +27,12 @@ build-manage:
 
 build-manage-debug:
 	go build -o bin/manage -ldflags "$(LDFLAGS)" ./cmd/manage/main.go
+
+build-gui:
+	go build -o bin/gui-demo -ldflags "$(LDFLAGS) -w -s" -trimpath ./cmd/gui-demo/main.go
+
+build-gui-debug:
+	go build -o bin/gui-demo -ldflags "$(LDFLAGS)" ./cmd/gui-demo/main.go
 
 build-settings:
 	go build -o bin/settings -ldflags "$(LDFLAGS) -w -s" -trimpath ./cmd/settings
@@ -54,6 +60,8 @@ install: build
 	install -m 755 bin/api api-go
 	install -m 755 bin/manage manage
 	install -m 755 bin/settings settings
+	install -m 755 bin/updater updater
+	install -m 755 bin/gui-demo gui-demo
 	#install -m 755 bin/pi-apps $(BINDIR)/pi-apps
 	#install -m 755 bash-go-api $(BINDIR)/api
 	
@@ -61,6 +69,8 @@ install-debug: build-debug
 	install -m 755 bin/api api-go
 	install -m 755 bin/manage manage
 	install -m 755 bin/settings settings
+	install -m 755 bin/updater updater
+	install -m 755 bin/gui-demo gui-demo
 	#install -m 755 bin/pi-apps $(BINDIR)/pi-apps
 	#install -m 755 bash-go-api $(BINDIR)/api
 

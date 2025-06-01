@@ -10,6 +10,11 @@ rm -f ~/.local/share/applications/pi-apps-go.desktop
 rm -f ~/.local/share/applications/pi-apps-go-settings.desktop
 rm -f ~/.config/autostart/pi-apps-go-updater.desktop
 rm -f ~/Desktop/pi-apps-go.desktop
+# add older named files to allow also deleting the migrated copy
+rm -f ~/.local/share/applications/pi-apps.desktop
+rm -f ~/.local/share/applications/pi-apps-settings.desktop
+rm -f ~/.config/autostart/pi-apps-updater.desktop
+rm -f ~/Desktop/pi-apps.desktop
 
 echo "Removing terminal command..."
 sudo rm -f /usr/local/bin/pi-apps-go

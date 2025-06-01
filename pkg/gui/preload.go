@@ -157,6 +157,7 @@ func (tc *TimeStampChecker) HasChanged(prefix string) (bool, error) {
 func (tc *TimeStampChecker) SaveTimestamps(prefix string) error {
 	preloadDir := filepath.Join(tc.Directory, "data", "preload")
 	if err := os.MkdirAll(preloadDir, 0755); err != nil {
+		logger.Error(fmt.Sprintf("failed to create preload directory: %v\n", err))
 		return fmt.Errorf("failed to create preload directory: %w", err)
 	}
 
@@ -172,6 +173,7 @@ func PreloadAppList(directory, prefix string) (*PreloadedList, error) {
 	if directory == "" {
 		directory = os.Getenv("PI_APPS_DIR")
 		if directory == "" {
+			logger.Error("PI_APPS_DIR environment variable not set")
 			return nil, fmt.Errorf("PI_APPS_DIR environment variable not set")
 		}
 	}
@@ -187,6 +189,7 @@ func PreloadAppList(directory, prefix string) (*PreloadedList, error) {
 	// Check if we need to reload the list
 	needsReload, err := shouldReloadList(config, tc)
 	if err != nil {
+		logger.Error(fmt.Sprintf("failed to check if reload needed: %v\n", err))
 		return nil, fmt.Errorf("failed to check if reload needed: %w", err)
 	}
 
@@ -194,7 +197,7 @@ func PreloadAppList(directory, prefix string) (*PreloadedList, error) {
 	if !needsReload {
 		cached, err := loadCachedList(config)
 		if err == nil {
-			fmt.Fprintf(os.Stderr, "Reading cached list for '%s'...\n", prefix)
+			logger.Info(fmt.Sprintf("Reading cached list for '%s'...\n", prefix))
 			return cached, nil
 		}
 		// If loading cached fails, fall through to regenerate
@@ -202,26 +205,27 @@ func PreloadAppList(directory, prefix string) (*PreloadedList, error) {
 	}
 
 	// Generate new list
-	fmt.Fprintf(os.Stderr, "Generating list for '%s'...\n", prefix)
+	logger.Info(fmt.Sprintf("Generating list for '%s'...\n", prefix))
 
 	// Load API functions
 	os.Setenv("PI_APPS_DIR", directory)
 
 	list, err := generateAppList(config)
 	if err != nil {
+		logger.Error(fmt.Sprintf("failed to generate app list: %v\n", err))
 		return nil, fmt.Errorf("failed to generate app list: %w", err)
 	}
 
 	// Save the list and timestamps
 	if err := saveCachedList(config, list); err != nil {
-		fmt.Fprintf(os.Stderr, "Warning: failed to save cached list: %v\n", err)
+		logger.Warn(fmt.Sprintf("failed to save cached list: %v\n", err))
 	}
 
 	if err := tc.SaveTimestamps(prefix); err != nil {
-		fmt.Fprintf(os.Stderr, "Warning: failed to save timestamps: %v\n", err)
+		logger.Warn(fmt.Sprintf("failed to save timestamps: %v\n", err))
 	}
 
-	fmt.Fprintf(os.Stderr, "Finished preload for '%s'\n", prefix)
+	logger.Info(fmt.Sprintf("Finished preload for '%s'\n", prefix))
 	return list, nil
 }
 
@@ -234,25 +238,25 @@ func shouldReloadList(config *AppListConfig, tc *TimeStampChecker) (bool, error)
 	}
 
 	if changed {
-		fmt.Fprintf(os.Stderr, "Timestamps don't match\n")
+		logger.Info("Timestamps don't match")
 		return true, nil
 	}
 
 	// Check if list file exists
 	listFile := getListFilePath(config)
 	if _, err := os.Stat(listFile); os.IsNotExist(err) {
-		fmt.Fprintf(os.Stderr, "List file for %s does not exist.\n", config.Prefix)
+		logger.Info(fmt.Sprintf("List file for %s does not exist.\n", config.Prefix))
 		return true, nil
 	}
 
 	// Check if list file is empty
 	stat, err := os.Stat(listFile)
 	if err != nil || stat.Size() == 0 {
-		fmt.Fprintf(os.Stderr, "List file for %s is empty.\n", config.Prefix)
+		logger.Info(fmt.Sprintf("List file for %s is empty.\n", config.Prefix))
 		return true, nil
 	}
 
-	fmt.Fprintf(os.Stderr, "Timestamps match.\n")
+	logger.Info("Timestamps match.")
 	return false, nil
 }
 
@@ -279,6 +283,7 @@ func generateAppList(config *AppListConfig) (*PreloadedList, error) {
 	// Get virtual file system with apps/categories
 	vfiles, err := getVirtualFileSystem(config)
 	if err != nil {
+		logger.Error(fmt.Sprintf("failed to get virtual file system: %v\n", err))
 		return nil, fmt.Errorf("failed to get virtual file system: %w", err)
 	}
 
@@ -307,7 +312,7 @@ func generateAppList(config *AppListConfig) (*PreloadedList, error) {
 	for _, dir := range dirs {
 		dirItem, err := createDirectoryItem(dir, config)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Warning: failed to create directory item for %s: %v\n", dir, err)
+			logger.Warn(fmt.Sprintf("failed to create directory item for %s: %v\n", dir, err))
 			continue
 		}
 		list.Items = append(list.Items, dirItem)
@@ -317,7 +322,7 @@ func generateAppList(config *AppListConfig) (*PreloadedList, error) {
 	for _, app := range apps {
 		appItem, err := createAppItem(app, config)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Warning: failed to create app item for %s: %v\n", app, err)
+			logger.Warn(fmt.Sprintf("failed to create app item for %s: %v\n", app, err))
 			continue
 		}
 		list.Items = append(list.Items, appItem)
@@ -330,7 +335,7 @@ func generateAppList(config *AppListConfig) (*PreloadedList, error) {
 func getVirtualFileSystem(config *AppListConfig) ([]string, error) {
 	if config.Prefix != "" {
 		// Show apps within specific prefix
-		fmt.Fprintf(os.Stderr, "Showing apps within %s/\n", config.Prefix)
+		logger.Info(fmt.Sprintf("Showing apps within %s/\n", config.Prefix))
 		vfiles, err := api.AppPrefixCategory(config.Directory, config.Prefix)
 		if err != nil {
 			return nil, err
@@ -382,10 +387,10 @@ func separateAppsAndDirs(vfiles []string, directory string) (apps []string, dirs
 	// Remove duplicates
 	processed = removeDuplicates(processed)
 
-	// Get CPU installable apps for filtering
+	// Get CPU installable apps for filtering - this ensures architecture compatibility
 	cpuInstallableApps, err := api.ListApps("cpu_installable")
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Warning: failed to get CPU installable apps: %v\n", err)
+		logger.Warn(fmt.Sprintf("failed to get CPU installable apps: %v\n", err))
 		cpuInstallableApps = []string{}
 	}
 
@@ -395,10 +400,11 @@ func separateAppsAndDirs(vfiles []string, directory string) (apps []string, dirs
 			// It's a directory
 			dirs = append(dirs, strings.TrimSuffix(item, "/"))
 		} else {
-			// It's an app, check if it's CPU installable
+			// It's an app, check if it's CPU installable (compatible with current architecture)
 			if contains(cpuInstallableApps, item) {
 				apps = append(apps, item)
 			}
+			// If not in cpuInstallableApps, the app is not compatible with current architecture and will be hidden
 		}
 	}
 
@@ -441,16 +447,15 @@ func createAppItem(app string, config *AppListConfig) (AppListItem, error) {
 		status = ""
 	}
 
-	// Get app description
+	// Get app description (first line only, like the original bash script)
 	descFile := filepath.Join(config.Directory, "apps", app, "description")
 	description := "Description unavailable"
 	if descData, err := os.ReadFile(descFile); err == nil {
-		description = strings.TrimSpace(string(descData))
-	}
-
-	// Add status to description if available
-	if status != "" && status != "uninstalled" {
-		description = fmt.Sprintf("(%s) %s", status, description)
+		// Split into lines and take only the first line (matching bash read -r behavior)
+		lines := strings.Split(string(descData), "\n")
+		if len(lines) > 0 && strings.TrimSpace(lines[0]) != "" {
+			description = strings.TrimSpace(lines[0])
+		}
 	}
 
 	// Get app icon
@@ -541,35 +546,37 @@ func getCategoryDescription(category string) string {
 	return ""
 }
 
+// loadCachedList loads a previously cached app list
 func loadCachedList(config *AppListConfig) (*PreloadedList, error) {
-	listFile := getListFilePath(config)
+	preloadDir := filepath.Join(config.Directory, "data", "preload")
+	listFile := filepath.Join(preloadDir, fmt.Sprintf("LIST-%s", sanitizePath(config.Prefix)))
+
+	// Check if the cached list file exists
+	if !appListFileExists(listFile) {
+		return nil, fmt.Errorf("cached list file does not exist: %s", listFile)
+	}
+
+	// Read the cached file
 	data, err := os.ReadFile(listFile)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to read cached list file: %w", err)
 	}
 
-	// Create the preloaded list
-	list := &PreloadedList{
-		Prefix:    config.Prefix,
-		Generated: time.Now(), // This will be overridden if we store timestamp in file
-		Items:     []AppListItem{},
-	}
-
-	// Parse each line
+	// Parse the pipe-delimited format: "Type|Name|Path|Description|IconPath|Status"
 	lines := strings.Split(string(data), "\n")
+	var items []AppListItem
+
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
 		if line == "" {
-			continue // Skip empty lines
+			continue
 		}
 
-		// Split by pipe delimiter
 		parts := strings.Split(line, "|")
-		if len(parts) != 6 {
+		if len(parts) < 6 {
 			continue // Skip malformed lines
 		}
 
-		// Parse the item
 		item := AppListItem{
 			Type:        parts[0],
 			Name:        parts[1],
@@ -579,15 +586,19 @@ func loadCachedList(config *AppListConfig) (*PreloadedList, error) {
 			Status:      parts[5],
 		}
 
-		// Check for special Updates category
-		if item.Name == "Updates" && item.Type == "category" {
+		// Handle Updates category
+		if item.Name == "Updates" {
 			item.IsUpdates = true
 		}
 
-		list.Items = append(list.Items, item)
+		items = append(items, item)
 	}
 
-	return list, nil
+	return &PreloadedList{
+		Items:     items,
+		Prefix:    config.Prefix,
+		Generated: time.Now(), // We don't store generation time in cache, use current time
+	}, nil
 }
 
 func saveCachedList(config *AppListConfig, list *PreloadedList) error {
@@ -675,11 +686,13 @@ func PopulateGTKTreeView(treeView *gtk.TreeView, list *PreloadedList) error {
 	// Get the model from the tree view
 	model, err := treeView.GetModel()
 	if err != nil {
+		logger.Error(fmt.Sprintf("failed to get tree view model: %v\n", err))
 		return fmt.Errorf("failed to get tree view model: %w", err)
 	}
 
 	listStore, ok := model.(*gtk.ListStore)
 	if !ok {
+		logger.Error("tree view model is not a ListStore")
 		return fmt.Errorf("tree view model is not a ListStore")
 	}
 
@@ -726,23 +739,27 @@ func CreateAppListTreeView() (*gtk.TreeView, *gtk.ListStore, error) {
 		glib.TYPE_STRING,    // 4: Status (for coloring)
 	)
 	if err != nil {
+		logger.Error(fmt.Sprintf("failed to create list store: %v\n", err))
 		return nil, nil, fmt.Errorf("failed to create list store: %w", err)
 	}
 
 	// Create tree view
 	treeView, err := gtk.TreeViewNewWithModel(listStore)
 	if err != nil {
+		logger.Error(fmt.Sprintf("failed to create tree view: %v\n", err))
 		return nil, nil, fmt.Errorf("failed to create tree view: %w", err)
 	}
 
 	// Create icon column
 	iconRenderer, err := gtk.CellRendererPixbufNew()
 	if err != nil {
+		logger.Error(fmt.Sprintf("failed to create icon renderer: %v\n", err))
 		return nil, nil, fmt.Errorf("failed to create icon renderer: %w", err)
 	}
 
 	iconColumn, err := gtk.TreeViewColumnNewWithAttribute("", iconRenderer, "pixbuf", 0)
 	if err != nil {
+		logger.Error(fmt.Sprintf("failed to create icon column: %v\n", err))
 		return nil, nil, fmt.Errorf("failed to create icon column: %w", err)
 	}
 	iconColumn.SetSizing(gtk.TREE_VIEW_COLUMN_FIXED)
@@ -752,11 +769,13 @@ func CreateAppListTreeView() (*gtk.TreeView, *gtk.ListStore, error) {
 	// Create name column
 	nameRenderer, err := gtk.CellRendererTextNew()
 	if err != nil {
+		logger.Error(fmt.Sprintf("failed to create name renderer: %v\n", err))
 		return nil, nil, fmt.Errorf("failed to create name renderer: %w", err)
 	}
 
 	nameColumn, err := gtk.TreeViewColumnNewWithAttribute("Name", nameRenderer, "text", 1)
 	if err != nil {
+		logger.Error(fmt.Sprintf("failed to create name column: %v\n", err))
 		return nil, nil, fmt.Errorf("failed to create name column: %w", err)
 	}
 	nameColumn.SetResizable(true)
@@ -766,11 +785,13 @@ func CreateAppListTreeView() (*gtk.TreeView, *gtk.ListStore, error) {
 	// Create description column
 	descRenderer, err := gtk.CellRendererTextNew()
 	if err != nil {
+		logger.Error(fmt.Sprintf("failed to create description renderer: %v\n", err))
 		return nil, nil, fmt.Errorf("failed to create description renderer: %w", err)
 	}
 
 	descColumn, err := gtk.TreeViewColumnNewWithAttribute("Description", descRenderer, "text", 2)
 	if err != nil {
+		logger.Error(fmt.Sprintf("failed to create description column: %v\n", err))
 		return nil, nil, fmt.Errorf("failed to create description column: %w", err)
 	}
 	descColumn.SetExpand(true)
@@ -790,38 +811,45 @@ func CreateAppListTreeView() (*gtk.TreeView, *gtk.ListStore, error) {
 func GetSelectedAppPath(treeView *gtk.TreeView) (string, error) {
 	selection, err := treeView.GetSelection()
 	if err != nil {
+		logger.Error(fmt.Sprintf("failed to get selection: %v\n", err))
 		return "", fmt.Errorf("failed to get selection: %w", err)
 	}
 
 	_, iter, ok := selection.GetSelected()
 	if !ok {
+		logger.Error("no item selected")
 		return "", fmt.Errorf("no item selected")
 	}
 
 	// Get the model directly from the tree view instead of from selection
 	model, err := treeView.GetModel()
 	if err != nil {
+		logger.Error(fmt.Sprintf("failed to get tree view model: %v\n", err))
 		return "", fmt.Errorf("failed to get tree view model: %w", err)
 	}
 
 	listStore, ok := model.(*gtk.ListStore)
 	if !ok {
+		logger.Error("tree view model is not a ListStore")
 		return "", fmt.Errorf("tree view model is not a ListStore")
 	}
 
 	// Get the path from column 3
 	value, err := listStore.GetValue(iter, 3)
 	if err != nil {
+		logger.Error(fmt.Sprintf("failed to get path value: %v\n", err))
 		return "", fmt.Errorf("failed to get path value: %w", err)
 	}
 
 	pathInterface, err := value.GoValue()
 	if err != nil {
+		logger.Error(fmt.Sprintf("failed to convert value to Go type: %v\n", err))
 		return "", fmt.Errorf("failed to convert value to Go type: %w", err)
 	}
 
 	path, ok := pathInterface.(string)
 	if !ok {
+		logger.Error("path value is not a string")
 		return "", fmt.Errorf("path value is not a string")
 	}
 

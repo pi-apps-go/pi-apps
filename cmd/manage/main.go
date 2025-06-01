@@ -333,8 +333,13 @@ func main() {
 				}
 			case "uninstall":
 				// Check if already uninstalled, unless ForceReinstall flag is set
-				if !api.IsAppInstalled(queue[i].AppName) && !queue[i].ForceReinstall {
-					err = fmt.Errorf("app '%s' is not installed", queue[i].AppName)
+				// Allow uninstall for corrupted apps
+				appStatus, err := api.GetAppStatus(queue[i].AppName)
+				if err != nil {
+					err = fmt.Errorf("failed to get app status: %w", err)
+				} else if appStatus == "uninstalled" && !queue[i].ForceReinstall {
+					api.Status(fmt.Sprintf("App '%s' is already uninstalled, skipping", queue[i].AppName))
+					continue
 				} else {
 					err = api.UninstallApp(queue[i].AppName)
 				}
@@ -391,7 +396,16 @@ func main() {
 			case "install":
 				err = api.InstallApp(queue[i].AppName)
 			case "uninstall":
-				err = api.UninstallApp(queue[i].AppName)
+				// Check if already uninstalled and allow uninstall for corrupted apps
+				appStatus, statusErr := api.GetAppStatus(queue[i].AppName)
+				if statusErr != nil {
+					err = fmt.Errorf("failed to get app status: %w", statusErr)
+				} else if appStatus == "uninstalled" {
+					api.Status(fmt.Sprintf("App '%s' is already uninstalled, skipping", queue[i].AppName))
+					continue
+				} else {
+					err = api.UninstallApp(queue[i].AppName)
+				}
 			case "update":
 				err = api.UpdateApp(queue[i].AppName)
 			case "refresh":
@@ -974,8 +988,15 @@ func validateQueueWithGUI(queue []QueueItem, useGUI bool) ([]QueueItem, error) {
 		}
 
 		// Check for redundant operations
-		if (item.Action == "install" && api.IsAppInstalled(item.AppName)) ||
-			(item.Action == "uninstall" && !api.IsAppInstalled(item.AppName)) {
+		appStatus, err := api.GetAppStatus(item.AppName)
+		if err != nil {
+			// If we can't get status, continue with the operation
+			validQueue = append(validQueue, item)
+			continue
+		}
+
+		if (item.Action == "install" && appStatus == "installed") ||
+			(item.Action == "uninstall" && appStatus == "uninstalled") {
 			infoMsg := fmt.Sprintf("App '%s' is already %sed, skipping", item.AppName, item.Action)
 			if useGUI {
 				// In GUI mode, this would typically be handled by ValidateAppsGUI, so just inform
@@ -985,6 +1006,7 @@ func validateQueueWithGUI(queue []QueueItem, useGUI bool) ([]QueueItem, error) {
 			}
 			continue
 		}
+		// Note: corrupted apps are allowed to be both installed and uninstalled
 
 		validQueue = append(validQueue, item)
 	}

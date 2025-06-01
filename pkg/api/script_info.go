@@ -191,7 +191,7 @@ func ScriptNameCPU(app string) (string, error) {
 		return "", fmt.Errorf("script_name_cpu: '%s' is an invalid app name", app)
 	}
 
-	// Get the current architecture
+	// Get the current architecture using the existing function from log_diagnose.go
 	arch := getArchitecture()
 
 	// Check which script to use based on architecture

@@ -189,17 +189,19 @@ func ValidateAppsGUI(queue []QueueItem) ([]QueueItem, error) {
 		}
 
 		// Check for redundant operations and inform user
-		if isAppInstalled(item.AppName) && item.Action == "install" {
+		appStatus := getAppStatus(item.AppName)
+		if appStatus == "installed" && item.Action == "install" {
 			// App is already installed, inform user and skip
 			showErrorDialog(fmt.Sprintf("<b>%s</b> is already installed. Skipping redundant installation.", item.AppName))
 			fmt.Printf("Skipping redundant installation of %s (already installed).\n", item.AppName)
 			continue
-		} else if !isAppInstalled(item.AppName) && item.Action == "uninstall" {
+		} else if appStatus == "uninstalled" && item.Action == "uninstall" {
 			// App is already uninstalled, inform user and skip
 			showErrorDialog(fmt.Sprintf("<b>%s</b> is already uninstalled. Skipping redundant uninstallation.", item.AppName))
 			fmt.Printf("Skipping redundant uninstallation of %s (already uninstalled).\n", item.AppName)
 			continue
 		}
+		// Note: corrupted apps are allowed to be both installed and uninstalled
 
 		// Check if update is available (for install action)
 		if item.Action == "install" {
@@ -1339,6 +1341,21 @@ func isAppInstalled(appName string) bool {
 
 	status := strings.TrimSpace(string(content))
 	return status == "installed"
+}
+
+// getAppStatus returns the current status of an app (installed, uninstalled, corrupted, etc.)
+func getAppStatus(appName string) string {
+	statusFile := filepath.Join(getPiAppsDir(), "data", "status", appName)
+	content, err := os.ReadFile(statusFile)
+	if err != nil {
+		return "uninstalled" // Default to uninstalled if status file doesn't exist
+	}
+
+	status := strings.TrimSpace(string(content))
+	if status == "" {
+		return "uninstalled"
+	}
+	return status
 }
 
 // fileExists checks if a file exists

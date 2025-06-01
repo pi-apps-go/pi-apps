@@ -545,29 +545,29 @@ func getAppsWithStatusFiles(directory string) ([]string, error) {
 
 // getCPUInstallableApps returns a list of apps that can be installed on the current CPU
 func getCPUInstallableApps(directory string) ([]string, error) {
-	// Get system architecture
-	cmd := exec.Command("getconf", "LONG_BIT")
-	output, err := cmd.Output()
-	if err != nil {
-		return nil, fmt.Errorf("failed to determine system architecture: %w", err)
-	}
-
-	arch := strings.TrimSpace(string(output))
+	// Get system architecture using multiple methods for better compatibility
+	arch := getSystemArchitecture()
 
 	var appNames []string
 	appPath := filepath.Join(directory, "apps")
 
 	// Find apps with install script, install-XX script, or packages file
-	err = filepath.WalkDir(appPath, func(path string, d fs.DirEntry, err error) error {
+	err := filepath.WalkDir(appPath, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
 
 		if !d.IsDir() {
 			fileName := d.Name()
-			if fileName == "install" || fileName == fmt.Sprintf("install-%s", arch) || fileName == "packages" {
-				// Get app name (parent directory name)
-				appName := filepath.Base(filepath.Dir(path))
+			appName := filepath.Base(filepath.Dir(path))
+
+			// Check for different types of install possibilities:
+			// 1. Generic install script (works on all architectures)
+			// 2. Packages file (works on all architectures)
+			// 3. Architecture-specific install script matching current architecture
+			if fileName == "install" || fileName == "packages" {
+				appNames = append(appNames, appName)
+			} else if isArchitectureSpecificInstallScript(fileName, arch) {
 				appNames = append(appNames, appName)
 			}
 		}
@@ -591,6 +591,43 @@ func getCPUInstallableApps(directory string) ([]string, error) {
 
 	sort.Strings(result)
 	return result, nil
+}
+
+// getSystemArchitecture returns the system architecture in Pi-Apps format
+func getSystemArchitecture() string {
+	// Try getconf LONG_BIT first (most reliable for 32/64 bit detection)
+	cmd := exec.Command("getconf", "LONG_BIT")
+	if output, err := cmd.Output(); err == nil {
+		bits := strings.TrimSpace(string(output))
+		if bits == "64" {
+			return "64"
+		} else if bits == "32" {
+			return "32"
+		}
+	}
+
+	// Fallback to uname -m
+	cmd = exec.Command("uname", "-m")
+	if output, err := cmd.Output(); err == nil {
+		arch := strings.TrimSpace(string(output))
+		// Convert various architecture names to Pi-Apps format (32/64)
+		switch arch {
+		case "aarch64", "arm64", "x86_64", "amd64", "riscv64":
+			return "64"
+		case "armv7l", "armv6l", "i386", "i686", "armhf":
+			return "32"
+		}
+	}
+
+	// Final fallback - assume 64-bit as most modern systems are 64-bit
+	return "64"
+}
+
+// isArchitectureSpecificInstallScript checks if a filename is an architecture-specific install script for the current arch
+func isArchitectureSpecificInstallScript(fileName, currentArch string) bool {
+	// Check for install-32 and install-64 naming convention
+	expectedScript := fmt.Sprintf("install-%s", currentArch)
+	return fileName == expectedScript
 }
 
 // getAppsWithFile returns a list of apps that have the specified file
@@ -767,7 +804,57 @@ func ReadCategoryFiles(directory string) ([]string, error) {
 	var result []string
 	seen := make(map[string]bool)
 
-	// Read all categories from the categories directory
+	// First read category-overrides file (user overrides take precedence)
+	userOverridesFile := filepath.Join(directory, "data", "category-overrides")
+	if checkFileExists(userOverridesFile) {
+		data, err := os.ReadFile(userOverridesFile)
+		if err == nil {
+			scanner := bufio.NewScanner(strings.NewReader(string(data)))
+			for scanner.Scan() {
+				line := strings.TrimSpace(scanner.Text())
+				if line == "" || strings.HasPrefix(line, "#") {
+					continue
+				}
+
+				parts := strings.Split(line, "|")
+				if len(parts) >= 2 {
+					appName := strings.TrimSpace(parts[0])
+					categoryName := strings.TrimSpace(parts[1])
+					if appName != "" && !seen[appName] {
+						result = append(result, appName+"|"+categoryName)
+						seen[appName] = true
+					}
+				}
+			}
+		}
+	}
+
+	// Then read global categories file (etc/categories)
+	globalCategoriesFile := filepath.Join(directory, "etc", "categories")
+	if checkFileExists(globalCategoriesFile) {
+		data, err := os.ReadFile(globalCategoriesFile)
+		if err == nil {
+			scanner := bufio.NewScanner(strings.NewReader(string(data)))
+			for scanner.Scan() {
+				line := strings.TrimSpace(scanner.Text())
+				if line == "" || strings.HasPrefix(line, "#") {
+					continue
+				}
+
+				parts := strings.Split(line, "|")
+				if len(parts) >= 2 {
+					appName := strings.TrimSpace(parts[0])
+					categoryName := strings.TrimSpace(parts[1])
+					if appName != "" && !seen[appName] {
+						result = append(result, appName+"|"+categoryName)
+						seen[appName] = true
+					}
+				}
+			}
+		}
+	}
+
+	// Also read individual category files from data/categories directory (compatibility)
 	categoriesDir := filepath.Join(directory, "data", "categories")
 	if checkFileExists(categoriesDir) {
 		entries, err := os.ReadDir(categoriesDir)
@@ -788,7 +875,7 @@ func ReadCategoryFiles(directory string) ([]string, error) {
 
 				scanner := bufio.NewScanner(strings.NewReader(string(data)))
 				for scanner.Scan() {
-					appName := scanner.Text()
+					appName := strings.TrimSpace(scanner.Text())
 					if appName == "" {
 						continue
 					}
@@ -802,12 +889,6 @@ func ReadCategoryFiles(directory string) ([]string, error) {
 		}
 	}
 
-	// Check for category-overrides file (if we were to implement it)
-	userOverridesFile := filepath.Join(directory, "data", "category-overrides")
-	if checkFileExists(userOverridesFile) {
-		// This would override the categories above
-	}
-
 	// Add all local apps that don't have a category yet
 	localApps, err := listLocalApps(directory)
 	if err == nil {
@@ -819,15 +900,7 @@ func ReadCategoryFiles(directory string) ([]string, error) {
 		}
 	}
 
-	// Filter empty entries
-	var filteredResult []string
-	for _, line := range result {
-		if line != "" {
-			filteredResult = append(filteredResult, line)
-		}
-	}
-
-	return filteredResult, nil
+	return result, nil
 }
 
 // AppPrefixCategory lists all apps in a category with format "category/app",

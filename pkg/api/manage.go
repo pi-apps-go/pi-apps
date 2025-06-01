@@ -334,10 +334,15 @@ func UninstallApp(appName string) error {
 		return fmt.Errorf("app '%s' does not exist", appName)
 	}
 
-	// Check if installed
-	if !IsAppInstalled(appName) {
+	// Check if already uninstalled (allow uninstall for corrupted apps)
+	appStatus, err := GetAppStatus(appName)
+	if err != nil {
+		return fmt.Errorf("failed to get app status: %w", err)
+	}
+	if appStatus == "uninstalled" {
 		return fmt.Errorf("app '%s' is not installed", appName)
 	}
+	// Note: corrupted apps are allowed to be uninstalled
 
 	// Get app type
 	appType, err := GetAppType(appName)
@@ -363,10 +368,15 @@ func UpdateApp(appName string) error {
 		return fmt.Errorf("app '%s' does not exist", appName)
 	}
 
-	// Check if installed
-	if !IsAppInstalled(appName) {
+	// Check if already uninstalled (allow update for corrupted apps)
+	appStatus, err := GetAppStatus(appName)
+	if err != nil {
+		return fmt.Errorf("failed to get app status: %w", err)
+	}
+	if appStatus == "uninstalled" {
 		return fmt.Errorf("app '%s' is not installed", appName)
 	}
+	// Note: corrupted apps are allowed to be updated
 
 	// Get app type
 	appType, err := GetAppType(appName)

@@ -321,11 +321,8 @@ func CreateApp(appName string) error {
 					return fmt.Errorf("failed to create install script: %v", err)
 				}
 
-				// Open the script in text editor - ensure we get error info
-				cmd := exec.Command("xdg-open", installPath)
-				if err := cmd.Start(); err != nil {
-					Warning(fmt.Sprintf("Failed to open install script: %v\n", err))
-				}
+				// Open the script in preferred text editor
+				OpenFile(installPath)
 
 			case "install-32-and-64":
 				// Create install-32 script
@@ -340,19 +337,12 @@ func CreateApp(appName string) error {
 					return fmt.Errorf("failed to create install-64 script: %v", err)
 				}
 
-				// Open the scripts in text editor - make sure both open, with delay between them
-				cmd32 := exec.Command("xdg-open", installPath32)
-				if err := cmd32.Start(); err != nil {
-					Warning(fmt.Sprintf("Failed to open install-32 script: %v\n", err))
-				}
+				// Open the scripts in preferred text editor - make sure both open, with delay between them
+				OpenFile(installPath32)
 
 				// Small delay to prevent potential race conditions
 				time.Sleep(500 * time.Millisecond)
-
-				cmd64 := exec.Command("xdg-open", installPath64)
-				if err := cmd64.Start(); err != nil {
-					Warning(fmt.Sprintf("Failed to open install-64 script: %v\n", err))
-				}
+				OpenFile(installPath64)
 
 			case "install-32":
 				// Create install-32 script only
@@ -361,11 +351,8 @@ func CreateApp(appName string) error {
 					return fmt.Errorf("failed to create install-32 script: %v", err)
 				}
 
-				// Open the script in text editor
-				cmd := exec.Command("xdg-open", installPath32)
-				if err := cmd.Start(); err != nil {
-					Warning(fmt.Sprintf("Failed to open install-32 script: %v\n", err))
-				}
+				// Open the script in preferred text editor
+				OpenFile(installPath32)
 
 			case "install-64":
 				// Create install-64 script only
@@ -374,11 +361,8 @@ func CreateApp(appName string) error {
 					return fmt.Errorf("failed to create install-64 script: %v", err)
 				}
 
-				// Open the script in text editor
-				cmd := exec.Command("xdg-open", installPath64)
-				if err := cmd.Start(); err != nil {
-					Warning(fmt.Sprintf("Failed to open install-64 script: %v\n", err))
-				}
+				// Open the script in preferred text editor
+				OpenFile(installPath64)
 			}
 
 			// Create uninstall script if it doesn't exist
@@ -390,11 +374,8 @@ func CreateApp(appName string) error {
 				}
 			}
 
-			// Open the script in text editor
-			cmd := exec.Command("xdg-open", uninstallPath)
-			if err := cmd.Start(); err != nil {
-				Warning(fmt.Sprintf("Failed to open uninstall script: %v\n", err))
-			}
+			// Open the script in preferred text editor
+			OpenFile(uninstallPath)
 
 			// Main testing dialog loop - continue this loop until the user proceeds forward or exits
 			for {
