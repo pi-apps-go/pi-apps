@@ -907,12 +907,26 @@ func parseQueue(queueStr string) []QueueItem {
 			continue
 		}
 
-		// Format should be "action;appname" or "action appname"
-		parts := strings.Fields(strings.ReplaceAll(line, ";", " "))
-		if len(parts) >= 2 {
-			action := parts[0]
-			appName := parts[1]
+		var action, appName string
 
+		// Check if line contains semicolon delimiter
+		if strings.Contains(line, ";") {
+			// Format: "action;appname" - split on semicolon
+			parts := strings.SplitN(line, ";", 2)
+			if len(parts) >= 2 {
+				action = strings.TrimSpace(parts[0])
+				appName = strings.TrimSpace(parts[1])
+			}
+		} else {
+			// Format: "action appname" - split on space but preserve app name with spaces
+			parts := strings.SplitN(strings.TrimSpace(line), " ", 2)
+			if len(parts) >= 2 {
+				action = parts[0]
+				appName = parts[1]
+			}
+		}
+
+		if action != "" && appName != "" {
 			// Get icon path
 			iconPath := filepath.Join(os.Getenv("PI_APPS_DIR"), "apps", appName, "icon-64.png")
 			if _, err := os.Stat(iconPath); os.IsNotExist(err) {

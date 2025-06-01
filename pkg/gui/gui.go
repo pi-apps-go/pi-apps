@@ -127,6 +127,15 @@ func (g *GUI) Initialize() error {
 	// Initialize GTK
 	gtk.Init(nil)
 
+	// Initialize program icon
+	// display GDK_BACKEND to ensure it is properly set to x11 by the api
+	fmt.Println("GDK_BACKEND:", os.Getenv("GDK_BACKEND"))
+	pixbuf, err := gdk.PixbufNewFromFile(filepath.Join(g.directory, "icons", "logo.png"))
+	if err != nil {
+		logger.Fatal("Unable to load icon:", err)
+	}
+	gtk.WindowSetDefaultIcon(pixbuf)
+
 	// Get screen dimensions
 	if err := g.getScreenDimensions(); err != nil {
 		return fmt.Errorf("failed to get screen dimensions: %w", err)
@@ -1359,14 +1368,14 @@ func (g *GUI) createAppInfoLabel(appName string) *gtk.Label {
 
 // performAppAction performs install/uninstall actions using terminal_manage
 func (g *GUI) performAppAction(appName, action string) {
-	fmt.Printf("Performing %s action for app: %s\n", action, appName)
+	logger.Info(fmt.Sprintf("Performing %s action for app: %s\n", action, appName))
 
 	// Call the API's terminal_manage function like the original bash GUI does
 	// This is equivalent to: "${DIRECTORY}/api" terminal_manage "$action" "$app"
 	apiScript := filepath.Join(g.directory, "api")
 	// Debug logging
-	fmt.Println(apiScript, "terminal_manage", action, fmt.Sprintf("'%s'", appName))
-	cmd := exec.Command(apiScript, "terminal_manage", action, fmt.Sprintf("'%s'", appName))
+	//fmt.Println(apiScript, "terminal_manage", action, appName)
+	cmd := exec.Command(apiScript, "terminal_manage", action, appName)
 
 	// Set environment variables that might be needed
 	cmd.Env = append(os.Environ(),
@@ -1375,7 +1384,7 @@ func (g *GUI) performAppAction(appName, action string) {
 	)
 
 	if err := cmd.Start(); err != nil {
-		fmt.Fprintf(os.Stderr, "Error starting %s for %s: %v\n", action, appName, err)
+		logger.Error(fmt.Sprintf("Error starting %s for %s: %v\n", action, appName, err))
 
 		// Show error dialog
 		dialog := gtk.MessageDialogNew(
@@ -1389,7 +1398,7 @@ func (g *GUI) performAppAction(appName, action string) {
 		defer dialog.Destroy()
 		dialog.Run()
 	} else {
-		fmt.Printf("Started %s process for %s using API terminal_manage\n", action, appName)
+		logger.Info(fmt.Sprintf("Started %s process for %s using API terminal_manage\n", action, appName))
 	}
 }
 
