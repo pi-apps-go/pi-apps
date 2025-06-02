@@ -127,15 +127,6 @@ func (g *GUI) Initialize() error {
 	// Initialize GTK
 	gtk.Init(nil)
 
-	// Initialize program icon
-	// display GDK_BACKEND to ensure it is properly set to x11 by the api
-	fmt.Println("GDK_BACKEND:", os.Getenv("GDK_BACKEND"))
-	pixbuf, err := gdk.PixbufNewFromFile(filepath.Join(g.directory, "icons", "logo.png"))
-	if err != nil {
-		logger.Fatal("Unable to load icon:", err)
-	}
-	gtk.WindowSetDefaultIcon(pixbuf)
-
 	// Get screen dimensions
 	if err := g.getScreenDimensions(); err != nil {
 		return fmt.Errorf("failed to get screen dimensions: %w", err)
@@ -506,16 +497,41 @@ func (g *GUI) showCategoryListView() error {
 	}
 	listBox.SetSelectionMode(gtk.SELECTION_SINGLE)
 
-	// Add categories in the correct order
-	categories := []struct {
+	// Build categories list dynamically
+	var categories []struct {
+		name        string
+		icon        string
+		description string
+	}
+
+	// Check if updates are available (matching bash logic)
+	updatableFilesPath := filepath.Join(g.directory, "data", "update-status", "updatable-files")
+	updatableAppsPath := filepath.Join(g.directory, "data", "update-status", "updatable-apps")
+
+	updatesAvailable := false
+	if stat, err := os.Stat(updatableFilesPath); err == nil && stat.Size() > 0 {
+		updatesAvailable = true
+	}
+	if stat, err := os.Stat(updatableAppsPath); err == nil && stat.Size() > 0 {
+		updatesAvailable = true
+	}
+
+	// Add Updates category only if updates are available
+	if updatesAvailable {
+		categories = append(categories, struct {
+			name        string
+			icon        string
+			description string
+		}{"Updates", "Updates.png", "Pi-Apps updates are available."})
+	}
+
+	// Add standard categories in the correct order
+	standardCategories := []struct {
 		name        string
 		icon        string
 		description string
 	}{
-		{"Updates", "Updates.png", "Pi-Apps updates are available."},
 		{"All Apps", "All Apps.png", "All Pi-Apps Applications in one long list."},
-		{"[TEST] Firefox", "none-24.png", "Test app details window - click to see app details"},
-		{"[TEST] Blender", "none-24.png", "Test app details window - click to see app details"},
 		{"Appearance", "Appearance.png", "Applications and Themes which modify the look and feel of your OS."},
 		{"Creative Arts", "Creative Arts.png", "Drawing, Painting, and Photo and Movie Editors"},
 		{"Engineering", "Engineering.png", "3D Printing slicers, CAD/modeling, and general design software"},
@@ -530,6 +546,8 @@ func (g *GUI) showCategoryListView() error {
 		{"Terminals", "Terminals.png", "Alternative terminal programs built for the modern age as well as to replicate your old vintage computer."},
 		{"Tools", "Tools.png", "An assortment of helpful programs that don't already fit into another category."},
 	}
+
+	categories = append(categories, standardCategories...)
 
 	for _, category := range categories {
 		row, err := g.createCategoryRow(category.name, category.icon, category.description)
@@ -636,12 +654,6 @@ func (g *GUI) onCategorySelected(category string) {
 		return
 	case "Search":
 		g.onSearchClicked()
-		return
-	case "[TEST] Firefox":
-		g.showAppDetails("Firefox")
-		return
-	case "[TEST] Blender":
-		g.showAppDetails("Blender")
 		return
 	}
 
@@ -1368,14 +1380,14 @@ func (g *GUI) createAppInfoLabel(appName string) *gtk.Label {
 
 // performAppAction performs install/uninstall actions using terminal_manage
 func (g *GUI) performAppAction(appName, action string) {
-	logger.Info(fmt.Sprintf("Performing %s action for app: %s\n", action, appName))
+	fmt.Printf("Performing %s action for app: %s\n", action, appName)
 
 	// Call the API's terminal_manage function like the original bash GUI does
 	// This is equivalent to: "${DIRECTORY}/api" terminal_manage "$action" "$app"
 	apiScript := filepath.Join(g.directory, "api")
 	// Debug logging
-	//fmt.Println(apiScript, "terminal_manage", action, appName)
-	cmd := exec.Command(apiScript, "terminal_manage", action, appName)
+	fmt.Println(apiScript, "terminal_manage", action, fmt.Sprintf("'%s'", appName))
+	cmd := exec.Command(apiScript, "terminal_manage", action, fmt.Sprintf("'%s'", appName))
 
 	// Set environment variables that might be needed
 	cmd.Env = append(os.Environ(),
@@ -1384,7 +1396,7 @@ func (g *GUI) performAppAction(appName, action string) {
 	)
 
 	if err := cmd.Start(); err != nil {
-		logger.Error(fmt.Sprintf("Error starting %s for %s: %v\n", action, appName, err))
+		fmt.Fprintf(os.Stderr, "Error starting %s for %s: %v\n", action, appName, err)
 
 		// Show error dialog
 		dialog := gtk.MessageDialogNew(
@@ -1398,7 +1410,7 @@ func (g *GUI) performAppAction(appName, action string) {
 		defer dialog.Destroy()
 		dialog.Run()
 	} else {
-		logger.Info(fmt.Sprintf("Started %s process for %s using API terminal_manage\n", action, appName))
+		fmt.Printf("Started %s process for %s using API terminal_manage\n", action, appName)
 	}
 }
 

@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -99,6 +100,12 @@ func New(directory string, mode UpdateMode, speed UpdateSpeed) (*Updater, error)
 	// Set the PI_APPS_DIR environment variable for the API package
 	if err := os.Setenv("PI_APPS_DIR", directory); err != nil {
 		return nil, fmt.Errorf("failed to set PI_APPS_DIR environment variable: %w", err)
+	}
+
+	// Create update-status directory
+	statusDir := filepath.Join(directory, "data", "update-status")
+	if err := os.MkdirAll(statusDir, 0755); err != nil {
+		return nil, fmt.Errorf("failed to create update-status directory: %w", err)
 	}
 
 	// Read git URL
@@ -199,7 +206,14 @@ func (u *Updater) CheckRepo(ctx context.Context) error {
 			cmd := exec.CommandContext(ctx, "git", "clone", "--depth=1", u.gitURL)
 			cmd.Dir = updateDir
 			if err := cmd.Run(); err != nil {
-				fmt.Fprintf(os.Stderr, "\nFailed to download Pi-Apps repository! Retrying in 60 seconds.\n")
+				//fmt.Fprintf(os.Stderr, "\nFailed to download Pi-Apps repository! Retrying in 60 seconds.\n")
+				output, err := cmd.CombinedOutput()
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "Failed to download Pi-Apps repository! Retrying in 60 seconds.\n")
+					fmt.Println("DEBUG: output ", string(output))
+					time.Sleep(60 * time.Second)
+					continue
+				}
 				time.Sleep(60 * time.Second)
 				continue
 			}
@@ -914,4 +928,418 @@ func (u *Updater) runModuleTidy() error {
 
 	fmt.Println("go mod tidy completed successfully")
 	return nil
+}
+
+// CheckInternetConnection waits for internet connectivity
+func (u *Updater) CheckInternetConnection() error {
+	fmt.Print("Pi-Apps updater: checking internet connection... ")
+
+	maxAttempts := 18 // 18 attempts * 10 seconds = 3 minutes max wait
+	for i := 1; i <= maxAttempts; i++ {
+		// Try to connect to GitHub
+		client := &http.Client{Timeout: 10 * time.Second}
+		resp, err := client.Get("https://github.com")
+		if err == nil {
+			resp.Body.Close()
+			if resp.StatusCode == 200 {
+				fmt.Println("Connected")
+				return nil
+			}
+		}
+
+		if i < maxAttempts {
+			fmt.Printf("No internet connection yet. Waiting 10 seconds... (attempt %d/%d)\n", i, maxAttempts)
+			time.Sleep(10 * time.Second)
+		}
+	}
+
+	return fmt.Errorf("internet connection not available after %d attempts", maxAttempts)
+}
+
+// HasInstalledApps checks if at least one app has been installed
+func (u *Updater) HasInstalledApps() bool {
+	statusDir := filepath.Join(u.directory, "data", "status")
+	entries, err := os.ReadDir(statusDir)
+	if err != nil {
+		return false
+	}
+	return len(entries) > 0
+}
+
+// GetStatus checks if updates are available (for get-status mode)
+func (u *Updater) GetStatus() error {
+	updatableFiles := filepath.Join(u.directory, "data", "update-status", "updatable-files")
+	updatableApps := filepath.Join(u.directory, "data", "update-status", "updatable-apps")
+
+	// Check if either file exists and has content
+	if u.hasContent(updatableFiles) || u.hasContent(updatableApps) {
+		return nil // Updates available
+	}
+
+	return fmt.Errorf("no updates available")
+}
+
+// SetStatus checks for updates and writes status files (for set-status mode)
+func (u *Updater) SetStatus(ctx context.Context) error {
+	// Check repository
+	if err := u.CheckRepo(ctx); err != nil {
+		return fmt.Errorf("failed to check repository: %w", err)
+	}
+
+	// Run runonce entries
+	runOnceScript := filepath.Join(u.directory, "etc", "runonce-entries")
+	if fileExists(runOnceScript) {
+		cmd := exec.Command(runOnceScript)
+		cmd.Dir = u.directory
+		if err := cmd.Run(); err != nil {
+			fmt.Printf("Warning: runonce-entries failed: %v\n", err)
+		}
+	}
+
+	// Get updatable files
+	files, err := u.GetUpdatableFiles()
+	if err != nil {
+		return fmt.Errorf("failed to get updatable files: %w", err)
+	}
+
+	// Get updatable apps
+	apps, err := u.GetUpdatableApps()
+	if err != nil {
+		return fmt.Errorf("failed to get updatable apps: %w", err)
+	}
+
+	// Write status files
+	if err := u.writeStatusFiles(files, apps); err != nil {
+		return fmt.Errorf("failed to write status files: %w", err)
+	}
+
+	// Check status and return appropriate exit code
+	return u.GetStatus()
+}
+
+// ExecuteMode runs the updater in the specified mode
+func (u *Updater) ExecuteMode(ctx context.Context) error {
+	api.Status(fmt.Sprintf("\nUpdater mode: %s\n\n", u.mode))
+
+	switch u.mode {
+	case ModeAutostarted:
+		return u.executeAutostarted(ctx)
+	case ModeGetStatus:
+		return u.GetStatus()
+	case ModeSetStatus:
+		return u.SetStatus(ctx)
+	case ModeGUI, ModeGUIYes:
+		return u.executeGUI(ctx)
+	case ModeCLI, ModeCLIYes:
+		return u.executeCLI(ctx)
+	default:
+		return fmt.Errorf("unknown run mode: %s", u.mode)
+	}
+}
+
+// executeAutostarted handles the autostarted mode
+func (u *Updater) executeAutostarted(ctx context.Context) error {
+	// Check if update interval allows update-checks
+	if err := u.CheckUpdateInterval(); err != nil {
+		fmt.Printf("Won't check for updates today: %v\n", err)
+		return nil
+	}
+
+	// Check that at least one app has been installed
+	if !u.HasInstalledApps() {
+		fmt.Println("No apps have been installed yet, so exiting now.")
+		return nil
+	}
+
+	// Wait for internet connection
+	if err := u.CheckInternetConnection(); err != nil {
+		return err
+	}
+
+	// Check repository and get updates
+	if err := u.CheckRepo(ctx); err != nil {
+		return err
+	}
+
+	files, err := u.GetUpdatableFiles()
+	if err != nil {
+		return err
+	}
+
+	apps, err := u.GetUpdatableApps()
+	if err != nil {
+		return err
+	}
+
+	// Auto-refresh safe updates in background
+	if err := u.updateBackgroundSafe(files, apps); err != nil {
+		fmt.Printf("Warning: background update failed: %v\n", err)
+	}
+
+	// Re-check what's still updatable after background updates
+	files, err = u.GetUpdatableFiles()
+	if err != nil {
+		return err
+	}
+
+	apps, err = u.GetUpdatableApps()
+	if err != nil {
+		return err
+	}
+
+	// Write status files
+	if err := u.writeStatusFiles(files, apps); err != nil {
+		return err
+	}
+
+	// Check if any updates need user interaction
+	if len(files) == 0 && len(apps) == 0 {
+		fmt.Println("Nothing is updatable.")
+		return nil
+	}
+
+	// Filter to only show updates for installed apps
+	installedApps, err := api.ListApps("installed")
+	if err != nil {
+		return err
+	}
+
+	hasInstalledUpdates := false
+	for _, app := range apps {
+		for _, installed := range installedApps {
+			if app == installed {
+				hasInstalledUpdates = true
+				break
+			}
+		}
+		if hasInstalledUpdates {
+			break
+		}
+	}
+
+	if len(files) == 0 && !hasInstalledUpdates {
+		fmt.Println("No installed apps are updatable.")
+		return nil
+	}
+
+	// Show notification (this would typically launch a GUI notification)
+	fmt.Printf("Updates available: %d files, %d apps\n", len(files), len(apps))
+	return nil
+}
+
+// executeGUI handles GUI modes
+func (u *Updater) executeGUI(ctx context.Context) error {
+	if err := u.CheckRepo(ctx); err != nil {
+		return err
+	}
+
+	files, err := u.GetUpdatableFiles()
+	if err != nil {
+		return err
+	}
+
+	apps, err := u.GetUpdatableApps()
+	if err != nil {
+		return err
+	}
+
+	if len(files) == 0 && len(apps) == 0 {
+		fmt.Println("Nothing is updatable.")
+		return nil
+	}
+
+	if u.mode == ModeGUIYes {
+		// Auto-update without asking
+		result := u.PerformUpdate(files, apps)
+		if result.Success {
+			fmt.Println(result.Message)
+		} else {
+			return fmt.Errorf("update failed: %s", result.Message)
+		}
+	} else {
+		// Show GUI for user selection (would typically launch GTK GUI)
+		fmt.Printf("GUI mode: %d files and %d apps available for update\n", len(files), len(apps))
+		// For now, just auto-update (GUI implementation would go here)
+		result := u.PerformUpdate(files, apps)
+		if result.Success {
+			fmt.Println(result.Message)
+		} else {
+			return fmt.Errorf("update failed: %s", result.Message)
+		}
+	}
+
+	return nil
+}
+
+// executeCLI handles CLI modes
+func (u *Updater) executeCLI(ctx context.Context) error {
+	if err := u.CheckRepo(ctx); err != nil {
+		return err
+	}
+
+	files, err := u.GetUpdatableFiles()
+	if err != nil {
+		return err
+	}
+
+	apps, err := u.GetUpdatableApps()
+	if err != nil {
+		return err
+	}
+
+	if len(files) == 0 && len(apps) == 0 {
+		fmt.Println("Everything is up to date.")
+		return nil
+	}
+
+	if u.mode == ModeCLIYes {
+		// Auto-update without asking
+		if len(apps) > 0 {
+			fmt.Println("These apps can be updated:")
+			for _, app := range apps {
+				fmt.Printf("  - %s\n", app)
+			}
+			fmt.Println()
+		}
+
+		if len(files) > 0 {
+			fmt.Println("These files can be updated:")
+			for _, file := range files {
+				fmt.Printf("  - %s\n", file.Path)
+			}
+			fmt.Println()
+		}
+
+		result := u.PerformUpdate(files, apps)
+		if result.Success {
+			fmt.Println(result.Message)
+		} else {
+			return fmt.Errorf("update failed: %s", result.Message)
+		}
+	} else {
+		// Interactive CLI mode (simplified for now)
+		fmt.Printf("CLI mode: %d files and %d apps available for update\n", len(files), len(apps))
+		fmt.Print("Proceed with update? (y/N): ")
+
+		var response string
+		fmt.Scanln(&response)
+
+		if strings.ToLower(response) == "y" || strings.ToLower(response) == "yes" {
+			result := u.PerformUpdate(files, apps)
+			if result.Success {
+				fmt.Println(result.Message)
+			} else {
+				return fmt.Errorf("update failed: %s", result.Message)
+			}
+		} else {
+			fmt.Println("Update cancelled.")
+		}
+	}
+
+	return nil
+}
+
+// updateBackgroundSafe performs safe background updates
+func (u *Updater) updateBackgroundSafe(files []FileChange, apps []string) error {
+	// Filter to only safe updates (no recompilation, no new apps, no reinstalls)
+	var safeFiles []FileChange
+	var safeApps []string
+
+	for _, file := range files {
+		if !file.RequiresRecompile && !file.IsModuleFile {
+			safeFiles = append(safeFiles, file)
+		}
+	}
+
+	for _, app := range apps {
+		// Check if it's a new app
+		appDir := filepath.Join(u.directory, "apps", app)
+		if !dirExists(appDir) {
+			continue // Skip new apps
+		}
+
+		// Check if it requires reinstall
+		willReinstall, err := api.WillReinstall(app)
+		if err != nil || willReinstall {
+			continue // Skip apps that require reinstall
+		}
+
+		// Check if app failed to install last time
+		status, err := api.GetAppStatus(app)
+		if err != nil || status == "corrupted" {
+			continue // Skip corrupted apps
+		}
+
+		safeApps = append(safeApps, app)
+	}
+
+	if len(safeFiles) > 0 || len(safeApps) > 0 {
+		fmt.Printf("Performing background updates: %d safe files, %d safe apps\n", len(safeFiles), len(safeApps))
+
+		// Update files
+		if err := u.UpdateFiles(safeFiles); err != nil {
+			return err
+		}
+
+		// Refresh apps (not full reinstall)
+		for _, app := range safeApps {
+			if err := u.refreshApp(app); err != nil {
+				return err
+			}
+		}
+
+		// Update git
+		if err := u.updateGit(); err != nil {
+			fmt.Printf("Warning: failed to update git: %v\n", err)
+		}
+	}
+
+	return nil
+}
+
+// writeStatusFiles writes the current update status to files
+func (u *Updater) writeStatusFiles(files []FileChange, apps []string) error {
+	// Write updatable files
+	filesPath := filepath.Join(u.directory, "data", "update-status", "updatable-files")
+	var fileLines []string
+	for _, file := range files {
+		fileLines = append(fileLines, file.Path)
+	}
+
+	if len(fileLines) > 0 {
+		if err := os.WriteFile(filesPath, []byte(strings.Join(fileLines, "\n")+"\n"), 0644); err != nil {
+			return err
+		}
+	} else {
+		// Write empty file or remove it
+		os.WriteFile(filesPath, []byte(""), 0644)
+	}
+
+	// Write updatable apps
+	appsPath := filepath.Join(u.directory, "data", "update-status", "updatable-apps")
+	if len(apps) > 0 {
+		if err := os.WriteFile(appsPath, []byte(strings.Join(apps, "\n")+"\n"), 0644); err != nil {
+			return err
+		}
+	} else {
+		// Write empty file or remove it
+		os.WriteFile(appsPath, []byte(""), 0644)
+	}
+
+	return nil
+}
+
+// hasContent checks if a file exists and has non-empty content
+func (u *Updater) hasContent(filePath string) bool {
+	if !fileExists(filePath) {
+		return false
+	}
+
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return false
+	}
+
+	content := strings.TrimSpace(string(data))
+	return content != ""
 }

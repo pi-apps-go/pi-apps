@@ -3,14 +3,14 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/botspot/pi-apps/pkg/api"
-	"github.com/botspot/pi-apps/pkg/updater"
+	updaterPkg "github.com/botspot/pi-apps/pkg/updater"
 )
 
 var (
@@ -21,61 +21,74 @@ var (
 )
 
 func main() {
-	// Handle command line arguments
-	if len(os.Args) < 2 {
-		showUsage()
+	// Check if running as root
+	if os.Getuid() == 0 {
+		fmt.Fprintf(os.Stderr, "Pi-Apps is not designed to be run as root! Please try again as a regular user.\n")
 		os.Exit(1)
 	}
 
-	mode := updater.UpdateMode(os.Args[1])
-	speed := updater.SpeedNormal
-
-	// Parse speed parameter if provided
-	if len(os.Args) > 2 && os.Args[2] == "fast" {
-		speed = updater.SpeedFast
+	// Parse command line arguments with enhanced support
+	mode, speed, useTerminal, extraArgs, err := parseArgs()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
 	}
 
-	// Get pi-apps directory
+	// Get Pi-Apps directory
 	directory, err := getPiAppsDirectory()
 	if err != nil {
-		log.Fatalf("Failed to determine pi-apps directory: %v", err)
-	}
-
-	// Check if running as root
-	if os.Getuid() == 0 {
-		log.Fatal("Pi-Apps is not designed to be run as root! Please try again as a regular user.")
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
 	}
 
 	// Create updater instance
-	u, err := updater.New(directory, mode, speed)
+	updater, err := updaterPkg.New(directory, mode, speed)
 	if err != nil {
-		log.Fatalf("Failed to create updater: %v", err)
+		fmt.Fprintf(os.Stderr, "Failed to create updater: %v\n", err)
+		os.Exit(1)
 	}
 
-	// Handle different modes
+	// Create context with timeout for network operations
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+	defer cancel()
+
+	// Handle different modes with detailed handlers
+	var execErr error
 	switch mode {
-	case updater.ModeAutostarted:
-		err = handleAutostartedMode(u)
-	case updater.ModeGetStatus:
-		err = handleGetStatusMode(u)
-	case updater.ModeSetStatus:
-		err = handleSetStatusMode(u)
-	case updater.ModeGUI, updater.ModeGUIYes:
-		err = handleGUIMode(u, mode)
-	case updater.ModeCLI, updater.ModeCLIYes:
-		err = handleCLIMode(u)
+	case updaterPkg.ModeAutostarted:
+		execErr = handleAutostartedMode(updater)
+	case updaterPkg.ModeGetStatus:
+		execErr = handleGetStatusMode(updater)
+	case updaterPkg.ModeSetStatus:
+		execErr = handleSetStatusMode(updater)
+	case updaterPkg.ModeGUI, updaterPkg.ModeGUIYes:
+		execErr = handleGUIMode(updater, mode, extraArgs)
+	case updaterPkg.ModeCLI, updaterPkg.ModeCLIYes:
+		execErr = handleCLIMode(updater, mode, useTerminal, extraArgs)
 	default:
-		log.Fatalf("Unknown run mode: %s", mode)
+		// Fallback to the new ExecuteMode for any unhandled modes
+		execErr = updater.ExecuteMode(ctx)
 	}
 
-	if err != nil {
-		log.Fatalf("Updater failed: %v", err)
+	// Handle exit codes properly
+	if execErr != nil {
+		// For get-status mode, exit code 1 means no updates available (expected behavior)
+		if mode == updaterPkg.ModeGetStatus {
+			fmt.Fprintf(os.Stderr, "%v\n", execErr)
+			os.Exit(1)
+		}
+
+		fmt.Fprintf(os.Stderr, "Error: %v\n", execErr)
+		os.Exit(1)
 	}
+
+	// Success
+	os.Exit(0)
 }
 
 // handleAutostartedMode handles the autostarted mode (background checking)
-func handleAutostartedMode(u *updater.Updater) error {
-	fmt.Printf("Updater mode: %s\n", u.Mode())
+func handleAutostartedMode(u *updaterPkg.Updater) error {
+	api.Status(fmt.Sprintf("Updater mode: %s\n", u.Mode()))
 
 	// Check if update interval allows update checking
 	if err := u.CheckUpdateInterval(); err != nil {
@@ -162,27 +175,34 @@ func handleAutostartedMode(u *updater.Updater) error {
 }
 
 // handleGetStatusMode checks if updates are available
-func handleGetStatusMode(u *updater.Updater) error {
-	cli := updater.NewUpdaterCLI(u)
+func handleGetStatusMode(u *updaterPkg.Updater) error {
+	cli := updaterPkg.NewUpdaterCLI(u)
 	return cli.GetUpdateStatus()
 }
 
 // handleSetStatusMode checks for updates and saves status
-func handleSetStatusMode(u *updater.Updater) error {
-	cli := updater.NewUpdaterCLI(u)
+func handleSetStatusMode(u *updaterPkg.Updater) error {
+	cli := updaterPkg.NewUpdaterCLI(u)
 	return cli.SetUpdateStatus()
 }
 
 // handleGUIMode runs the GUI updater
-func handleGUIMode(u *updater.Updater, mode updater.UpdateMode) error {
-	gui, err := updater.NewUpdaterGUI(u)
+func handleGUIMode(u *updaterPkg.Updater, mode updaterPkg.UpdateMode, extraArgs []string) error {
+	api.Status(fmt.Sprintf("Updater mode: %s\n", mode))
+
+	// Print YAD flags if provided (for bash script compatibility)
+	if len(extraArgs) > 0 {
+		fmt.Printf("Flags to be passed to GUI: %v\n", extraArgs)
+	}
+
+	gui, err := updaterPkg.NewUpdaterGUI(u)
 	if err != nil {
 		return fmt.Errorf("failed to create GUI: %w", err)
 	}
 
-	if mode == updater.ModeGUIYes {
-		// Auto-confirm mode - not implemented in GUI yet
-		// For now, treat as regular GUI mode
+	if mode == updaterPkg.ModeGUIYes {
+		// Auto-confirm mode - the GUI should handle this internally
+		fmt.Println("Auto-confirmation mode enabled")
 	}
 
 	gui.Run()
@@ -190,9 +210,27 @@ func handleGUIMode(u *updater.Updater, mode updater.UpdateMode) error {
 }
 
 // handleCLIMode runs the CLI updater
-func handleCLIMode(u *updater.Updater) error {
-	cli := updater.NewUpdaterCLI(u)
-	return cli.RunCLI()
+func handleCLIMode(u *updaterPkg.Updater, mode updaterPkg.UpdateMode, useTerminal bool, extraArgs []string) error {
+	api.Status(fmt.Sprintf("Updater mode: %s\n", mode))
+
+	// Print extra args if provided (for debugging/compatibility)
+	if len(extraArgs) > 0 {
+		fmt.Printf("Extra arguments: %v\n", extraArgs)
+	}
+
+	// Create CLI instance and run
+	cli := updaterPkg.NewUpdaterCLI(u)
+	err := cli.RunCLI()
+
+	// After CLI update, refresh status if successful
+	if err == nil && (mode == updaterPkg.ModeCLI || mode == updaterPkg.ModeCLIYes) {
+		// Update status files after successful CLI update
+		if statusErr := cli.SetUpdateStatus(); statusErr != nil {
+			fmt.Printf("Warning: Failed to update status: %v\n", statusErr)
+		}
+	}
+
+	return err
 }
 
 // Helper functions
@@ -318,9 +356,9 @@ func checkConnectivity() error {
 	return cmd.Run()
 }
 
-func performBackgroundUpdates(u *updater.Updater, files []updater.FileChange, apps []string) *updater.UpdateResult {
+func performBackgroundUpdates(u *updaterPkg.Updater, files []updaterPkg.FileChange, apps []string) *updaterPkg.UpdateResult {
 	// Filter to only safe updates (no new apps, no reinstalls, no recompilation)
-	var safeFiles []updater.FileChange
+	var safeFiles []updaterPkg.FileChange
 	var safeApps []string
 
 	for _, file := range files {
@@ -365,7 +403,7 @@ func performBackgroundUpdates(u *updater.Updater, files []updater.FileChange, ap
 	return u.PerformUpdate(safeFiles, safeApps)
 }
 
-func saveUpdateStatus(directory string, files []updater.FileChange, apps []string) error {
+func saveUpdateStatus(directory string, files []updaterPkg.FileChange, apps []string) error {
 	statusDir := filepath.Join(directory, "data", "update-status")
 	if err := os.MkdirAll(statusDir, 0755); err != nil {
 		return err
@@ -392,10 +430,97 @@ func saveUpdateStatus(directory string, files []updater.FileChange, apps []strin
 	return nil
 }
 
-func showUpdateNotification(files []updater.FileChange, apps []string) error {
+func showUpdateNotification(files []updaterPkg.FileChange, apps []string) error {
 	// This would show a system notification
 	// For now, just print to console
 	fmt.Printf("📱 Pi-Apps updates available: %d files, %d apps\n", len(files), len(apps))
 	fmt.Println("Run 'updater gui' to see available updates.")
 	return nil
+}
+
+func parseArgs() (updaterPkg.UpdateMode, updaterPkg.UpdateSpeed, bool, []string, error) {
+	// Handle special cases first
+	if len(os.Args) < 2 {
+		showUsage()
+		os.Exit(1)
+	}
+
+	// Handle help flags
+	arg1 := strings.ToLower(os.Args[1])
+	if arg1 == "--help" || arg1 == "-h" || arg1 == "help" {
+		showUsage()
+		os.Exit(0)
+	}
+
+	// Handle version flag
+	if arg1 == "--version" || arg1 == "-v" || arg1 == "version" {
+		showVersion()
+		os.Exit(0)
+	}
+
+	// Handle source mode (for script sourcing compatibility)
+	if arg1 == "source" {
+		// Just exit cleanly for source mode
+		os.Exit(0)
+	}
+
+	// Handle legacy onboot mode
+	mode := updaterPkg.UpdateMode(arg1)
+	if mode == "onboot" {
+		mode = updaterPkg.ModeAutostarted
+	}
+
+	// Default to GUI mode if no mode specified or invalid mode
+	validModes := map[updaterPkg.UpdateMode]bool{
+		updaterPkg.ModeAutostarted: true,
+		updaterPkg.ModeGetStatus:   true,
+		updaterPkg.ModeSetStatus:   true,
+		updaterPkg.ModeGUI:         true,
+		updaterPkg.ModeGUIYes:      true,
+		updaterPkg.ModeCLI:         true,
+		updaterPkg.ModeCLIYes:      true,
+	}
+
+	if !validModes[mode] {
+		if len(os.Args) == 2 {
+			// If only one argument and it's not a valid mode, show error
+			return "", "", false, nil, fmt.Errorf("unknown mode: %s", arg1)
+		}
+		// Otherwise default to GUI mode and treat first arg as an extra argument
+		mode = updaterPkg.ModeGUI
+		os.Args = append([]string{os.Args[0], "gui"}, os.Args[1:]...)
+	}
+
+	speed := updaterPkg.SpeedNormal
+	useTerminal := false
+	var extraArgs []string
+
+	// Parse remaining arguments
+	for i := 2; i < len(os.Args); i++ {
+		arg := os.Args[i]
+		switch {
+		case arg == "fast":
+			speed = updaterPkg.SpeedFast
+		case arg == "terminal":
+			useTerminal = true
+		case strings.HasPrefix(arg, "--"):
+			// YAD-style arguments
+			extraArgs = append(extraArgs, arg)
+		default:
+			// Unknown argument, add to extra args for YAD/GUI
+			extraArgs = append(extraArgs, arg)
+		}
+	}
+
+	return mode, speed, useTerminal, extraArgs, nil
+}
+
+func showVersion() {
+	fmt.Printf("Pi-Apps Updater v%s\n", Version)
+	if BuildDate != "" {
+		fmt.Printf("Built: %s\n", BuildDate)
+	}
+	if GitCommit != "" {
+		fmt.Printf("Commit: %s\n", GitCommit)
+	}
 }
