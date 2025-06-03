@@ -188,9 +188,14 @@ func main() {
 	// Process each requested operation
 	if *updateSelfFlag {
 		// Update Pi-Apps itself
+		// Make it show a warning considering on the original Pi-Apps manage script, this would redirect to the updater script if you ran update-all or check-all
+		api.Warning("The manage package ONLY updates apps, and this mode redirects to the updater package.\nIf you want to update Pi-Apps Go from the command-line, please use:\n" + fmt.Sprintf("%s/updater cli-yes", piAppsDir))
 		api.Status("Updating \u001b[1mPi-Apps\u001b[22m...")
-		// For now, we just print this as the UpdateSelf function is not yet implemented
-		api.StatusGreen("Pi-Apps updated successfully")
+		output, err := exec.Command(fmt.Sprintf("%s/updater", piAppsDir), "cli-yes").Output()
+		if err != nil {
+			api.ErrorNoExit("Error updating Pi-Apps: " + err.Error())
+		}
+		fmt.Println(string(output))
 	}
 
 	// Add apps to the queue based on requested operations
