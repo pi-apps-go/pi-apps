@@ -14,10 +14,10 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-#This script contains various dirty fixes to keep Pi-Apps running smoothly as it matures.
+#This script contains various dirty fixes to keep Pi-Apps Go running smoothly as it matures.
 #It repairs mistakes that some apps have made, as well as fixing other system issues. Some apps have been removed or renamed.
 
-#This script is executed by the updater binary as well as the main Pi-Apps installation script.
+#This script is executed by the updater binary as well as the main Pi-Apps Go installation script.
 
 #This script uses the 'runonce' function - it avoids running any of these fixes more than once.
 #If a runonce entry is modified, then it will be run once more.
@@ -70,53 +70,8 @@ EOF
 case $(ps -o stat= -p $$) in
   *+*) # Running in foreground
 runonce <<"EOF"
-  #populate yadflags since array contents are not passed into runonce
-  #yadflags is not needed in Pi-Apps Go as it's being handled via GOTK3 in the reimplemenation
-  #yadflags=(--class Pi-Apps --name "Pi-Apps" --center --window-icon="${PI_APPS_DIR}/icons/logo.png" --title="Pi-Apps")
-  #remove deprecated apps
-  remove_deprecated_app "FreeCAD (precompiled)"
-  remove_deprecated_app "Chromium Media Edition"
-  remove_deprecated_app "Cordless"
-  remove_deprecated_app "Retropie"
-  remove_deprecated_app "Raspi2png"
-  remove_deprecated_app "Falkon"
-  remove_deprecated_app "FreeCAD"
-  remove_deprecated_app "LinuxCNC"
-  remove_deprecated_app "Steam" "32" "Due to upstream changes from Valve, Steam can no longer be used on 32bit OSs.
-You can install Steam from Pi-Apps on a 64bit OS."
-  remove_deprecated_app "Cawbird"
-  remove_deprecated_app "Email Checker"
-  remove_deprecated_app "Pi-Apps Terminal Plugin (python)"
-  remove_deprecated_app "Pi-Apps Terminal Plugin"
-  remove_deprecated_app "Sysmon"
-  remove_deprecated_app "BlockPi"
-  remove_deprecated_app "TBOPlayer"
-  remove_deprecated_app "Minecraft Java MultiMC5" "" "Due to upstream changes, MultiMC5 for ARM can no longer support any newer versions of Mincraft so it has been removed from Pi-Apps.
-All users are encouraged to install Prism Launcher from Pi-Apps (a MultiMC fork with many improvements and new features)."
-  remove_deprecated_app "Minecraft Java Lunar" "" "Due to Lunar Client's closed source nature, recent purchase by Overwolf, and over a year of lack of maintenance by an ARM porter it has been removed from Pi-Apps.
-All users are encouraged to install Prism Launcher from Pi-Apps (a MultiMC fork with many improvements and new features).
-Prism Launcher is the best launcher for Vanilla and Modded Minecraft Java Edition.
-There are countless performance and feature modpacks easily installable through Prism Launcher via Modrinth and Curseforge Modpacks.
-For the mods that are not included in any existing modpack, simply install them using the builtin mod downloader."
-  remove_deprecated_app "Chromium Widevine" "" "Use the Better Chromium app to handle enabling/disabling of Widevine in Chromium."
-  remove_deprecated_app "PiKISS GUI" "" "Due to upstream changes at piKiss this GUI is no longer relevant."
-  remove_deprecated_app "piKiss" "" "This application developer is unwilling to fix and remove scripts that break users installs. It is unsafe to install piKiss scripts."
-  remove_deprecated_app "Pale Moon" "" "The Pale Moon Debian/Ubuntu packager (Steve Pusser) has stopped building and removed all builds of Pale Moon as of May 2024. We have no choice but to remove this application from Pi-Apps."
-  remove_deprecated_app "eDEX-UI" "" "The upstream developer has ceased development of this application since 2021. There are many unresolved issues that prevent basic usage of the application."
-  [ $__os_codename != buster ] && [ $__os_codename != bullseye ] && remove_deprecated_app "AnyDesk" "" "AnyDesk has not been updated in years and does not work on modern distros like yours."
-  remove_deprecated_app "Snap Store" "32" "Ubuntu (the creators and maintainers of the snap ecosystem) deprecated and removed armhf support from the Snap Store in October 2023.
-You can install the Snap Store from Pi-Apps on a 64bit OS."
-  remove_deprecated_app "BalenaEtcher" "32" "The latest version of BalenaEtcher relies on libraries that are not available on ARM 32bit Linux.
-You can install BalenaEtcher from Pi-Apps on a 64bit OS."
-  remove_deprecated_app "Puffin" "32" "The Puffin browser demo was never maintained by the upstream developers. It can not run on newer raspberry pi hardware, newer PiOS versions, and any other hardware. We have no choice but to remove this application from Pi-Apps."
-  remove_deprecated_app "Puffin Browser Demo" "" "The Puffin browser demo was never maintained by the upstream developers. It can not run on newer raspberry pi hardware, newer PiOS versions, and any other hardware. We have no choice but to remove this application from Pi-Apps."
-  remove_deprecated_app "ExaGear"
-  remove_deprecated_app "Mac OS Theme"
-  remove_deprecated_app "Windows 10 Theme"
-  remove_deprecated_app "MuseScore2"
-  remove_deprecated_app "Pale Moon Browser"
-  remove_deprecated_app "Pale Moon"
-  remove_deprecated_app "Lokinet" "" "Lokinet has not had an ARM version in several years. If you still use this, go find an alternative like Tor or a VPN, or ask Lokinet to work on ARM support."
+  # no deprecated apps so far in the Go rewrite considering this project has not been out for long, but if a deprecated app were to occur, do this per app:
+  # remove_deprecated_apps "app name" "architecture" "reason"
   true
 EOF
   ;;
@@ -125,124 +80,23 @@ esac
 #migrate renamed apps
 #future app renames should follow the standard set by renaming 'Geekbench' to 'Geekbench 5'
 runonce <<"EOF"
-  #rework chromium downgrading apps to one single new app: 'Downgrade Chromium'
-  rm -rf "${PI_APPS_DIR}/apps/Back to Chromium v86"
-  rm -rf "${PI_APPS_DIR}/apps/Back to Chromium v78"
-  if [ "$(cat "${PI_APPS_DIR}/data/status/Back to Chromium v78" 2>/dev/null)" == installed ] || [ "$(cat "${PI_APPS_DIR}/data/status/Back to Chromium v86" 2>/dev/null)" == installed ];then
-    echo "installed" > "${PI_APPS_DIR}/data/status/Downgrade Chromium"
-  fi
-  
-  #rename 'Turbo Scratch' app to 'Turbowarp'
-  rm -rf "${PI_APPS_DIR}/apps/Turbo Scratch"
-  mv -f "${PI_APPS_DIR}/data/status/Turbo Scratch" "${PI_APPS_DIR}/data/status/Turbowarp" 2>/dev/null
-  
-  #rename 'Whatsapp' app to 'WhatsApp'
-  rm -rf "${PI_APPS_DIR}/apps/Whatsapp"
-  mv -f "${PI_APPS_DIR}/data/status/Whatsapp" "${PI_APPS_DIR}/data/status/WhatsApp" 2>/dev/null
-  
-  #rename 'Sonic Pi 3.2' to 'Sonic Pi'
-  rm -rf "${PI_APPS_DIR}/apps/Sonic Pi 3.2"
-  mv -f "${PI_APPS_DIR}/data/status/Sonic Pi 3.2" "${PI_APPS_DIR}/data/status/Sonic Pi" 2>/dev/null
-  
-  #rename 'Min Browser' to 'Min'
-  rm -rf "${PI_APPS_DIR}/apps/Min Browser"
-  mv -f "${PI_APPS_DIR}/data/status/Min Browser" "${PI_APPS_DIR}/data/status/Min" 2>/dev/null
-  
-  #rename 'Quartz Browser' to 'Quartz'
-  rm -rf "${PI_APPS_DIR}/apps/Quartz Browser"
-  mv -f "${PI_APPS_DIR}/data/status/Quartz Browser" "${PI_APPS_DIR}/data/status/Quartz" 2>/dev/null
-  
-  #rename 'Tor Browser' to 'Tor'
-  rm -rf "${PI_APPS_DIR}/apps/Tor Browser"
-  mv -f "${PI_APPS_DIR}/data/status/Tor Browser" "${PI_APPS_DIR}/data/status/Tor" 2>/dev/null
-  
-  #rename 'KeePassX' to 'KeePassXC'
-  rm -rf "${PI_APPS_DIR}/apps/KeePassX"
-  mv -f "${PI_APPS_DIR}/data/status/KeePassX" "${PI_APPS_DIR}/data/status/KeePassXC" 2>/dev/null
-
-  #rename 'TeamViewer Host' to 'TeamViewer'
-  if [ -f "${PI_APPS_DIR}/data/status/TeamViewer Host" ] && [ $(cat "${PI_APPS_DIR}/data/status/TeamViewer Host") == "installed" ]; then
-    # installed
-    rm -rf "${PI_APPS_DIR}/apps/TeamViewer Host"  "${PI_APPS_DIR}/apps/TeamViewer"
-    mv -f "${PI_APPS_DIR}/data/status/TeamViewer Host" "${PI_APPS_DIR}/data/status/TeamViewer"
-  else
-    # not installed
-    rm -rf "${PI_APPS_DIR}/apps/TeamViewer Host"
-  fi
-
-  #rename 'Minecraft Java' to 'Minecraft Java Lunar'
-  if [ -f "${PI_APPS_DIR}/data/status/Minecraft Java" ] && [ $(cat "${PI_APPS_DIR}/data/status/Minecraft Java") == "installed" ]; then
-    # installed
-    mv -f "${PI_APPS_DIR}/data/status/Minecraft Java" "${PI_APPS_DIR}/data/status/Minecraft Java Lunar"
-    rm -rf "${PI_APPS_DIR}/apps/Minecraft Java Lunar"
-    mv -f "${PI_APPS_DIR}/apps/Minecraft Java" "${PI_APPS_DIR}/apps/Minecraft Java Lunar"
-  else
-    # not installed
-    rm -rf "${PI_APPS_DIR}/apps/Minecraft Java"
-  fi
-  
-  #rename 'Brave Browser' to 'Brave'
-  rm -rf "${PI_APPS_DIR}/apps/Brave Browser"
-  mv -f "${PI_APPS_DIR}/data/status/Brave Browser" "${PI_APPS_DIR}/data/status/Brave" 2>/dev/null
-  
-  #rename 'Discord' to 'Webcord'
-  rm -rf "${PI_APPS_DIR}/apps/Discord"
-  mv -f "${PI_APPS_DIR}/data/status/Discord" "${PI_APPS_DIR}/data/status/Webcord" 2>/dev/null
-  
-  #rename 'Geekbench' to 'Geekbench 5'
-  if [ "$(app_status Geekbench)" == "installed" ]; then
-    # installed
-    mv -f "${PI_APPS_DIR}/data/status/Geekbench" "${PI_APPS_DIR}/data/status/Geekbench 5"
-    rm -rf "${PI_APPS_DIR}/apps/Geekbench 5"
-    mv -f "${PI_APPS_DIR}/apps/Geekbench" "${PI_APPS_DIR}/apps/Geekbench 5"
-  else
-    # not installed
-    rm -rf "${PI_APPS_DIR}/apps/Geekbench"
-  fi
-  
-  #rename 'ArmCord' to 'Legcord'
-  if [ "$(app_status ArmCord)" == "installed" ]; then
-    # installed
-    mv -f "${PI_APPS_DIR}/data/status/ArmCord" "${PI_APPS_DIR}/data/status/Legcord"
-    rm -rf "${PI_APPS_DIR}/apps/Legcord"
-    mv -f "${PI_APPS_DIR}/apps/ArmCord" "${PI_APPS_DIR}/apps/Legcord"
-  else
-    # not installed
-    rm -rf "${PI_APPS_DIR}/apps/ArmCord"
-  fi
-
-  #rename 'LegCord' to 'Legcord'
-  #incorrect name capitalization during first ~20 mintues. no reported installs.
-  if [ "$(app_status LegCord)" == "installed" ]; then
-    # installed
-    mv -f "${PI_APPS_DIR}/data/status/LegCord" "${PI_APPS_DIR}/data/status/Legcord"
-    rm -rf "${PI_APPS_DIR}/apps/Legcord"
-    mv -f "${PI_APPS_DIR}/apps/LegCord" "${PI_APPS_DIR}/apps/Legcord"
-  else
-    # not installed
-    rm -rf "${PI_APPS_DIR}/apps/LegCord"
-  fi  
-  
-  #rename 'Ollama' to 'Ollama GUI'
-  #incorrect name capitalization during first ~20 mintues. no reported installs.
-  if [ "$(app_status Ollama)" == "installed" ]; then
-    # installed
-    mv -f "${PI_APPS_DIR}/data/status/Ollama" "${PI_APPS_DIR}/data/status/Ollama GUI"
-    rm -rf "${PI_APPS_DIR}/apps/Ollama"
-    mv -f "${PI_APPS_DIR}/apps/Ollama" "${PI_APPS_DIR}/apps/Ollama GUI"
-  else
-    # not installed
-    rm -rf "${PI_APPS_DIR}/apps/Ollama"
-  fi 
+  # so far no app renames in the Go rewrite considering this project has not been out for long, but if an app were to be renamed, do this per app:
+  #
+  # for simple renames, do this:
+  # rm -rf "${PI_APPS_DIR}/apps/old name"
+  # mv -f "${PI_APPS_DIR}/data/status/old name" "${PI_APPS_DIR}/data/status/new name" 2>/dev/null
+  #
+  # for more complex renames with multiple steps that detect if the app is installed, do this:
+  # if [ -f "${PI_APPS_DIR}/data/status/old name" ] && [ $(cat "${PI_APPS_DIR}/data/status/old name") == "installed" ]; then
+  #  # installed
+  #  rm -rf "${PI_APPS_DIR}/apps/old name"  "${PI_APPS_DIR}/apps/new name"
+  #  mv -f "${PI_APPS_DIR}/data/status/old name" "${PI_APPS_DIR}/data/status/new name"
+  # else
+  #  # not installed
+  #  rm -rf "${PI_APPS_DIR}/apps/old name"
+  # fi
   
   true
-EOF
-
-#rename xlunch setting to xlunch-dark
-runonce <<"EOF"
-  if [ "$(cat "${PI_APPS_DIR}/data/settings/App List Style")" == xlunch ];then
-    echo 'xlunch-dark' > "${PI_APPS_DIR}/data/settings/App List Style"
-  fi
 EOF
 
 #transition from box86-no-binfmt-restart package to box86
@@ -261,26 +115,6 @@ runonce <<"EOF"
     "${PI_APPS_DIR}/manage" install Box86
   fi
   true
-EOF
-
-#remove files from pi-apps folder that are no longer used
-runonce <<"EOF"
-  rm -f "${PI_APPS_DIR}/etc/bitlylink"
-  rm -rf "${PI_APPS_DIR}/data/categories"
-EOF
-
-#change settings icon
-runonce <<"EOF"
-  [ -a "$HOME/.local/share/applications/pi-apps-settings.desktop" ] && sed -i "s/logo.png/settings.png/g" "$HOME/.local/share/applications/pi-apps-settings.desktop" || true
-EOF
-
-#Raspbian Buster systems have a bug where XDG_DATA_DIRS is overwritten as the Raspberry Pi desktop is loaded.
-#This fixes it, as PiOS maintainers are unwilling to.
-#See: https://github.com/Botspot/pi-apps/issues/1833
-runonce <<"EOF"
-  if [ -f /usr/bin/startlxde-pi ] && grep -q '/var/lib/menu-xdg"' /usr/bin/startlxde-pi ;then
-    sudo_popup sed -i 's;/var/lib/menu-xdg";/var/lib/menu-xdg${XDG_DATA_DIRS:+:$XDG_DATA_DIRS}";g' /usr/bin/startlxde-pi
-  fi
 EOF
 
 #Doom3 app by techcoder20 installed problematic SDL packages. (sdl2-image sdl2-mixer sdl2-ttf)
@@ -302,47 +136,6 @@ runonce <<"EOF"
   true
 EOF
 
-#Fix PiKiss-GUI messing up folder permissions
-runonce <<"EOF"
-  if [ -d ~/.local/bin ] && [ "$(stat -c "%U %G" ~/.local/bin)" != "$USER $USER" ]; then
-    sudo_popup chown $USER:$USER ~/.local/bin
-  fi
-EOF
-
-#Fix PiKiss vulkan breaking apt install/uninstalls/upgrades
-runonce <<"EOF"
-  # bump to run again
-  if [ -f /etc/apt/apt.conf.d/99reinstall-vulkan-driver-hook ]; then
-    sudo_popup rm -f /etc/apt/apt.conf.d/99reinstall-vulkan-driver-hook
-  fi
-EOF
-
-#remove old mcpi repositories
-runonce <<"EOF"
-  if [ -f /etc/apt/sources.list.d/Alvarito050506_mcpi-devs.list ];then
-    sudo_popup rm -f /etc/apt/sources.list.d/Alvarito050506_mcpi-devs.list
-  fi
-  if [ -f /etc/apt/sources.list.d/mcpi-revival.list ];then
-    sudo_popup rm -f /etc/apt/sources.list.d/mcpi-revival.list
-    sudo_popup rm -f /etc/apt/trusted.gpg.d/mcpi-revival.gpg
-  fi
-EOF
-
-#remove EOL Raspbian Addons repository
-runonce <<"EOF"
-  if [ -f /etc/apt/sources.list.d/rpirepo.list ];then
-    sudo_popup rm -f /etc/apt/sources.list.d/rpirepo.list
-    sudo_popup rm -f /usr/share/keyrings/raspbian-addons-archive-keyring.gpg
-  fi
-EOF
-
-#remove old vivaldi repository
-runonce <<"EOF"
-  if [ -f /etc/apt/sources.list.d/vivaldi-archive.list ];then
-    sudo_popup rm -f /etc/apt/sources.list.d/vivaldi-archive.list
-    sudo_popup rm -f /usr/share/keyrings/vivaldi-browser.gpg
-  fi
-EOF
 
 #update pi-apps .desktop icons
 runonce <<"EOF"
@@ -352,7 +145,7 @@ echo "Updating menu button..."
 mkdir -p ~/.local/share/applications
 if [ -f /etc/xdg/menus/lxde-pi-applications.menu ];then
 echo "[Desktop Entry]
-Name=Pi-Apps
+Name=Pi-Apps Go
 Comment=Raspberry Pi App Store for open source projects
 Exec=${PI_APPS_DIR}/gui
 Icon=${PI_APPS_DIR}/icons/logo.png
@@ -360,10 +153,10 @@ Terminal=false
 StartupWMClass=Pi-Apps
 Type=Application
 Categories=Utility
-StartupNotify=true" > ~/.local/share/applications/pi-apps.desktop
+StartupNotify=true" > ~/.local/share/applications/pi-apps-go.desktop
 else
 echo "[Desktop Entry]
-Name=Pi-Apps
+Name=Pi-Apps Go
 Comment=Raspberry Pi App Store for open source projects
 Exec=${PI_APPS_DIR}/gui
 Icon=${PI_APPS_DIR}/icons/logo.png
@@ -371,49 +164,49 @@ Terminal=false
 StartupWMClass=Pi-Apps
 Type=Application
 Categories=Utility;System;PackageManager;
-StartupNotify=true" > ~/.local/share/applications/pi-apps.desktop
+StartupNotify=true" > ~/.local/share/applications/pi-apps-go.desktop
 fi
 
 chmod 755 ~/.local/share/applications/pi-apps.desktop
-gio set ~/.local/share/applications/pi-apps.desktop "metadata::trusted" yes
+gio set ~/.local/share/applications/pi-apps-go.desktop "metadata::trusted" yes
 
 #copy menu button to Desktop
 mkdir -p ~/Desktop
-cp -f ~/.local/share/applications/pi-apps.desktop ~/Desktop/
+cp -f ~/.local/share/applications/pi-apps-go.desktop ~/Desktop/
 
-chmod 755 ~/Desktop/pi-apps.desktop
-gio set ~/Desktop/pi-apps.desktop "metadata::trusted" yes
+chmod 755 ~/Desktop/pi-apps-go.desktop
+gio set ~/Desktop/pi-apps-go.desktop "metadata::trusted" yes
 
 #copy icon to local icons directory (necessary on some wayland DEs like on PiOS Wayfire)
 mkdir -p ~/.local/share/icons
-cp -f ${PI_APPS_DIR}/icons/logo.png ~/.local/share/icons/pi-apps.png
-cp -f ${PI_APPS_DIR}/icons/settings.png ~/.local/share/icons/pi-apps-settings.png
+cp -f ${PI_APPS_DIR}/icons/logo.png ~/.local/share/icons/pi-apps-go.png
+cp -f ${PI_APPS_DIR}/icons/settings.png ~/.local/share/icons/pi-apps-go-settings.png
 
 #settings menu button
 echo "Updating Settings menu button..."
 echo "[Desktop Entry]
-Name=Pi-Apps Settings
+Name=Pi-Apps Go Settings
 Comment=Configure Pi-Apps or create an App
 Exec=${PI_APPS_DIR}/settings
 Icon=${PI_APPS_DIR}/icons/settings.png
 Terminal=false
-StartupWMClass=Pi-Apps-Settings
+StartupWMClass=Pi-Apps-Go-Settings
 Type=Application
 Categories=Settings;
-StartupNotify=true" > ~/.local/share/applications/pi-apps-settings.desktop
+StartupNotify=true" > ~/.local/share/applications/pi-apps-go-settings.desktop
 
 echo "Updating autostarted updater..."
 mkdir -p ~/.config/autostart
 echo "[Desktop Entry]
-Name=Pi-Apps Updater
+Name=Pi-Apps Go Updater
 Exec=${PI_APPS_DIR}/updater onboot
 Icon=${PI_APPS_DIR}/icons/logo.png
 Terminal=false
-StartupWMClass=Pi-Apps
+StartupWMClass=Pi-Apps-Go
 Type=Application
 X-GNOME-Autostart-enabled=true
 Hidden=false
-NoDisplay=false" > ~/.config/autostart/pi-apps-updater.desktop
+NoDisplay=false" > ~/.config/autostart/pi-apps-go-updater.desktop
 
 EOF
 

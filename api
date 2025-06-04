@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# bash-go-api: Compatibility layer between Pi-Apps bash scripts and Go API implementation
+# api: Compatibility layer between Pi-Apps bash scripts and Go API implementation
 # This script defines the same functions as the original Pi-Apps API but redirects calls to the Go implementation
 
 # =================================================
@@ -12,7 +12,7 @@
 #   - ensure_dir: Creates a directory if it doesn't exist
 #   - copy_file: Copies a file from one location to another
 #
-# Using these functions in your scripts will make them incompatible with older versions of Pi-Apps.
+# Using these functions in your scripts will make them incompatible with the bash version of Pi-Apps.
 # For maximum compatibility, consider using bash built-ins or standard commands instead:
 #   - Instead of file_exists: [ -f "/path/to/file" ]
 #   - Instead of dir_exists: [ -d "/path/to/directory" ]
@@ -22,6 +22,13 @@
 
 # Path to the Go API binary
 GO_API_BIN="$(dirname "$(readlink -f "$0")")/api-go"
+
+# Check if the path contains /usr/bin and switch to PWD if it does
+# this a hack to make the script work in the Pi-Apps directory so that it does not return the path from the executed shell via GO_API_BIN
+if [[ "$GO_API_BIN" == *"/usr/bin"* ]]; then
+    GO_API_BIN="$PWD/api-go"
+fi
+
 
 # Set debug mode if enabled in the original environment
 if [ "$pi_apps_debug" = true ]; then
@@ -34,9 +41,7 @@ fi
 error() {
     "$GO_API_BIN" $GO_API_ARGS error "$1"
     local exit_code=$?
-    # The Go implementation prints the error and should exit with code 1
-    # We need to also exit the bash script with the same code
-    exit $exit_code
+    return $exit_code
 }
 
 warning() {
@@ -139,28 +144,28 @@ download_file() {
 }
 
 # NOTE: NEW FUNCTION - Not available in the original Pi-Apps API
-# Using this function will make your script incompatible with older versions of Pi-Apps
+# Using this function will make your script incompatible with the bash version of Pi-Apps
 file_exists() {
     "$GO_API_BIN" $GO_API_ARGS file_exists "$1"
     return $?  # Preserve exit code
 }
 
 # NOTE: NEW FUNCTION - Not available in the original Pi-Apps API
-# Using this function will make your script incompatible with older versions of Pi-Apps
+# Using this function will make your script incompatible with the bash version of Pi-Apps
 dir_exists() {
     "$GO_API_BIN" $GO_API_ARGS dir_exists "$1"
     return $?  # Preserve exit code
 }
 
 # NOTE: NEW FUNCTION - Not available in the original Pi-Apps API
-# Using this function will make your script incompatible with older versions of Pi-Apps
+# Using this function will make your script incompatible with the bash version of Pi-Apps
 ensure_dir() {
     "$GO_API_BIN" $GO_API_ARGS ensure_dir "$1"
     return $?  # Preserve exit code
 }
 
 # NOTE: NEW FUNCTION - Not available in the original Pi-Apps API
-# Using this function will make your script incompatible with older versions of Pi-Apps
+# Using this function will make your script incompatible with the bash version of Pi-Apps
 copy_file() {
     "$GO_API_BIN" $GO_API_ARGS copy_file "$1" "$2"
     return $?  # Preserve exit code
@@ -595,6 +600,51 @@ diagnose_apps() {
     local failure_list="$1"
     
     "$GO_API_BIN" $GO_API_ARGS diagnose_apps "$failure_list"
+    return $?
+}
+
+# App creation
+createapp() {
+    "$GO_API_BIN" $GO_API_ARGS createapp "$@"
+    return $?
+}
+
+# App creation
+importapp() {
+    "$GO_API_BIN" $GO_API_ARGS importapp "$@"
+    return $?
+}
+
+# Runonce function
+runonce() {
+    # Pass all arguments to the Go implementation
+    "$GO_API_BIN" $GO_API_ARGS runonce "$@"
+}
+
+# Refresh all package app status files
+refresh_all_pkgapp_status() {
+    "$GO_API_BIN" $GO_API_ARGS refresh_all_pkgapp_status
+    return $?
+}
+
+# Flatpak package management
+flatpak_install() {
+    if [ $# -lt 1 ]; then
+        error "flatpak_install: requires at least one package name"
+        return 1
+    fi
+    
+    "$GO_API_BIN" $GO_API_ARGS flatpak_install "$@"
+    return $?
+}
+
+flatpak_uninstall() {
+    if [ $# -lt 1 ]; then
+        error "flatpak_uninstall: requires at least one package name"
+        return 1
+    fi
+    
+    "$GO_API_BIN" $GO_API_ARGS flatpak_uninstall "$@"
     return $?
 }
 

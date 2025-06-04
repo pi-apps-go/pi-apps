@@ -5,6 +5,8 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -328,7 +330,7 @@ func (c *UpdaterCLI) showCountdown() {
 		fmt.Printf("%d... ", i)
 		time.Sleep(1 * time.Second)
 	}
-	fmt.Println("\n")
+	fmt.Println("")
 }
 
 // performUpdate executes the update process
@@ -503,10 +505,15 @@ func (c *UpdaterCLI) hasContent(filePath string) bool {
 }
 
 func (c *UpdaterCLI) runOnceEntries() {
-	runoncePath := c.updater.directory + "/etc/runonce-entries"
+	runoncePath := filepath.Join(c.updater.directory, "etc", "runonce-entries")
 	if fileExists(runoncePath) {
-		// Execute runonce entries script if it exists
-		// This is a placeholder - implement based on actual runonce logic
 		fmt.Println("Running runonce entries...")
+		cmd := exec.Command(runoncePath)
+		cmd.Dir = c.updater.directory
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		if err := cmd.Run(); err != nil {
+			fmt.Printf("Warning: runonce-entries failed: %v\n", err)
+		}
 	}
 }
