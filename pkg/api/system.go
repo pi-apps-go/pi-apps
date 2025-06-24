@@ -1161,7 +1161,11 @@ func extractZipFile(file *zip.File, destDir string, junkPaths bool, overwrite bo
 		filePath = filepath.Join(destDir, filepath.Base(file.Name))
 	} else {
 		// Use the full path structure
-		filePath = filepath.Join(destDir, file.Name)
+		cleanPath := filepath.Clean(filepath.Join(destDir, file.Name))
+		if !strings.HasPrefix(cleanPath, filepath.Clean(destDir)+string(os.PathSeparator)) {
+			return fmt.Errorf("invalid file path: %s", file.Name)
+		}
+		filePath = cleanPath
 	}
 
 	// Check if this is a directory
