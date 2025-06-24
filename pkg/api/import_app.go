@@ -613,20 +613,31 @@ func importFromPRZip(zipURL, piAppsDir, branchName string) ([]string, error) {
 
 	// Extract zip contents
 	for _, file := range reader.File {
+		// Construct the path and resolve its absolute form
 		path := filepath.Join(tmpDir, file.Name)
+		absPath, err := filepath.Abs(path)
+		if err != nil {
+			return nil, fmt.Errorf("error resolving absolute path: %w", err)
+		}
+
+		// Validate that the resolved path is within the intended directory
+		if !strings.HasPrefix(absPath, tmpDir) {
+			return nil, fmt.Errorf("invalid file path in zip: %s", file.Name)
+		}
+
 		if file.FileInfo().IsDir() {
-			os.MkdirAll(path, 0755)
+			os.MkdirAll(absPath, 0755)
 			continue
 		}
 
-		os.MkdirAll(filepath.Dir(path), 0755)
+		os.MkdirAll(filepath.Dir(absPath), 0755)
 
 		rc, err := file.Open()
 		if err != nil {
 			return nil, fmt.Errorf("error opening zip entry: %w", err)
 		}
 
-		out, err := os.Create(path)
+		out, err := os.Create(absPath)
 		if err != nil {
 			rc.Close()
 			return nil, fmt.Errorf("error creating output file: %w", err)
