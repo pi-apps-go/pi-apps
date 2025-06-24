@@ -97,7 +97,7 @@ func (sw *SettingsWindow) createSettingsTab() error {
 
 		// Set tooltip if available (translate it)
 		if setting.Tooltip != "" {
-			translatedTooltip := T(setting.Tooltip)
+			translatedTooltip := TranslateTooltip(setting.Tooltip)
 			label.SetTooltipText(translatedTooltip)
 		}
 
@@ -124,7 +124,7 @@ func (sw *SettingsWindow) createSettingsTab() error {
 
 		// Set tooltip for combo box too (translate it)
 		if setting.Tooltip != "" {
-			translatedTooltip := T(setting.Tooltip)
+			translatedTooltip := TranslateTooltip(setting.Tooltip)
 			combo.SetTooltipText(translatedTooltip)
 		}
 
@@ -378,7 +378,7 @@ func (sw *SettingsWindow) runAction(action string) {
 	case "multi_uninstall":
 		cmd = exec.Command(apiPath, "multi_uninstall_gui")
 	default:
-		fmt.Printf(T("Unknown action: %s")+"\n", action)
+		fmt.Println(Tf("Unknown action: %s", action))
 		return
 	}
 
@@ -392,7 +392,7 @@ func (sw *SettingsWindow) runAction(action string) {
 	// Run in background
 	go func() {
 		if err := cmd.Start(); err != nil {
-			fmt.Printf(T("Failed to start %s: %v")+"\n", action, err)
+			fmt.Println(Tf("Failed to start %s: %v", action, err))
 		}
 	}()
 }
@@ -424,7 +424,7 @@ func (sw *SettingsWindow) resetSettings() {
 			// Save to file
 			settingPath := filepath.Join(sw.directory, "data", "settings", settingName)
 			if err := os.WriteFile(settingPath, []byte(defaultValue), 0644); err != nil {
-				fmt.Printf(T("Failed to reset setting %s: %v")+"\n", settingName, err)
+				fmt.Println(Tf("Failed to reset setting %s: %v", settingName, err))
 			}
 		}
 	}
@@ -446,7 +446,7 @@ func (sw *SettingsWindow) saveSettings() {
 		// Save to file
 		settingPath := filepath.Join(sw.directory, "data", "settings", settingName)
 		if err := os.WriteFile(settingPath, []byte(activeText), 0644); err != nil {
-			fmt.Printf(T("Failed to save setting %s: %v")+"\n", settingName, err)
+			fmt.Println(Tf("Failed to save setting %s: %v", settingName, err))
 		}
 	}
 }

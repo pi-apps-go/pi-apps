@@ -261,3 +261,28 @@ func translateSettingValue(value string) string {
 func TranslateSettingValue(value string) string {
 	return translateSettingValue(value)
 }
+
+// TranslateTooltip translates multi-line tooltips by translating each line separately
+func TranslateTooltip(tooltip string) string {
+	if tooltip == "" {
+		return ""
+	}
+
+	// Split into lines
+	lines := strings.Split(tooltip, "\n")
+	var translatedLines []string
+
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			translatedLines = append(translatedLines, "")
+			continue
+		}
+
+		// Try to translate the line
+		translated := T(line)
+		translatedLines = append(translatedLines, translated)
+	}
+
+	return strings.Join(translatedLines, "\n")
+}

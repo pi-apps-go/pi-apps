@@ -207,8 +207,8 @@ msgstr "Pero otras aplicaciones ya pueden instalarse fácilmente desde Agregar/Q
 msgid "This option allows you to selectively show one type of app or the other, or both types."
 msgstr "Esta opción te permite mostrar selectivamente un tipo de aplicación u otro, o ambos tipos."
 
-msgid "Pi-Apps can display the apps as a compact list (GTK3 via gotk3), or as a group of larger icons. (xlunch like interface)"
-msgstr "Pi-Apps puede mostrar las aplicaciones como una lista compacta o como un grupo de iconos más grandes."
+msgid "Pi-Apps can display the apps as a compact list (GTK 3 via gotk3), or as a group of larger icons. (xlunch like interface)"
+msgstr "Pi-Apps puede mostrar las aplicaciones como una lista compacta (GTK 3 a través de gotk3) o como un grupo de iconos más grandes (interfaz similar a xlunch)."
 
 msgid "Specify which text editor to use when editing install scripts"
 msgstr "Especifica qué editor de texto usar al editar scripts de instalación"

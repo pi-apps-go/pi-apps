@@ -207,8 +207,8 @@ msgstr "But other apps can already be easily installed from Add/Remove Software.
 msgid "This option allows you to selectively show one type of app or the other, or both types."
 msgstr "This option allows you to selectively show one type of app or the other, or both types."
 
-msgid "Pi-Apps can display the apps as a compact list (GTK3 via gotk3), or as a group of larger icons. (xlunch like interface)"
-msgstr "Pi-Apps can display the apps as a compact list (GTK3 via gotk3) or as a group of larger icons (xlunch like interface)."
+msgid "Pi-Apps can display the apps as a compact list (GTK 3 via gotk3), or as a group of larger icons. (xlunch like interface)"
+msgstr "Pi-Apps can display the apps as a compact list (GTK 3 via gotk3) or as a group of larger icons (xlunch like interface)."
 
 msgid "Specify which text editor to use when editing install scripts"
 msgstr "Specify which text editor to use when editing install scripts"

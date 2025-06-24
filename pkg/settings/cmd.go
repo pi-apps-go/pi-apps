@@ -59,7 +59,7 @@ func Main() error {
 
 	// Create desktop entry if it doesn't exist
 	if err := createDesktopEntry(); err != nil {
-		fmt.Printf(T("Warning: failed to create desktop entry: %v")+"\n", err)
+		fmt.Println(Tf("Warning: failed to create desktop entry: %v", err))
 	}
 
 	// Create and show the settings window
@@ -120,7 +120,7 @@ func RefreshSettings() error {
 				if line != "" && !strings.HasPrefix(line, "#") {
 					// Write default value
 					if err := os.WriteFile(settingPath, []byte(line), 0644); err != nil {
-						fmt.Printf(T("Warning: failed to write default for %s: %v")+"\n", settingName, err)
+						fmt.Println(Tf("Warning: failed to write default for %s: %v", settingName, err))
 					}
 					break
 				}
@@ -175,7 +175,7 @@ func RevertSettings() error {
 			if line != "" && !strings.HasPrefix(line, "#") {
 				// Write default value (overwrite existing)
 				if err := os.WriteFile(settingPath, []byte(line), 0644); err != nil {
-					fmt.Printf(T("Warning: failed to revert setting %s: %v")+"\n", settingName, err)
+					fmt.Println(Tf("Warning: failed to revert setting %s: %v", settingName, err))
 				}
 				break
 			}
