@@ -1156,6 +1156,12 @@ func Unzip(zipFile string, destDir string, flags []string) error {
 func extractZipFile(file *zip.File, destDir string, junkPaths bool, overwrite bool, quiet bool) error {
 	// Determine the extraction path
 	var filePath string
+
+	// Check for directory traversal attempts
+	if strings.Contains(file.Name, "..") {
+		return fmt.Errorf("invalid file path: %s (contains '..')", file.Name)
+	}
+
 	if junkPaths {
 		// Just use the filename, without directory structure
 		filePath = filepath.Join(destDir, filepath.Base(file.Name))
