@@ -407,14 +407,19 @@ func importFromLocalZip(zipPath, piAppsDir string) (string, error) {
 
 	// Extract zip contents
 	for _, file := range reader.File {
-		path := filepath.Join(tmpDir, file.Name)
+		// Normalize and validate the file path
+		cleanPath := filepath.Join(tmpDir, filepath.Clean(file.Name))
+		if !strings.HasPrefix(cleanPath, tmpDir) {
+			return "", fmt.Errorf("invalid file path in zip: %s", file.Name)
+		}
+
 		if file.FileInfo().IsDir() {
-			os.MkdirAll(path, 0755)
+			os.MkdirAll(cleanPath, 0755)
 			continue
 		}
 
 		// Create parent directories
-		os.MkdirAll(filepath.Dir(path), 0755)
+		os.MkdirAll(filepath.Dir(cleanPath), 0755)
 
 		// Extract file
 		rc, err := file.Open()
@@ -422,7 +427,7 @@ func importFromLocalZip(zipPath, piAppsDir string) (string, error) {
 			return "", fmt.Errorf("error opening zip file entry: %w", err)
 		}
 
-		out, err := os.Create(path)
+		out, err := os.Create(cleanPath)
 		if err != nil {
 			rc.Close()
 			return "", fmt.Errorf("error creating output file: %w", err)
