@@ -80,8 +80,9 @@ func (sw *SettingsWindow) createSettingsTab() error {
 		}
 		hbox.SetHAlign(gtk.ALIGN_FILL)
 
-		// Create label
-		label, err := gtk.LabelNew(settingName)
+		// Create label with translated setting name
+		translatedName := TranslateSettingName(settingName)
+		label, err := gtk.LabelNew(translatedName)
 		if err != nil {
 			return fmt.Errorf("failed to create label: %w", err)
 		}
@@ -94,9 +95,10 @@ func (sw *SettingsWindow) createSettingsTab() error {
 		label.SetLineWrapMode(2) // PANGO_WRAP_WORD = 2
 		label.SetMaxWidthChars(25)
 
-		// Set tooltip if available
+		// Set tooltip if available (translate it)
 		if setting.Tooltip != "" {
-			label.SetTooltipText(setting.Tooltip)
+			translatedTooltip := T(setting.Tooltip)
+			label.SetTooltipText(translatedTooltip)
 		}
 
 		// Create combo box
@@ -106,10 +108,11 @@ func (sw *SettingsWindow) createSettingsTab() error {
 		}
 		combo.SetSizeRequest(240, -1)
 
-		// Populate combo box
+		// Populate combo box with translated values
 		activeIndex := 0
 		for i, value := range setting.Values {
-			combo.AppendText(value)
+			translatedValue := TranslateSettingValue(value)
+			combo.AppendText(translatedValue)
 			if value == setting.Current {
 				activeIndex = i
 			}
@@ -119,9 +122,10 @@ func (sw *SettingsWindow) createSettingsTab() error {
 		// Store reference for saving later
 		sw.comboBoxes[settingName] = combo
 
-		// Set tooltip for combo box too
+		// Set tooltip for combo box too (translate it)
 		if setting.Tooltip != "" {
-			combo.SetTooltipText(setting.Tooltip)
+			translatedTooltip := T(setting.Tooltip)
+			combo.SetTooltipText(translatedTooltip)
 		}
 
 		// Special handling for App List Style to apply theme changes immediately
@@ -149,7 +153,7 @@ func (sw *SettingsWindow) createSettingsTab() error {
 	scrolled.Add(mainContainer)
 
 	// Create tab label
-	tabLabel, err := gtk.LabelNew("Settings")
+	tabLabel, err := gtk.LabelNew(T("Settings"))
 	if err != nil {
 		return fmt.Errorf("failed to create tab label: %w", err)
 	}
@@ -194,39 +198,39 @@ func (sw *SettingsWindow) createActionsTab() error {
 		action  string
 	}{
 		{
-			name:    "Categories",
+			name:    T("Categories"),
 			icon:    "categories.png",
-			tooltip: "Does an App belong in Editors instead of Tools? This lets you move it.",
+			tooltip: T("Does an App belong in Editors instead of Tools? This lets you move it."),
 			action:  "category_editor",
 		},
 		{
-			name:    "Log files",
+			name:    T("Log files"),
 			icon:    "log-file.png",
-			tooltip: "View past installation logs. Useful for debugging, or to see what you installed yesterday.",
+			tooltip: T("View past installation logs. Useful for debugging, or to see what you installed yesterday."),
 			action:  "log_viewer",
 		},
 		{
-			name:    "Multi-Install",
+			name:    T("Multi-Install"),
 			icon:    "multi-select.png",
-			tooltip: "Install multiple apps at the same time.",
+			tooltip: T("Install multiple apps at the same time."),
 			action:  "multi_install",
 		},
 		{
-			name:    "New App",
+			name:    T("New App"),
 			icon:    "create.png",
-			tooltip: "Make your own app! It's pretty easy if you follow the instructions.",
+			tooltip: T("Make your own app! It's pretty easy if you follow the instructions."),
 			action:  "create_app",
 		},
 		{
-			name:    "Import App",
+			name:    T("Import App"),
 			icon:    "categories/Imported.png",
-			tooltip: "Did someone else make an app but it's not on Pi-Apps yet? Import it here.",
+			tooltip: T("Did someone else make an app but it's not on Pi-Apps yet? Import it here."),
 			action:  "import_app",
 		},
 		{
-			name:    "Multi-Uninstall",
+			name:    T("Multi-Uninstall"),
 			icon:    "multi-select.png",
-			tooltip: "Uninstall multiple apps at the same time.",
+			tooltip: T("Uninstall multiple apps at the same time."),
 			action:  "multi_uninstall",
 		},
 	}
@@ -302,7 +306,7 @@ func (sw *SettingsWindow) createActionsTab() error {
 	scrolled.Add(mainBox)
 
 	// Create tab label
-	tabLabel, err := gtk.LabelNew("Actions")
+	tabLabel, err := gtk.LabelNew(T("Actions"))
 	if err != nil {
 		return fmt.Errorf("failed to create tab label: %w", err)
 	}
@@ -315,18 +319,18 @@ func (sw *SettingsWindow) createActionsTab() error {
 // createButtons creates the main action buttons (Save, Cancel, Reset)
 func (sw *SettingsWindow) createButtons(buttonBox *gtk.Box) error {
 	// Reset button
-	resetButton, err := gtk.ButtonNewWithLabel("Reset")
+	resetButton, err := gtk.ButtonNewWithLabel(T("Reset"))
 	if err != nil {
 		return fmt.Errorf("failed to create reset button: %w", err)
 	}
-	resetButton.SetTooltipText("Reset all settings to their defaults")
+	resetButton.SetTooltipText(T("Reset all settings to their defaults"))
 	resetButton.SetSizeRequest(80, 35)
 	resetButton.Connect("clicked", func() {
 		sw.resetSettings()
 	})
 
 	// Cancel button
-	cancelButton, err := gtk.ButtonNewWithLabel("Cancel")
+	cancelButton, err := gtk.ButtonNewWithLabel(T("Cancel"))
 	if err != nil {
 		return fmt.Errorf("failed to create cancel button: %w", err)
 	}
@@ -336,7 +340,7 @@ func (sw *SettingsWindow) createButtons(buttonBox *gtk.Box) error {
 	})
 
 	// Save button
-	saveButton, err := gtk.ButtonNewWithLabel("Save")
+	saveButton, err := gtk.ButtonNewWithLabel(T("Save"))
 	if err != nil {
 		return fmt.Errorf("failed to create save button: %w", err)
 	}
@@ -374,7 +378,7 @@ func (sw *SettingsWindow) runAction(action string) {
 	case "multi_uninstall":
 		cmd = exec.Command(apiPath, "multi_uninstall_gui")
 	default:
-		fmt.Printf("Unknown action: %s\n", action)
+		fmt.Printf(T("Unknown action: %s")+"\n", action)
 		return
 	}
 
@@ -388,7 +392,7 @@ func (sw *SettingsWindow) runAction(action string) {
 	// Run in background
 	go func() {
 		if err := cmd.Start(); err != nil {
-			fmt.Printf("Failed to start %s: %v\n", action, err)
+			fmt.Printf(T("Failed to start %s: %v")+"\n", action, err)
 		}
 	}()
 }
@@ -397,7 +401,7 @@ func (sw *SettingsWindow) runAction(action string) {
 func (sw *SettingsWindow) resetSettings() {
 	// Show confirmation dialog
 	dialog := gtk.MessageDialogNew(sw.window, gtk.DIALOG_MODAL, gtk.MESSAGE_QUESTION,
-		gtk.BUTTONS_YES_NO, "Are you sure you want to reset all settings to their defaults?")
+		gtk.BUTTONS_YES_NO, T("Are you sure you want to reset all settings to their defaults?"))
 	defer dialog.Destroy()
 
 	response := dialog.Run()
@@ -420,7 +424,7 @@ func (sw *SettingsWindow) resetSettings() {
 			// Save to file
 			settingPath := filepath.Join(sw.directory, "data", "settings", settingName)
 			if err := os.WriteFile(settingPath, []byte(defaultValue), 0644); err != nil {
-				fmt.Printf("Failed to reset setting %s: %v\n", settingName, err)
+				fmt.Printf(T("Failed to reset setting %s: %v")+"\n", settingName, err)
 			}
 		}
 	}
@@ -442,7 +446,7 @@ func (sw *SettingsWindow) saveSettings() {
 		// Save to file
 		settingPath := filepath.Join(sw.directory, "data", "settings", settingName)
 		if err := os.WriteFile(settingPath, []byte(activeText), 0644); err != nil {
-			fmt.Printf("Failed to save setting %s: %v\n", settingName, err)
+			fmt.Printf(T("Failed to save setting %s: %v")+"\n", settingName, err)
 		}
 	}
 }

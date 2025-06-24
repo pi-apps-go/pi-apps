@@ -29,6 +29,9 @@ import (
 	"runtime"
 	"strings"
 	"time"
+
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 // Action represents the type of operation to be performed on an app
@@ -156,62 +159,52 @@ func ManageApp(action Action, appName string, isUpdate bool) error {
 		return fmt.Errorf("failed to determine app type: %w", err)
 	}
 
-	if appType == "standard" {
-		// Standard app with scripts
-		var scriptName string
-		if action == ActionInstall {
-			scriptName = GetScriptNameForCPU(appName)
-			if scriptName == "" {
-				return fmt.Errorf("no suitable install script found for %s", appName)
-			}
-		} else if action == ActionUninstall {
-			scriptName = "uninstall"
+	isScriptApp := appType == "standard"
+	if isScriptApp {
+		// Script-based app
+		scriptName := GetScriptNameForCPU(appName)
+		if scriptName == "" {
+			return fmt.Errorf("no suitable script found for %s", appName)
 		}
 
-		scriptPath := filepath.Join(appDir, scriptName)
-		if _, err := os.Stat(scriptPath); os.IsNotExist(err) {
-			return fmt.Errorf("script %s does not exist for app %s", scriptPath, appName)
-		}
+		// Set up script command
+		cmd = exec.Command("bash", filepath.Join(piAppsDir, "apps", appName, scriptName))
 
-		// Make script executable
-		os.Chmod(scriptPath, 0755)
-
-		// Set up command
-		cmd = exec.Command(scriptPath)
-
-		// Set up environment variables for the script
+		// Set environment variables
 		env := os.Environ()
-		env = append(env, fmt.Sprintf("PI_APPS_DIR=%s", getPiAppsDir()))
-		env = append(env, fmt.Sprintf("app=%s", appName))
-		env = append(env, "DEBIAN_FRONTEND=noninteractive")
+		env = append(env, "PI_APPS_DIR="+piAppsDir)
+		env = append(env, "app="+appName)
 
 		if isUpdate {
 			env = append(env, "script_input=update")
 		}
 
 		cmd.Env = env
-	} else if appType == "package" {
-		// Package-based app
-		packages, err := PkgAppPackagesRequired(appName)
-		if err != nil {
-			return fmt.Errorf("failed to get required packages: %w", err)
-		}
-
-		if packages == "" {
-			return fmt.Errorf("no installable packages specified for app %s", appName)
-		}
-
-		// Set up apt command
-		aptAction := "install"
-		if action == ActionUninstall {
-			aptAction = "purge --autoremove"
-		}
-
-		// For package type apps, use apt
-		cmd = exec.Command("sudo", "apt", aptAction, "-yf")
-		cmd.Args = append(cmd.Args, strings.Fields(packages)...)
 	} else {
-		return fmt.Errorf("unknown app type: %s", appType)
+		switch appType {
+		case "package":
+			// Package-based app
+			packages, err := PkgAppPackagesRequired(appName)
+			if err != nil {
+				return fmt.Errorf("failed to get required packages: %w", err)
+			}
+
+			if packages == "" {
+				return fmt.Errorf("no installable packages specified for app %s", appName)
+			}
+
+			// Set up apt command
+			aptAction := "install"
+			if action == ActionUninstall {
+				aptAction = "purge --autoremove"
+			}
+
+			// For package type apps, use apt
+			cmd = exec.Command("sudo", "apt", aptAction, "-yf")
+			cmd.Args = append(cmd.Args, strings.Fields(packages)...)
+		default:
+			return fmt.Errorf("unknown app type: %s", appType)
+		}
 	}
 
 	// Set command working directory to user's home
@@ -251,7 +244,7 @@ func ManageApp(action Action, appName string, isUpdate bool) error {
 		os.Rename(logPath, newLogPath)
 
 		// If app is script-type, set status to corrupted if the error is not system, internet, or package related
-		if appType == "standard" {
+		if isScriptApp {
 			// Use log_diagnose to determine error type and set appropriate status
 			diagnosis, err := LogDiagnose(logPath, true)
 			if diagnosis.ErrorType == "system" || diagnosis.ErrorType == "internet" || diagnosis.ErrorType == "package" {
@@ -719,7 +712,7 @@ func runAppScript(appName, scriptName string) error {
 
 	// Write to log file (plain text) and stdout (colored)
 	fmt.Fprintf(logFile, "%s %sing %s...\n\n", time.Now().Format("2006-01-02 15:04:05"), scriptName, appName)
-	Status(fmt.Sprintf("%sing \033[1m%s\033[22m...", strings.Title(scriptName), appName))
+	Status(fmt.Sprintf("%sing \033[1m%s\033[22m...", cases.Title(language.English).String(scriptName), appName))
 
 	scriptPath := filepath.Join(getPiAppsDir(), "apps", appName, scriptName)
 
@@ -914,7 +907,7 @@ cd "%s"
 
 	// Success
 	fmt.Fprintf(logFile, "\n%s %sed successfully.\n", scriptName, appName)
-	StatusGreen(fmt.Sprintf("%sed %s successfully.", strings.Title(scriptName), appName))
+	StatusGreen(fmt.Sprintf("%sed %s successfully.", cases.Title(language.English).String(scriptName), appName))
 
 	// Format the log file to add device information (consistent with bash version)
 	err = FormatLogfile(logPath)
@@ -927,9 +920,10 @@ cd "%s"
 	os.Rename(logPath, newLogPath)
 
 	// Display success message consistently for both package and script apps
-	if scriptName == "install" {
+	switch scriptName {
+	case "install":
 		return markAppAsInstalled(appName)
-	} else if scriptName == "uninstall" {
+	case "uninstall":
 		return markAppAsUninstalled(appName)
 	}
 
@@ -1048,9 +1042,10 @@ func GetSystemArchitecture() (string, error) {
 		output, err := cmd.Output()
 		if err == nil {
 			detectedArch := strings.TrimSpace(string(output))
-			if detectedArch == "aarch64" || detectedArch == "arm64" {
+			switch detectedArch {
+			case "aarch64", "arm64":
 				arch = "aarch64"
-			} else if detectedArch == "armv7l" || detectedArch == "armv6l" {
+			case "armv7l", "armv6l":
 				arch = detectedArch
 			}
 		}

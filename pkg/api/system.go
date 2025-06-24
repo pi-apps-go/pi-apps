@@ -367,30 +367,34 @@ func checkOSVersion(osInfo *SystemOSInfo) string {
 				Warning("Failed to parse Debian EOL data: " + err.Error())
 			} else {
 				for _, release := range debianReleases {
-					if cycle, ok := release["cycle"].(string); ok && cycle == osInfo.Release {
-						if extendedSupport, ok := release["extendedSupport"].(string); ok {
-							// Check if the release is EOL
-							eolDate, err := time.Parse("2006-01-02", extendedSupport)
-							if err == nil {
-								// Check if EOL date is within 4 months
-								fourMonthsFromNow := time.Now().AddDate(0, 4, 0)
-								oneMonthAfterEOL := eolDate.AddDate(0, 1, 0)
+					switch cycle := release["cycle"].(type) {
+					case string:
+						if cycle == osInfo.Release {
+							switch extendedSupport := release["extendedSupport"].(type) {
+							case string:
+								// Check if the release is EOL
+								eolDate, err := time.Parse("2006-01-02", extendedSupport)
+								if err == nil {
+									// Check if EOL date is within 4 months
+									fourMonthsFromNow := time.Now().AddDate(0, 4, 0)
+									oneMonthAfterEOL := eolDate.AddDate(0, 1, 0)
 
-								if time.Now().After(eolDate) && time.Now().Before(oneMonthAfterEOL) {
-									Warning(fmt.Sprintf("Your %s %s operating system reached end-of-life on %s. Please upgrade your system before Pi-Apps becomes unsupported.",
-										osInfo.ID, cases.Title(language.English).String(osInfo.Codename), extendedSupport))
-									return fmt.Sprintf("Your %s %s operating system reached end-of-life on %s. Please upgrade your system before Pi-Apps becomes unsupported.",
-										osInfo.ID, cases.Title(language.English).String(osInfo.Codename), extendedSupport)
-								} else if time.Now().After(oneMonthAfterEOL) {
-									return fmt.Sprintf("Pi-Apps is not supported on your outdated %s %s operating system (EOL: %s). Expect apps to slowly fail overtime. Consider installing a newer operating system.",
-										osInfo.ID, cases.Title(language.English).String(osInfo.Codename), extendedSupport)
-								} else if time.Now().Before(eolDate) && time.Now().After(fourMonthsFromNow) {
-									Warning(fmt.Sprintf("Your %s %s operating system will reach end-of-life on %s. Please consider upgrading your system.",
-										osInfo.ID, cases.Title(language.English).String(osInfo.Codename), extendedSupport))
+									if time.Now().After(eolDate) && time.Now().Before(oneMonthAfterEOL) {
+										Warning(fmt.Sprintf("Your %s %s operating system reached end-of-life on %s. Please upgrade your system before Pi-Apps becomes unsupported.",
+											osInfo.ID, cases.Title(language.English).String(osInfo.Codename), extendedSupport))
+										return fmt.Sprintf("Your %s %s operating system reached end-of-life on %s. Please upgrade your system before Pi-Apps becomes unsupported.",
+											osInfo.ID, cases.Title(language.English).String(osInfo.Codename), extendedSupport)
+									} else if time.Now().After(oneMonthAfterEOL) {
+										return fmt.Sprintf("Pi-Apps is not supported on your outdated %s %s operating system (EOL: %s). Expect apps to slowly fail overtime. Consider installing a newer operating system.",
+											osInfo.ID, cases.Title(language.English).String(osInfo.Codename), extendedSupport)
+									} else if time.Now().Before(eolDate) && time.Now().After(fourMonthsFromNow) {
+										Warning(fmt.Sprintf("Your %s %s operating system will reach end-of-life on %s. Please consider upgrading your system.",
+											osInfo.ID, cases.Title(language.English).String(osInfo.Codename), extendedSupport))
+									}
 								}
 							}
+							break
 						}
-						break
 					}
 				}
 			}
@@ -422,30 +426,34 @@ func checkOSVersion(osInfo *SystemOSInfo) string {
 				Warning("Failed to parse Ubuntu EOL data: " + err.Error())
 			} else {
 				for _, release := range ubuntuReleases {
-					if cycle, ok := release["cycle"].(string); ok && cycle == osInfo.Release {
-						if eol, ok := release["eol"].(string); ok {
-							// Check if the release is EOL
-							eolDate, err := time.Parse("2006-01-02", eol)
-							if err == nil {
-								// Check if EOL date is within 4 months
-								fourMonthsFromNow := time.Now().AddDate(0, 4, 0)
-								oneMonthAfterEOL := eolDate.AddDate(0, 1, 0)
+					switch cycle := release["cycle"].(type) {
+					case string:
+						if cycle == osInfo.Release {
+							switch eol := release["eol"].(type) {
+							case string:
+								// Check if the release is EOL
+								eolDate, err := time.Parse("2006-01-02", eol)
+								if err == nil {
+									// Check if EOL date is within 4 months
+									fourMonthsFromNow := time.Now().AddDate(0, 4, 0)
+									oneMonthAfterEOL := eolDate.AddDate(0, 1, 0)
 
-								if time.Now().After(eolDate) && time.Now().Before(oneMonthAfterEOL) {
-									Warning(fmt.Sprintf("Your %s %s operating system reached end-of-life on %s. Please upgrade your system before Pi-Apps becomes unsupported.",
-										osInfo.ID, cases.Title(language.English).String(osInfo.Codename), eol))
-									return fmt.Sprintf("Your %s %s operating system reached end-of-life on %s. Please upgrade your system before Pi-Apps becomes unsupported.",
-										osInfo.ID, cases.Title(language.English).String(osInfo.Codename), eol)
-								} else if time.Now().After(oneMonthAfterEOL) {
-									return fmt.Sprintf("Pi-Apps is not supported on your outdated %s %s operating system (EOL: %s). Expect apps to slowly fail. Consider installing a newer operating system.",
-										osInfo.ID, cases.Title(language.English).String(osInfo.Codename), eol)
-								} else if time.Now().Before(eolDate) && fourMonthsFromNow.After(eolDate) {
-									Warning(fmt.Sprintf("Your %s %s operating system will reach end-of-life on %s. Please consider upgrading your system.",
-										osInfo.ID, cases.Title(language.English).String(osInfo.Codename), eol))
+									if time.Now().After(eolDate) && time.Now().Before(oneMonthAfterEOL) {
+										Warning(fmt.Sprintf("Your %s %s operating system reached end-of-life on %s. Please upgrade your system before Pi-Apps becomes unsupported.",
+											osInfo.ID, cases.Title(language.English).String(osInfo.Codename), eol))
+										return fmt.Sprintf("Your %s %s operating system reached end-of-life on %s. Please upgrade your system before Pi-Apps becomes unsupported.",
+											osInfo.ID, cases.Title(language.English).String(osInfo.Codename), eol)
+									} else if time.Now().After(oneMonthAfterEOL) {
+										return fmt.Sprintf("Pi-Apps is not supported on your outdated %s %s operating system (EOL: %s). Expect apps to slowly fail. Consider installing a newer operating system.",
+											osInfo.ID, cases.Title(language.English).String(osInfo.Codename), eol)
+									} else if time.Now().Before(eolDate) && fourMonthsFromNow.After(eolDate) {
+										Warning(fmt.Sprintf("Your %s %s operating system will reach end-of-life on %s. Please consider upgrading your system.",
+											osInfo.ID, cases.Title(language.English).String(osInfo.Codename), eol))
+									}
 								}
 							}
+							break
 						}
-						break
 					}
 				}
 			}
@@ -673,7 +681,8 @@ func checkMissingRepositories(osInfo *SystemOSInfo) (string, error) {
 	}
 
 	// Check specific requirements based on OS
-	if osInfo.ID == "Ubuntu" {
+	switch osInfo.ID {
+	case "Ubuntu":
 		// Check for main and universe components
 		mainCount := 0
 		universeCount := 0
@@ -688,22 +697,26 @@ func checkMissingRepositories(osInfo *SystemOSInfo) (string, error) {
 				release := fields[1]
 				component := fields[2]
 
-				if release == osInfo.Codename {
-					if component == "main" {
+				switch release {
+				case osInfo.Codename:
+					switch component {
+					case "main":
 						mainCount++
-					} else if component == "universe" {
+					case "universe":
 						universeCount++
 					}
-				} else if release == osInfo.Codename+"-updates" {
-					if component == "main" {
+				case osInfo.Codename + "-updates":
+					switch component {
+					case "main":
 						mainUpdatesCount++
-					} else if component == "universe" {
+					case "universe":
 						universeUpdatesCount++
 					}
-				} else if release == osInfo.Codename+"-security" {
-					if component == "main" {
+				case osInfo.Codename + "-security":
+					switch component {
+					case "main":
 						mainSecurityCount++
-					} else if component == "universe" {
+					case "universe":
 						universeSecurityCount++
 					}
 				}
@@ -713,7 +726,7 @@ func checkMissingRepositories(osInfo *SystemOSInfo) (string, error) {
 		if mainCount == 0 || universeCount == 0 || mainUpdatesCount == 0 || universeUpdatesCount == 0 || mainSecurityCount == 0 || universeSecurityCount == 0 {
 			return fmt.Sprintf("MISSING Default Ubuntu Repositories!\nPi-Apps does NOT support systems without ALL of %s, %s-updates, and %s-security dists and main and universe components present in the sources.list\nPlease refer to the default sources.list for Ubuntu and restore all required dists and components.", osInfo.Codename, osInfo.Codename, osInfo.Codename), nil
 		}
-	} else if osInfo.ID == "Debian" {
+	case "Debian":
 		// Check for main component
 		mainCount := 0
 		mainUpdatesCount := 0
@@ -725,11 +738,12 @@ func checkMissingRepositories(osInfo *SystemOSInfo) (string, error) {
 				release := fields[1]
 				component := fields[2]
 
-				if release == osInfo.Codename && component == "main" {
+				switch {
+				case release == osInfo.Codename && component == "main":
 					mainCount++
-				} else if release == osInfo.Codename+"-updates" && component == "main" {
+				case release == osInfo.Codename+"-updates" && component == "main":
 					mainUpdatesCount++
-				} else if strings.HasSuffix(release, "-security") && component == "main" {
+				case strings.HasSuffix(release, "-security") && component == "main":
 					mainSecurityCount++
 				}
 			}
@@ -738,7 +752,7 @@ func checkMissingRepositories(osInfo *SystemOSInfo) (string, error) {
 		if mainCount == 0 || mainUpdatesCount == 0 || mainSecurityCount == 0 {
 			return fmt.Sprintf("MISSING Default Debian Repositories!\nPi-Apps does NOT support systems without ALL of %s, %s-updates, and %s-security dists and main component present in the sources.list\nPlease refer to the default sources.list for Debian and restore all required dists and components.", osInfo.Codename, osInfo.Codename, osInfo.Codename), nil
 		}
-	} else if osInfo.ID == "Raspbian" {
+	case "Raspbian":
 		// Check for main component in Raspbian
 		mainCount := 0
 
@@ -783,33 +797,87 @@ func getFreeSpace(path string) (uint64, error) {
 	return stat.Bavail * uint64(stat.Bsize), nil
 }
 
-// isMuslSystem checks if the system is using musl libc or another non-glibc implementation
+// isMuslSystem checks if the system is using musl libc as its primary C library
+// This function checks what the system is actually using, not just what's installed
 func isMuslSystem() bool {
-	// Method 1: Check for common musl library path
-	if FileExists("/lib/ld-musl-x86_64.so.1") || FileExists("/lib/ld-musl-aarch64.so.1") || FileExists("/lib/ld-musl-armhf.so.1") {
-		return true
-	}
-
-	// Method 2: Check if ldd is provided by musl
-	if output, err := exec.Command("ldd", "--version").CombinedOutput(); err == nil {
-		// glibc's ldd outputs a version header with "ldd (GNU libc)" or similar
-		// musl's ldd outputs an error message like "musl libc" or nothing
+	// Method 1: Check what the current process is linked against
+	// This is the most reliable method as it tells us what C library this very process is using
+	if output, err := exec.Command("ldd", "/proc/self/exe").Output(); err == nil {
 		outputStr := string(output)
-		if !strings.Contains(strings.ToLower(outputStr), "gnu libc") &&
-			(strings.Contains(strings.ToLower(outputStr), "musl") || outputStr == "") {
+		// If we see musl in the dynamic linker path, we're definitely using musl
+		if strings.Contains(outputStr, "ld-musl-") {
+			return true
+		}
+		// If we see glibc (libc.so.6), we're definitely using glibc
+		if strings.Contains(outputStr, "libc.so.6") {
+			return false
+		}
+	}
+
+	// Method 2: Check what fundamental system binaries are linked against
+	// These binaries must use the system's primary C library
+	systemBinaries := []string{"/bin/sh", "/sbin/init", "/usr/bin/ls", "/bin/ls"}
+	for _, binary := range systemBinaries {
+		if FileExists(binary) {
+			if output, err := exec.Command("ldd", binary).Output(); err == nil {
+				outputStr := string(output)
+				// If we see musl in the dynamic linker, this is a musl system
+				if strings.Contains(outputStr, "ld-musl-") {
+					return true
+				}
+				// If we see glibc, this is a glibc system
+				if strings.Contains(outputStr, "libc.so.6") {
+					return false
+				}
+			}
+		}
+	}
+
+	// Method 3: Check the default dynamic linker
+	// On musl systems, the default linker will be ld-musl-*
+	defaultLinkers := []string{
+		"/lib/ld-musl-x86_64.so.1",
+		"/lib/ld-musl-aarch64.so.1",
+		"/lib/ld-musl-armhf.so.1",
+		"/lib/ld-musl-riscv64.so.1",
+	}
+
+	glibcLinkers := []string{
+		"/lib64/ld-linux-x86-64.so.2",
+		"/lib/ld-linux-aarch64.so.1",
+		"/lib/ld-linux-armhf.so.3",
+		"/lib/ld-linux-riscv64-lp64d.so.1",
+	}
+
+	// Check if glibc linkers exist - if they do, prioritize them as the primary system
+	for _, linker := range glibcLinkers {
+		if FileExists(linker) {
+			return false
+		}
+	}
+
+	// Only if no glibc linkers exist, check for musl linkers
+	for _, linker := range defaultLinkers {
+		if FileExists(linker) {
 			return true
 		}
 	}
 
-	// Method 3: Look for the standard C library in typical paths
-	libcPaths := []string{"/lib/libc.musl-x86_64.so.1", "/lib/libc.musl-aarch64.so.1", "/usr/lib/libc.musl-x86_64.so.1"}
-	for _, path := range libcPaths {
-		if FileExists(path) {
+	// Method 4: Check if ldd is provided by musl (fallback)
+	if output, err := exec.Command("ldd", "--version").CombinedOutput(); err == nil {
+		outputStr := string(output)
+		// glibc's ldd outputs a version header with "ldd (GNU libc)" or similar
+		// musl's ldd outputs an error message or nothing useful
+		if strings.Contains(strings.ToLower(outputStr), "gnu libc") {
+			return false
+		}
+		// Only consider it musl if we explicitly see musl mentioned AND no gnu libc
+		if strings.Contains(strings.ToLower(outputStr), "musl") {
 			return true
 		}
 	}
 
-	// Method 4: Try to identify Alpine Linux or other musl-based distros from os-release
+	// Method 5: Alpine Linux detection (known musl distribution)
 	if osRelease, err := os.ReadFile("/etc/os-release"); err == nil {
 		content := string(osRelease)
 		if strings.Contains(content, "ID=alpine") || strings.Contains(content, "ID=\"alpine\"") {
@@ -817,6 +885,7 @@ func isMuslSystem() bool {
 		}
 	}
 
+	// Default to false - assume glibc unless we have strong evidence of musl
 	return false
 }
 
@@ -1231,37 +1300,40 @@ func Wget(args []string) error {
 					headers[strings.TrimSpace(headerParts[0])] = strings.TrimSpace(headerParts[1])
 				}
 			}
-		} else if arg == "-" {
-			// Writing to stdout
-			writeToStdout = true
-			quiet = true
-		} else if strings.HasPrefix(arg, "-") {
-			// Short options
-			for _, flag := range arg[1:] {
-				if flag == 'q' {
-					quiet = true
-				} else if flag == 'O' && i+1 < len(args) {
-					// Output file specified with -O flag
-					outputFile = args[i+1]
-					i++ // Skip the next argument since we used it
-				}
-			}
-		} else if strings.Contains(arg, "://") {
-			// URL
-			url = arg
-		} else if strings.HasPrefix(arg, "/") {
-			// Absolute path for output file
-			outputFile = arg
 		} else {
-			// Relative path or other argument
-			// If we don't have an output file yet, assume this is it
-			if outputFile == "" {
-				// Get the current working directory and join with the relative path
-				cwd, err := os.Getwd()
-				if err != nil {
-					return fmt.Errorf("failed to get current directory: %w", err)
+			switch {
+			case arg == "-":
+				// Writing to stdout
+				writeToStdout = true
+				quiet = true
+			case strings.HasPrefix(arg, "-"):
+				// Short options
+				for _, flag := range arg[1:] {
+					if flag == 'q' {
+						quiet = true
+					} else if flag == 'O' && i+1 < len(args) {
+						// Output file specified with -O flag
+						outputFile = args[i+1]
+						i++ // Skip the next argument since we used it
+					}
 				}
-				outputFile = filepath.Join(cwd, arg)
+			case strings.Contains(arg, "://"):
+				// URL
+				url = arg
+			case strings.HasPrefix(arg, "/"):
+				// Absolute path for output file
+				outputFile = arg
+			default:
+				// Relative path or other argument
+				// If we don't have an output file yet, assume this is it
+				if outputFile == "" {
+					// Get the current working directory and join with the relative path
+					cwd, err := os.Getwd()
+					if err != nil {
+						return fmt.Errorf("failed to get current directory: %w", err)
+					}
+					outputFile = filepath.Join(cwd, arg)
+				}
 			}
 		}
 	}

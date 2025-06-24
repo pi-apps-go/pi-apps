@@ -27,6 +27,7 @@ import (
 	"github.com/botspot/pi-apps/pkg/api"
 	"github.com/botspot/pi-apps/pkg/gui"
 	"github.com/charmbracelet/log"
+	"github.com/gotk3/gotk3/gtk"
 )
 
 // Build-time variables
@@ -43,12 +44,50 @@ var logger = log.NewWithOptions(os.Stderr, log.Options{
 
 func main() {
 	var (
-		directory = flag.String("directory", "", "Pi-Apps directory (defaults to PI_APPS_DIR env var)")
-		mode      = flag.String("mode", "", "GUI mode: gtk, yad-default, xlunch-dark, etc.")
-		help      = flag.Bool("help", false, "Show help message")
-		version   = flag.Bool("version", false, "Show version information")
+		directory      = flag.String("directory", "", "Pi-Apps directory (defaults to PI_APPS_DIR env var)")
+		mode           = flag.String("mode", "", "GUI mode: gtk, yad-default, xlunch-dark, etc.")
+		help           = flag.Bool("help", false, "Show help message")
+		version        = flag.Bool("version", false, "Show version information")
+		showAppDetails = flag.Bool("show-app-details", false, "Show app details dialog (internal use)")
 	)
+	api.Init()
 	flag.Parse()
+
+	// Handle special case for showing app details dialog
+	if *showAppDetails {
+		args := flag.Args()
+		if len(args) < 2 {
+			logger.Fatal("--show-app-details requires directory and app name arguments")
+		}
+
+		piAppsDir := args[0]
+		appName := args[1]
+
+		// Initialize GTK
+		gtk.Init(nil)
+
+		// Create GUI instance in native mode
+		config := gui.GUIConfig{
+			Directory: piAppsDir,
+			GuiMode:   "native",
+		}
+
+		app, err := gui.NewGUI(config)
+		if err != nil {
+			logger.Fatal("Failed to create GUI for app details: %v", err)
+		}
+
+		if err := app.Initialize(); err != nil {
+			logger.Fatal("Failed to initialize GUI for app details: %v", err)
+		}
+
+		// Show the app details dialog
+		app.ShowAppDetailsForDialog(appName)
+
+		// Run GTK main loop
+		gtk.Main()
+		return
+	}
 
 	if *help {
 		fmt.Println("Pi-Apps GUI")
@@ -105,7 +144,7 @@ func main() {
 
 	fmt.Println(api.GenerateLogo())
 	properties := logger.With("compiled-on", BuildDate, "git-commit", GitCommit, "mode", *mode)
-	properties.Info("Starting Pi-Apps GUI Demo...")
+	properties.Info("Starting Pi-Apps GUI...")
 
 	// Create GUI configuration
 	config := gui.GUIConfig{
@@ -116,11 +155,11 @@ func main() {
 	// Create and initialize GUI
 	app, err := gui.NewGUI(config)
 	if err != nil {
-		log.Fatalf("Failed to create GUI: %v", err)
+		logger.Fatal("Failed to create GUI: %v", err)
 	}
 
 	if err := app.Initialize(); err != nil {
-		log.Fatalf("Failed to initialize GUI: %v", err)
+		logger.Fatal("Failed to initialize GUI: %v", err)
 	}
 
 	// Ensure cleanup on exit
@@ -128,6 +167,6 @@ func main() {
 
 	// Run the GUI
 	if err := app.Run(); err != nil {
-		log.Fatalf("Failed to run GUI: %v", err)
+		logger.Fatal("Failed to run GUI: %v", err)
 	}
 }

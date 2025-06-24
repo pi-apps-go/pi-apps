@@ -173,38 +173,40 @@ func handleImport(source, piAppsDir string) ([]string, error) {
 	expandedSource := os.ExpandEnv(source)
 
 	// Handle different types of import sources
-	if strings.HasPrefix(expandedSource, "http") && strings.HasSuffix(expandedSource, ".zip") {
+	switch {
+	case strings.HasPrefix(expandedSource, "http") && strings.HasSuffix(expandedSource, ".zip"):
 		// Download and extract zip file
 		appName, err := importFromZipURL(expandedSource, piAppsDir)
 		if err != nil {
 			return nil, err
 		}
 		importedApps = append(importedApps, appName)
-	} else if strings.HasPrefix(expandedSource, "/") {
+	case strings.HasPrefix(expandedSource, "/"):
 		// Local file or directory
-		if strings.HasSuffix(expandedSource, ".zip") {
+		switch {
+		case strings.HasSuffix(expandedSource, ".zip"):
 			appName, err := importFromLocalZip(expandedSource, piAppsDir)
 			if err != nil {
 				return nil, err
 			}
 			importedApps = append(importedApps, appName)
-		} else if isDir(expandedSource) {
+		case isDir(expandedSource):
 			appName, err := importFromDirectory(expandedSource, piAppsDir)
 			if err != nil {
 				return nil, err
 			}
 			importedApps = append(importedApps, appName)
-		} else {
+		default:
 			return nil, fmt.Errorf("unsupported local file type")
 		}
-	} else if strings.Contains(expandedSource, "github.com") && strings.Contains(expandedSource, "/pull/") {
+	case strings.Contains(expandedSource, "github.com") && strings.Contains(expandedSource, "/pull/"):
 		// GitHub pull request
 		apps, err := importFromPullRequest(expandedSource, piAppsDir)
 		if err != nil {
 			return nil, err
 		}
 		importedApps = append(importedApps, apps...)
-	} else if isNumeric(expandedSource) {
+	case isNumeric(expandedSource):
 		// PR number
 		account, repo := GetGitUrl()
 		prURL := fmt.Sprintf("https://github.com/%s/%s/pull/%s", account, repo, expandedSource)
@@ -213,7 +215,7 @@ func handleImport(source, piAppsDir string) ([]string, error) {
 			return nil, err
 		}
 		importedApps = append(importedApps, apps...)
-	} else {
+	default:
 		return nil, fmt.Errorf("unsupported import source")
 	}
 
@@ -697,13 +699,14 @@ func importFromPRZip(zipURL, piAppsDir, branchName string) ([]string, error) {
 			continue // Skip invalid apps
 		}
 
+		// TODO: Add more sophisticated comparison for existing apps
+		// For now, we'll import all apps (both new and updates)
+		// In the future, we could add more sophisticated comparison that looks like this:
 		// Check if it's a new app or significantly different
-		isNew := !existingApps[appName]
-		if !isNew {
-			// TODO: Add more sophisticated comparison
-			// For existing apps, we could add more sophisticated comparison
-			// For now, we'll import it anyway as an update
-		}
+		// isNew := !existingApps[appName]
+		// if !isNew {
+		//	insert code here to check if the app is significantly different
+		// }
 
 		// Copy app to pi-apps directory
 		targetDir := filepath.Join(piAppsDir, "apps", appName)

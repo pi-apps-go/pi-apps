@@ -216,9 +216,10 @@ func formatLogDate(modTime time.Time) string {
 	dateStr := modTime.Format(dateFormat)
 
 	// Replace day names with Today/Yesterday if applicable
-	if logDay == today {
+	switch logDay {
+	case today:
 		dateStr = strings.Replace(dateStr, logDay, "Today", 1)
-	} else if logDay == yesterday {
+	case yesterday:
 		dateStr = strings.Replace(dateStr, logDay, "Yesterday", 1)
 	}
 
@@ -229,17 +230,19 @@ func formatLogDate(modTime time.Time) string {
 func generateCaption(action, result, app string) string {
 	var caption string
 
-	if action == "uninstall" {
+	switch action {
+	case "uninstall":
 		caption = "Uninstalling " + app
-	} else if action == "install" {
+	case "install":
 		caption = "Installing " + app
 	}
 
-	if result == "success" {
+	switch result {
+	case "success":
 		caption += " succeeded."
-	} else if result == "fail" {
+	case "fail":
 		caption += " failed."
-	} else { // incomplete
+	default: // incomplete
 		caption += " was interrupted."
 	}
 
@@ -257,21 +260,24 @@ func getAppIcon(app, piAppsDir string) string {
 
 // getActionIcon returns the path to the action icon
 func getActionIcon(action, piAppsDir string) string {
-	if action == "uninstall" {
+	switch action {
+	case "uninstall":
 		return filepath.Join(piAppsDir, "icons", "uninstall.png")
-	} else if action == "install" {
+	case "install":
 		return filepath.Join(piAppsDir, "icons", "install.png")
+	default:
+		return filepath.Join(piAppsDir, "icons", "none-24.png")
 	}
-	return filepath.Join(piAppsDir, "icons", "none-24.png")
 }
 
 // getResultIcon returns the path to the result icon
 func getResultIcon(result, piAppsDir string) string {
-	if result == "success" {
+	switch result {
+	case "success":
 		return filepath.Join(piAppsDir, "icons", "success.png")
-	} else if result == "fail" {
+	case "fail":
 		return filepath.Join(piAppsDir, "icons", "failure.png")
-	} else { // incomplete
+	default: // incomplete
 		return filepath.Join(piAppsDir, "icons", "interrupted.png")
 	}
 }
@@ -602,14 +608,14 @@ func handleLogSelection(treeView *gtk.TreeView, path *gtk.TreePath) {
 		return
 	}
 
-	filepath, ok := filepathInterface.(string)
-	if !ok {
+	switch filepath := filepathInterface.(type) {
+	case string:
+		// Open the log file for viewing
+		if err := ViewFile(filepath); err != nil {
+			showErrorDialog("Failed to view log file: " + err.Error())
+		}
+	default:
 		return
-	}
-
-	// Open the log file for viewing
-	if err := ViewFile(filepath); err != nil {
-		showErrorDialog("Failed to view log file: " + err.Error())
 	}
 }
 

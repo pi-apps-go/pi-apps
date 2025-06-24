@@ -49,7 +49,7 @@ Introducing Pi-Apps Go, a Go based app store with a well-maintained collection o
 
 Original Pi-Apps serves **over 1,000,000 people** and hosts [over 200 apps](https://pi-apps.io/wiki/getting-started/apps-list/).
 
-**Pi-Apps Go is very new and is a work in progress.** Please [report](https://github.com/pi-apps-go/pi-apps/issues/new?template=bug-report.yml) any issues you encounter.
+**Pi-Apps Go is very new and is a work in progress.** Please expect some features to be missing/broken and [report](https://github.com/pi-apps-go/pi-apps/issues/new?template=bug-report.yml) any issues you encounter.
 ## Install Pi-Apps Go
 Open a terminal and run this command:
 ```bash
@@ -228,3 +228,34 @@ Embed code (Light):
 
  - Is Pi-Apps Go free?
 > Absolutely! [Donations are welcome](https://github.com/sponsors/matu6968), but Pi-Apps Go itself will always be free and open-source.
+
+## API usage
+
+Pi-Apps Go offers a Go module for other Go programs to use if Pi-Apps Go is installed.
+
+### Example usage
+To install it:
+```bash
+go get github.com/pi-apps-go/pi-apps/pkg/api
+```
+
+And then you can import the module with:
+
+```go
+import "github.com/pi-apps-go/pi-apps/pkg/api"
+
+api.Init()
+api.Status("Hello, world!")
+```
+
+Another example (installing a package):
+```go
+api.InstallApp("Ruffle")
+```
+
+Another example (uninstalling a package):
+```go
+api.UninstallApp("Ruffle")
+```
+
+For the full API, see the [API documentation](https://pkg.go.dev/github.com/pi-apps-go/pi-apps/pkg/api).

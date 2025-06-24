@@ -52,7 +52,10 @@ var (
 	GDKBackend     string
 )
 
-func init() {
+// Init intializes enviroment variables required for Pi-Apps Go to function.
+//
+// It should be called automatically in Pi-Apps Go related programs but in other cases (like when using the API in a Go program) it is required to call this function manually.
+func Init() {
 	// Initialize Pi-Apps directory
 	initPiAppsDir()
 
@@ -212,17 +215,30 @@ func initSystemArch() {
 		return
 	}
 
-	if buf[4] == 0x02 {
+	switch buf[4] {
+	case 0x02:
 		IsArm64 = true
 		HostSystemArch = "arm64"
-	} else if buf[4] == 0x01 {
+	case 0x01:
 		IsArm32 = true
 		HostSystemArch = "armhf"
 	}
 }
 
+// CommandExists is a helper function that checks if a command is available in the system, return true if yes, return false if no
+func CommandExists(command string) bool {
+	_, err := exec.LookPath(command)
+	return err == nil
+}
+
 // initSystemInfo gets system information using lsb_release
 func initSystemInfo() {
+	// Check
+	if !CommandExists("lsb_release") {
+		Status("Installing lsb_release, please wait...")
+		runCommand("sudo", "apt", "install", "-y", "lsb-release")
+	}
+
 	// Check for upstream release first (Ubuntu derivatives)
 	output, err := exec.Command("lsb_release", "-a", "-u").CombinedOutput()
 	if err == nil && !bytes.Contains(output, []byte("command not found")) {

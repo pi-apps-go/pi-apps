@@ -1,0 +1,220 @@
+# This file is part of Pi-Apps Go - a modern, cross-architecture/cross-platform, and modular Pi-Apps implementation in Go.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+# File: locales/es/LC_MESSAGES/pi-apps.po
+# Description: Spanish translations for Pi-Apps Go
+msgid ""
+msgstr ""
+"Project-Id-Version: Pi-Apps Settings\n"
+"Report-Msgid-Bugs-To: https://github.com/pi-apps-go/pi-apps/issues/new?template=bug-report.yml\n"
+"POT-Creation-Date: 2025-06-23 20:00+0000\n"
+"PO-Revision-Date: 2025-06-23 20:00+0000\n"
+"Last-Translator: Pi-Apps Go contributors\n"
+"Language-Team: Spanish\n"
+"Language: es\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+# Window title
+msgid "Pi-Apps Settings"
+msgstr "Configuración de Pi-Apps"
+
+# Tab labels
+msgid "Settings"
+msgstr "Configuración"
+
+msgid "Actions"
+msgstr "Acciones"
+
+# Button labels
+msgid "Reset"
+msgstr "Restablecer"
+
+msgid "Cancel"
+msgstr "Cancelar"
+
+msgid "Save"
+msgstr "Guardar"
+
+# Button tooltips
+msgid "Reset all settings to their defaults"
+msgstr "Restablecer todas las configuraciones a sus valores predeterminados"
+
+# Action button names
+msgid "Categories"
+msgstr "Categorías"
+
+msgid "Log files"
+msgstr "Archivos de registro"
+
+msgid "Multi-Install"
+msgstr "Instalación múltiple"
+
+msgid "New App"
+msgstr "Nueva aplicación"
+
+msgid "Import App"
+msgstr "Importar aplicación"
+
+msgid "Multi-Uninstall"
+msgstr "Desinstalación múltiple"
+
+# Action button tooltips
+msgid "Does an App belong in Editors instead of Tools? This lets you move it."
+msgstr "¿Pertenece una aplicación a Editores en lugar de Herramientas? Esto te permite moverla."
+
+msgid "View past installation logs. Useful for debugging, or to see what you installed yesterday."
+msgstr "Ver registros de instalación anteriores. Útil para depuración, o para ver lo que instalaste ayer."
+
+msgid "Install multiple apps at the same time."
+msgstr "Instalar múltiples aplicaciones al mismo tiempo."
+
+msgid "Make your own app! It's pretty easy if you follow the instructions."
+msgstr "¡Crea tu propia aplicación! Es bastante fácil si sigues las instrucciones."
+
+msgid "Did someone else make an app but it's not on Pi-Apps yet? Import it here."
+msgstr "¿Alguien más hizo una aplicación pero aún no está en Pi-Apps? Impórtala aquí."
+
+msgid "Uninstall multiple apps at the same time."
+msgstr "Desinstalar múltiples aplicaciones al mismo tiempo."
+
+# Dialog messages
+msgid "Are you sure you want to reset all settings to their defaults?"
+msgstr "¿Estás seguro de que quieres restablecer todas las configuraciones a sus valores predeterminados?"
+
+# Console messages
+msgid "Creating Settings menu button"
+msgstr "Creando botón de menú de Configuración"
+
+msgid "Unknown action: %s"
+msgstr "Acción desconocida: %s"
+
+msgid "Failed to start %s: %v"
+msgstr "Error al iniciar %s: %v"
+
+msgid "Failed to reset setting %s: %v"
+msgstr "Error al restablecer configuración %s: %v"
+
+msgid "Failed to save setting %s: %v"
+msgstr "Error al guardar configuración %s: %v"
+
+# Desktop entry
+msgid "Configure Pi-Apps or create an App"
+msgstr "Configurar Pi-Apps o crear una aplicación"
+
+# Error messages
+msgid "PI_APPS_DIR environment variable not set"
+msgstr "Variable de entorno PI_APPS_DIR no establecida"
+
+msgid "HOME environment variable not set"
+msgstr "Variable de entorno HOME no establecida"
+
+msgid "Warning: failed to create desktop entry: %v"
+msgstr "Advertencia: error al crear entrada de escritorio: %v"
+
+msgid "Warning: failed to write default for %s: %v"
+msgstr "Advertencia: error al escribir valor predeterminado para %s: %v"
+
+msgid "Warning: failed to revert setting %s: %v"
+msgstr "Advertencia: error al revertir configuración %s: %v"
+
+# Setting names
+msgid "App List Style"
+msgstr "Estilo de lista de aplicaciones"
+
+msgid "Check for updates"
+msgstr "Buscar actualizaciones"
+
+msgid "Enable analytics"
+msgstr "Habilitar análisis"
+
+msgid "Preferred text editor"
+msgstr "Editor de texto preferido"
+
+msgid "Show Edit button"
+msgstr "Mostrar botón Editar"
+
+msgid "Show apps"
+msgstr "Mostrar aplicaciones"
+
+msgid "Shuffle App list"
+msgstr "Mezclar lista de aplicaciones"
+
+# Setting values
+msgid "Yes"
+msgstr "Sí"
+
+msgid "No"
+msgstr "No"
+
+msgid "Never"
+msgstr "Nunca"
+
+msgid "Daily"
+msgstr "Diariamente"
+
+msgid "Always"
+msgstr "Siempre"
+
+msgid "Weekly"
+msgstr "Semanalmente"
+
+msgid "All"
+msgstr "Todas"
+
+msgid "packages"
+msgstr "paquetes"
+
+msgid "standard"
+msgstr "estándar"
+
+msgid "default"
+msgstr "predeterminado"
+
+# Setting tooltips
+msgid "Analytics are used to count the number of installs for each app."
+msgstr "Los análisis se usan para contar el número de instalaciones de cada aplicación."
+
+msgid "Each app is associated with a shlink link. During an install, that link is \"clicked\". The total number of clicks is used to calculate how many users each app has."
+msgstr "Cada aplicación está asociada con un enlace shlink. Durante una instalación, ese enlace es \"clickeado\". El número total de clics se usa para calcular cuántos usuarios tiene cada aplicación."
+
+msgid "This information cannot possibly be used to identify you, or any personal information about you."
+msgstr "Esta información no puede ser usada para identificarte, ni ninguna información personal sobre ti."
+
+msgid "How often should Pi-Apps check for app updates and refresh Pi-Apps on boot?"
+msgstr "¿Con qué frecuencia debería Pi-Apps buscar actualizaciones de aplicaciones y refrescar Pi-Apps al iniciar?"
+
+msgid "Most apps use scripts to install software from places like Github or Sourceforge."
+msgstr "La mayoría de aplicaciones usan scripts para instalar software de lugares como Github o Sourceforge."
+
+msgid "But other apps can already be easily installed from Add/Remove Software. These apps are simply a shortcut to install apt-packages."
+msgstr "Pero otras aplicaciones ya pueden instalarse fácilmente desde Agregar/Quitar Software. Estas aplicaciones son simplemente un acceso directo para instalar paquetes apt."
+
+msgid "This option allows you to selectively show one type of app or the other, or both types."
+msgstr "Esta opción te permite mostrar selectivamente un tipo de aplicación u otro, o ambos tipos."
+
+msgid "Pi-Apps can display the apps as a compact list (GTK3 via gotk3), or as a group of larger icons. (xlunch like interface)"
+msgstr "Pi-Apps puede mostrar las aplicaciones como una lista compacta o como un grupo de iconos más grandes."
+
+msgid "Specify which text editor to use when editing install scripts"
+msgstr "Especifica qué editor de texto usar al editar scripts de instalación"
+
+msgid "When viewing an App's details, display an Edit button to tweak it. Beware that updating that app later will undo your changes."
+msgstr "Al ver los detalles de una aplicación, muestra un botón Editar para modificarla. Ten en cuenta que actualizar esa aplicación después deshará tus cambios."
+
+msgid "Tired of Apps being sorted alphabetically? Randomizing the order will keep things fresh."
+msgstr "¿Cansado de que las aplicaciones estén ordenadas alfabéticamente? Aleatorizar el orden mantendrá las cosas frescas." 

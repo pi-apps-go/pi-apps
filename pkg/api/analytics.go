@@ -81,7 +81,7 @@ func ShlinkLink(app, trigger string) error {
 		url := fmt.Sprintf("https://analytics.pi-apps.io/pi-apps-%s-%s/track", trigger, sanitizedApp)
 
 		// Create the user agent string
-		userAgent := fmt.Sprintf("Pi-Apps Raspberry Pi app store; %s; %s; %s; %s; %s; %s",
+		userAgent := fmt.Sprintf("Pi-Apps Go Raspberry Pi app store; %s; %s; %s; %s; %s; %s",
 			model, socID, machineID, serialNumber, osName, arch)
 
 		// Make the request
@@ -105,6 +105,7 @@ func ShlinkLink(app, trigger string) error {
 		defer resp.Body.Close()
 
 		// We don't need to do anything with the response
+		// For debugging purposes we could add a DEBUG log message if anything were to go wrong
 	}()
 
 	return nil

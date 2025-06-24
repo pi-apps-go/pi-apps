@@ -135,9 +135,10 @@ func RemoveRepofileIfUnused(file, testMode, key string) error {
 		return nil
 	}
 
+	// Determine file type and process accordingly
 	fileExt := filepath.Ext(file)
-
-	if fileExt == ".list" {
+	switch fileExt {
+	case ".list":
 		inUse, err := handleListFile(file)
 		if err != nil {
 			return fmt.Errorf("failed to process list file: %w", err)
@@ -149,7 +150,7 @@ func RemoveRepofileIfUnused(file, testMode, key string) error {
 			}
 			return nil
 		}
-	} else if fileExt == ".sources" {
+	case ".sources":
 		inUse, err := handleSourcesFile(file)
 		if err != nil {
 			return fmt.Errorf("failed to process sources file: %w", err)
@@ -161,7 +162,7 @@ func RemoveRepofileIfUnused(file, testMode, key string) error {
 			}
 			return nil
 		}
-	} else {
+	default:
 		return fmt.Errorf("%s was not of apt list or sources type", file)
 	}
 
@@ -365,7 +366,8 @@ func getInstalledPackages() ([]string, error) {
 	for scanner.Scan() {
 		line := scanner.Text()
 
-		if line == "" {
+		switch {
+		case line == "":
 			// End of package entry
 			if isInstalled && packageName != "" {
 				installedPackages = append(installedPackages, packageName)
@@ -374,11 +376,9 @@ func getInstalledPackages() ([]string, error) {
 			packageName = ""
 			isInstalled = false
 			continue
-		}
-
-		if strings.HasPrefix(line, "Package: ") {
+		case strings.HasPrefix(line, "Package: "):
 			packageName = strings.TrimPrefix(line, "Package: ")
-		} else if line == "Status: install ok installed" {
+		case line == "Status: install ok installed":
 			isInstalled = true
 		}
 	}

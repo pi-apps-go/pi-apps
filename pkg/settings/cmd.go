@@ -36,6 +36,12 @@ func Main() error {
 		return nil
 	}
 
+	// Initialize internationalization
+	if err := InitializeI18n(); err != nil {
+		// Log error but continue - translations will fall back to English
+		fmt.Printf("Warning: failed to initialize i18n: %v\n", err)
+	}
+
 	// Parse command line arguments
 	args := os.Args[1:] // Skip program name
 
@@ -53,7 +59,7 @@ func Main() error {
 
 	// Create desktop entry if it doesn't exist
 	if err := createDesktopEntry(); err != nil {
-		fmt.Printf("Warning: failed to create desktop entry: %v\n", err)
+		fmt.Printf(T("Warning: failed to create desktop entry: %v")+"\n", err)
 	}
 
 	// Create and show the settings window
@@ -72,7 +78,7 @@ func Main() error {
 func RefreshSettings() error {
 	directory := api.GetPiAppsDir()
 	if directory == "" {
-		api.ErrorNoExit("PI_APPS_DIR environment variable not set")
+		api.ErrorNoExit(T("PI_APPS_DIR environment variable not set"))
 		return nil
 	}
 
@@ -114,7 +120,7 @@ func RefreshSettings() error {
 				if line != "" && !strings.HasPrefix(line, "#") {
 					// Write default value
 					if err := os.WriteFile(settingPath, []byte(line), 0644); err != nil {
-						fmt.Printf("Warning: failed to write default for %s: %v\n", settingName, err)
+						fmt.Printf(T("Warning: failed to write default for %s: %v")+"\n", settingName, err)
 					}
 					break
 				}
@@ -129,7 +135,7 @@ func RefreshSettings() error {
 func RevertSettings() error {
 	directory := api.GetPiAppsDir()
 	if directory == "" {
-		api.ErrorNoExit("PI_APPS_DIR environment variable not set")
+		api.ErrorNoExit(T("PI_APPS_DIR environment variable not set"))
 		return nil
 	}
 
@@ -169,7 +175,7 @@ func RevertSettings() error {
 			if line != "" && !strings.HasPrefix(line, "#") {
 				// Write default value (overwrite existing)
 				if err := os.WriteFile(settingPath, []byte(line), 0644); err != nil {
-					fmt.Printf("Warning: failed to revert setting %s: %v\n", settingName, err)
+					fmt.Printf(T("Warning: failed to revert setting %s: %v")+"\n", settingName, err)
 				}
 				break
 			}
@@ -183,13 +189,13 @@ func RevertSettings() error {
 func createDesktopEntry() error {
 	directory := api.GetPiAppsDir()
 	if directory == "" {
-		api.ErrorNoExit("PI_APPS_DIR environment variable not set")
+		api.ErrorNoExit(T("PI_APPS_DIR environment variable not set"))
 		return nil
 	}
 
 	home := os.Getenv("HOME")
 	if home == "" {
-		api.ErrorNoExit("HOME environment variable not set")
+		api.ErrorNoExit(T("HOME environment variable not set"))
 		return nil
 	}
 
@@ -207,8 +213,8 @@ func createDesktopEntry() error {
 
 	// Create desktop entry content
 	content := fmt.Sprintf(`[Desktop Entry]
-Name=Pi-Apps Settings
-Comment=Configure Pi-Apps or create an App
+Name=%s
+Comment=%s
 Exec=%s/settings
 Icon=%s/icons/settings.png
 Terminal=false
@@ -216,14 +222,14 @@ StartupWMClass=Pi-Apps-Settings
 Type=Application
 Categories=Settings;
 StartupNotify=true
-`, directory, directory)
+`, T("Pi-Apps Settings"), T("Configure Pi-Apps or create an App"), directory, directory)
 
 	// Write desktop file
 	if err := os.WriteFile(desktopPath, []byte(content), 0644); err != nil {
 		return fmt.Errorf("failed to write desktop entry: %w", err)
 	}
 
-	fmt.Println("Creating Settings menu button")
+	fmt.Println(T("Creating Settings menu button"))
 	return nil
 }
 

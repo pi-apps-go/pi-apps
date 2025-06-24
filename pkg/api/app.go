@@ -103,19 +103,19 @@ func RemoveDeprecatedApp(app, removalArch, message string) error {
 		appDirExists = false
 	}
 
-	// Construct the appropriate text for the user prompt
+	// Determine if we should prompt based on the conditions
+	var shouldPrompt bool
 	var text string
-	shouldPrompt := false
 
-	// Check if we need to prompt the user based on the removal architecture and app status
-	if removalArch != "" && arch == removalArch && appDirExists && appStatus == "installed" {
+	switch {
+	case removalArch != "" && appDirExists && arch == removalArch && appStatus == "installed":
 		shouldPrompt = true
 		if message != "" {
 			text = fmt.Sprintf("Pi-Apps has deprecated %s for %s-bit OSs which you currently have installed.\n\n%s\n\nWould you like to uninstall it now or leave it installed? You will NOT be able to uninstall %s with Pi-Apps later.", app, removalArch, message, app)
 		} else {
 			text = fmt.Sprintf("Pi-Apps has deprecated %s for %s-bit OSs which you currently have installed.\nWould you like to uninstall it now or leave it installed? You will NOT be able to uninstall %s with Pi-Apps later.", app, removalArch, app)
 		}
-	} else if removalArch == "" && appDirExists && appStatus == "installed" {
+	case removalArch == "" && appDirExists && appStatus == "installed":
 		shouldPrompt = true
 		if message != "" {
 			text = fmt.Sprintf("Pi-Apps has deprecated %s which you currently have installed.\n\n%s\n\nWould you like to uninstall it now or leave it installed? You will NOT be able to uninstall %s with Pi-Apps later.", app, message, app)

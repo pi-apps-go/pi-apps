@@ -273,7 +273,7 @@ func generateAppList(config *AppListConfig) (*PreloadedList, error) {
 			Type:        "category",
 			Name:        "Updates",
 			Path:        "Updates/",
-			Description: "Pi-Apps updates are available. Click here to update your apps.",
+			Description: "Pi-Apps Go updates are available. Click here to update your apps.",
 			IconPath:    filepath.Join(config.Directory, "icons", "categories", "Updates.png"),
 			IsUpdates:   true,
 		}
@@ -847,11 +847,11 @@ func GetSelectedAppPath(treeView *gtk.TreeView) (string, error) {
 		return "", fmt.Errorf("failed to convert value to Go type: %w", err)
 	}
 
-	path, ok := pathInterface.(string)
-	if !ok {
+	switch path := pathInterface.(type) {
+	case string:
+		return path, nil
+	default:
 		logger.Error("path value is not a string")
 		return "", fmt.Errorf("path value is not a string")
 	}
-
-	return path, nil
 }

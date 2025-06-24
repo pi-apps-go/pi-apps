@@ -188,14 +188,15 @@ func ValidateAppsGUI(queue []QueueItem) ([]QueueItem, error) {
 			continue
 		}
 
-		// Check for redundant operations and inform user
+		// Check for redundant operations
 		appStatus := getAppStatus(item.AppName)
-		if appStatus == "installed" && item.Action == "install" {
+		switch {
+		case appStatus == "installed" && item.Action == "install":
 			// App is already installed, inform user and skip
 			showErrorDialog(fmt.Sprintf("<b>%s</b> is already installed. Skipping redundant installation.", item.AppName))
 			fmt.Printf("Skipping redundant installation of %s (already installed).\n", item.AppName)
 			continue
-		} else if appStatus == "uninstalled" && item.Action == "uninstall" {
+		case appStatus == "uninstalled" && item.Action == "uninstall":
 			// App is already uninstalled, inform user and skip
 			showErrorDialog(fmt.Sprintf("<b>%s</b> is already uninstalled. Skipping redundant uninstallation.", item.AppName))
 			fmt.Printf("Skipping redundant uninstallation of %s (already uninstalled).\n", item.AppName)

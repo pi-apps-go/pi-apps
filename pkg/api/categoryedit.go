@@ -538,8 +538,12 @@ func extractCategoryData(listStore *gtk.ListStore, originalData *CategoryData) *
 			valid = listStore.IterNext(iter)
 			continue
 		}
-		app, ok := appInterface.(string)
-		if !ok {
+
+		var app string
+		switch appValue := appInterface.(type) {
+		case string:
+			app = appValue
+		default:
 			valid = listStore.IterNext(iter)
 			continue
 		}
@@ -555,8 +559,12 @@ func extractCategoryData(listStore *gtk.ListStore, originalData *CategoryData) *
 			valid = listStore.IterNext(iter)
 			continue
 		}
-		category, ok := categoryInterface.(string)
-		if !ok {
+
+		var category string
+		switch categoryValue := categoryInterface.(type) {
+		case string:
+			category = categoryValue
+		default:
 			category = ""
 		}
 

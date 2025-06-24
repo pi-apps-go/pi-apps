@@ -87,14 +87,9 @@ func NewGUI(config GUIConfig) (*GUI, error) {
 		}
 	}
 
+	// Only GTK3 native mode is supported now
 	if config.GuiMode == "" {
-		// Read GUI mode from settings
-		modeBytes, err := os.ReadFile(filepath.Join(config.Directory, "data", "settings", "App List Style"))
-		if err != nil {
-			config.GuiMode = "default"
-		} else {
-			config.GuiMode = strings.TrimSpace(string(modeBytes))
-		}
+		config.GuiMode = "native"
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -155,29 +150,20 @@ func (g *GUI) Initialize() error {
 func (g *GUI) Run() error {
 	logger.Info(fmt.Sprintf("GUI Run() called with mode: %s", g.guiMode))
 
-	switch {
-	case strings.HasPrefix(g.guiMode, "yad"):
-		logger.Info("Using YAD mode")
-		return g.runYADMode()
-	case strings.HasPrefix(g.guiMode, "xlunch"):
-		logger.Info("Using Xlunch mode")
-		return g.runXlunchMode()
-	case g.guiMode == "gtk" || g.guiMode == "native":
-		logger.Info("Using native GTK mode")
-		return g.runNativeMode()
-	case g.guiMode == "default" || g.guiMode == "":
-		// Default mode - prefer native GTK if available, otherwise fall back
-		if canUseGTK() {
-			logger.Info("Default mode: using native GTK")
-			return g.runNativeMode()
-		} else {
-			logger.Warn("Default mode: GTK not available, falling back to bash GUI")
-			return g.runYADMode()
-		}
-	default:
-		logger.Error("Unrecognized app list style '%s'", g.guiMode)
-		return fmt.Errorf("unrecognized app list style '%s'", g.guiMode)
+	// Check for xlunch modes first
+	if strings.HasPrefix(g.guiMode, "xlunch") {
+		logger.Info("Using native XLunch mode")
+		return g.runXlunchNativeMode()
 	}
+
+	// Check if GTK can be used for native mode
+	if !canUseGTK() {
+		return fmt.Errorf("GTK not available: no display environment detected")
+	}
+
+	// Default to native GTK mode
+	logger.Info("Using native GTK mode")
+	return g.runNativeMode()
 }
 
 // Cleanup performs cleanup operations
@@ -310,9 +296,9 @@ func (g *GUI) startBackgroundTasks() {
 
 	// Usage tracking
 	go func() {
-		// Equivalent to shlink_link usage active
-		// This would need to be implemented based on the actual shlink implementation
-		// TODO: implement this once our shlink server is ready
+		// Click pi-apps go usage link every time the GUI is run
+		// api.ShlinkLink("usage", "active")
+		// TODO: this will be uncommented once our shlink server is ready
 	}()
 }
 
@@ -954,9 +940,6 @@ func (g *GUI) onSearchClicked() {
 
 // onSettingsClicked handles settings button clicks
 func (g *GUI) onSettingsClicked() {
-	// Remember the current GUI mode before opening settings
-	currentGuiMode := g.guiMode
-
 	// Hide the main window while settings is open
 	g.window.Hide()
 
@@ -971,53 +954,9 @@ func (g *GUI) onSettingsClicked() {
 		return
 	}
 
-	// Settings completed - check if GUI mode changed
-	newGuiMode := ""
-	if modeBytes, err := os.ReadFile(filepath.Join(g.directory, "data", "settings", "App List Style")); err == nil {
-		newGuiMode = strings.TrimSpace(string(modeBytes))
-	}
-	if newGuiMode == "" {
-		newGuiMode = "default"
-	}
-
-	// Only restart if the GUI mode actually changed
-	if newGuiMode != currentGuiMode {
-		logger.Info(fmt.Sprintf("GUI mode changed from '%s' to '%s', restarting GUI\n", currentGuiMode, newGuiMode))
-
-		// Settings changed the GUI mode - restart the GUI to apply new settings
-		g.window.Destroy()
-		gtk.MainQuit()
-
-		// Start a new GUI instance in a goroutine to avoid blocking
-		go func() {
-			time.Sleep(100 * time.Millisecond) // Small delay to ensure cleanup
-
-			// Create new GUI with the updated mode
-			config := GUIConfig{
-				Directory: g.directory,
-				GuiMode:   newGuiMode,
-			}
-
-			newGUI, err := NewGUI(config)
-			if err != nil {
-				logger.Error(fmt.Sprintf("Failed to create new GUI: %v\n", err))
-				return
-			}
-
-			if err := newGUI.Initialize(); err != nil {
-				logger.Error(fmt.Sprintf("Failed to initialize new GUI: %v\n", err))
-				return
-			}
-
-			if err := newGUI.Run(); err != nil {
-				logger.Error(fmt.Sprintf("Failed to run new GUI: %v\n", err))
-			}
-		}()
-	} else {
-		// No GUI mode change, just show the window again
-		logger.Info("Settings closed, no GUI mode change detected")
-		g.window.Show()
-	}
+	// Settings completed successfully - show the window again
+	logger.Info("Settings closed successfully")
+	g.window.Show()
 }
 
 // performSearch performs app search using the API's AppSearchGUI function
@@ -1086,6 +1025,41 @@ func (g *GUI) showUpdatesWindow() {
 	logger.Info("Updates completed, category list will reflect changes")
 }
 
+// ShowAppDetailsForDialog shows app details dialog for separate process (used by --show-app-details)
+func (g *GUI) ShowAppDetailsForDialog(appName string) {
+	logger.Info(fmt.Sprintf("Showing app details dialog for: %s\n", appName))
+
+	// Force native mode to ensure we get the full dialog
+	g.guiMode = "native"
+
+	// Call the main showAppDetails method with quitOnClose=true for separate process
+	g.showAppDetailsWithQuit(appName, true)
+}
+
+// showAppDetailsWithQuit shows app details with optional quit-on-close behavior
+func (g *GUI) showAppDetailsWithQuit(appPath string, quitOnClose bool) {
+	// Call the regular showAppDetails method first
+	g.showAppDetails(appPath)
+
+	// If quitOnClose is true and we have a details window, add quit handlers
+	if quitOnClose && g.detailsWindow != nil {
+		logger.Info("Adding quit handlers to app details dialog for separate process")
+
+		// Connect signal to quit the main loop when the details window is destroyed
+		g.detailsWindow.Connect("destroy", func() {
+			logger.Info("App details dialog destroyed, quitting GTK main loop")
+			gtk.MainQuit()
+		})
+
+		// Also handle window deletion (X button)
+		g.detailsWindow.Connect("delete-event", func() bool {
+			logger.Info("App details dialog delete event, quitting GTK main loop")
+			gtk.MainQuit()
+			return false // Allow the window to be destroyed
+		})
+	}
+}
+
 // showAppDetails shows the app details window
 func (g *GUI) showAppDetails(appPath string) {
 	if g.detailsWindow != nil {
@@ -1104,18 +1078,44 @@ func (g *GUI) showAppDetails(appPath string) {
 
 	logger.Info(fmt.Sprintf("Showing details for app: %s\n", appName))
 
-	// Create details window
+	// For xlunch mode, spawn a separate GTK process to avoid event loop conflicts
+	if strings.Contains(g.guiMode, "xlunch") {
+		logger.Info("Spawning app details dialog in separate process for xlunch mode...")
+
+		// Use Go itself to run the app details dialog in a separate process
+		// This is a hack to prevent the event loop from being blocked by the dialog
+		go func() {
+			cmd := exec.Command(os.Args[0], "--show-app-details", g.directory, appName)
+			if err := cmd.Run(); err != nil {
+				logger.Error(fmt.Sprintf("Failed to spawn app details dialog: %v", err))
+			}
+		}()
+
+		logger.Info("App details dialog process spawned")
+		return
+	}
+
+	// Create details window (for non-xlunch modes)
 	window, err := gtk.WindowNew(gtk.WINDOW_TOPLEVEL)
 	if err != nil {
 		logger.Error(fmt.Sprintf("Error creating details window: %v\n", err))
 		return
 	}
 	g.detailsWindow = window
+	logger.Info("GTK details window created successfully")
 
 	window.SetTitle(fmt.Sprintf("Details of %s", appName))
 	window.SetDefaultSize(500, 400)
-	window.SetTransientFor(g.window)
-	window.SetPosition(gtk.WIN_POS_CENTER_ON_PARENT)
+
+	// Only set parent window if we're not in xlunch mode
+	if g.window != nil && !strings.Contains(g.guiMode, "xlunch") {
+		window.SetTransientFor(g.window)
+		window.SetPosition(gtk.WIN_POS_CENTER_ON_PARENT)
+	} else {
+		// In xlunch mode or when no parent window, center on screen
+		window.SetPosition(gtk.WIN_POS_CENTER)
+	}
+
 	window.SetResizable(true)
 
 	// Set window icon
@@ -1176,12 +1176,39 @@ func (g *GUI) showAppDetails(appPath string) {
 				infoBox.PackStart(nameLabel, false, false, 0)
 			}
 
-			// Package info if it's a package app
+			// Package info if it's a package app (detailed implementation)
 			if g.isPackageApp(appName) {
-				packageLabel, err := gtk.LabelNew("- This app installs system packages")
-				if err == nil {
-					packageLabel.SetHAlign(gtk.ALIGN_START)
-					infoBox.PackStart(packageLabel, false, false, 0)
+				packagesStr, err := api.PkgAppPackagesRequired(appName)
+				if err != nil || packagesStr == "" {
+					// Package app but no compatible packages available
+					packageLabel, err := gtk.LabelNew("")
+					if err == nil {
+						packageLabel.SetMarkup(fmt.Sprintf("- <b>%s</b> is not compatible with your system", appName))
+						packageLabel.SetHAlign(gtk.ALIGN_START)
+						infoBox.PackStart(packageLabel, false, false, 0)
+					}
+				} else {
+					// Parse packages from space-separated string
+					packages := strings.Fields(packagesStr)
+					if len(packages) == 1 {
+						// Single package
+						packageLabel, err := gtk.LabelNew("")
+						if err == nil {
+							packageLabel.SetMarkup(fmt.Sprintf("- This app installs the <b>%s</b> package.", packages[0]))
+							packageLabel.SetHAlign(gtk.ALIGN_START)
+							infoBox.PackStart(packageLabel, false, false, 0)
+						}
+					} else {
+						// Multiple packages
+						packageLabel, err := gtk.LabelNew("")
+						if err == nil {
+							packageNames := strings.Join(packages, ", ")
+							packageLabel.SetMarkup(fmt.Sprintf("- This app installs these packages: <b>%s</b>", packageNames))
+							packageLabel.SetHAlign(gtk.ALIGN_START)
+							packageLabel.SetLineWrap(true)
+							infoBox.PackStart(packageLabel, false, false, 0)
+						}
+					}
 				}
 			}
 
@@ -1189,17 +1216,65 @@ func (g *GUI) showAppDetails(appPath string) {
 			if website := g.getAppWebsite(appName); website != "" {
 				websiteLabel, err := gtk.LabelNew("")
 				if err == nil {
-					websiteLabel.SetMarkup(fmt.Sprintf("- Website: <a href='%s'>%s</a>", website, website))
+					// Check if credits file exists to add it on the same line
+					creditsFile := filepath.Join(g.directory, "apps", appName, "credits")
+					if _, err := os.Stat(creditsFile); err == nil {
+						// Website + Credits on same line
+						websiteLabel.SetMarkup(fmt.Sprintf("- Website: <a href='%s'>%s</a> | <a href='file://%s'>Credits</a>", website, website, creditsFile))
+					} else {
+						// Just website
+						websiteLabel.SetMarkup(fmt.Sprintf("- Website: <a href='%s'>%s</a>", website, website))
+					}
 					websiteLabel.SetHAlign(gtk.ALIGN_START)
 					infoBox.PackStart(websiteLabel, false, false, 0)
 				}
+			} else {
+				// No website, but check for standalone credits link
+				creditsFile := filepath.Join(g.directory, "apps", appName, "credits")
+				if _, err := os.Stat(creditsFile); err == nil {
+					creditsLabel, err := gtk.LabelNew("")
+					if err == nil {
+						creditsLabel.SetMarkup(fmt.Sprintf("- <a href='file://%s'>Credits</a>", creditsFile))
+						creditsLabel.SetHAlign(gtk.ALIGN_START)
+						infoBox.PackStart(creditsLabel, false, false, 0)
+					}
+				}
 			}
 
-			// User count (placeholder - would need actual implementation)
-			userCountLabel, err := gtk.LabelNew("- User count not available in Go version")
-			if err == nil {
-				userCountLabel.SetHAlign(gtk.ALIGN_START)
-				infoBox.PackStart(userCountLabel, false, false, 0)
+			// User count (using real API function)
+			userCountStr, err := api.UserCount(appName)
+			if err == nil && userCountStr != "" {
+				// Parse user count from string to int
+				if userCount, err := strconv.Atoi(userCountStr); err == nil && userCount > 20 {
+					userCountLabel, err := gtk.LabelNew("")
+					if err == nil {
+						// Format user count with commas (like original printf "%'d")
+						formattedCount := addCommasToNumber(userCount)
+						userText := fmt.Sprintf("- <b>%s</b> users", formattedCount)
+
+						// Add exclamation points based on user count (matching original logic)
+						if userCount >= 10000 {
+							userText += "!!"
+						} else if userCount >= 1500 {
+							userText += "!"
+						}
+
+						userCountLabel.SetMarkup(userText)
+						userCountLabel.SetHAlign(gtk.ALIGN_START)
+						infoBox.PackStart(userCountLabel, false, false, 0)
+					}
+				}
+			} else {
+				// Fallback message when user count cannot be obtained
+				if err != nil {
+					logger.Info(fmt.Sprintf("User count unavailable for %s: %v", appName, err))
+				}
+				userCountLabel, err := gtk.LabelNew("")
+				if err == nil {
+					userCountLabel.SetMarkup("<span size='small' foreground='#AAAAAA'>- User count not available</span>")
+					userCountLabel.SetHAlign(gtk.ALIGN_START)
+					infoBox.PackStart(userCountLabel, false, false, 0)
+				}
 			}
 
 			headerBox.PackStart(infoBox, true, true, 0)
@@ -1255,7 +1330,8 @@ func (g *GUI) showAppDetails(appPath string) {
 		}
 
 		// Buttons based on status (matching original logic)
-		if status == "installed" {
+		switch status {
+		case "installed":
 			// Only uninstall button for installed apps
 			uninstallBtn, err := gtk.ButtonNewWithLabel("Uninstall")
 			if err == nil {
@@ -1266,7 +1342,7 @@ func (g *GUI) showAppDetails(appPath string) {
 				})
 				buttonBox.PackStart(uninstallBtn, false, false, 0)
 			}
-		} else if status == "uninstalled" {
+		case "uninstalled":
 			// Only install button for uninstalled apps
 			installBtn, err := gtk.ButtonNewWithLabel("Install")
 			if err == nil {
@@ -1277,7 +1353,7 @@ func (g *GUI) showAppDetails(appPath string) {
 				})
 				buttonBox.PackStart(installBtn, false, false, 0)
 			}
-		} else if status == "disabled" {
+		case "disabled":
 			// Only enable button for disabled apps
 			enableBtn, err := gtk.ButtonNewWithLabel("Enable")
 			if err == nil {
@@ -1288,7 +1364,7 @@ func (g *GUI) showAppDetails(appPath string) {
 				})
 				buttonBox.PackStart(enableBtn, false, false, 0)
 			}
-		} else {
+		default:
 			// For corrupted or unknown status, show both buttons
 			// Plus errors button for corrupted apps
 			if status == "corrupted" {
@@ -1328,7 +1404,31 @@ func (g *GUI) showAppDetails(appPath string) {
 	}
 
 	window.Add(vbox)
+	logger.Info("About to show GTK details window...")
 	window.ShowAll()
+	logger.Info("GTK details window ShowAll() called")
+
+	// Ensure the window gets focus and is brought to front
+	window.Present()
+	logger.Info("GTK details window Present() called")
+
+	// For xlunch mode, just ensure the window stays on top
+	if strings.Contains(g.guiMode, "xlunch") {
+		logger.Info("Setting up xlunch mode window focus handling...")
+
+		// Set window to stay on top
+		window.SetKeepAbove(true)
+
+		// Give GTK a moment to create the window, then raise it
+		glib.TimeoutAdd(100, func() bool {
+			logger.Info("Timeout callback: Presenting window again...")
+			window.Present()
+			return false // Don't repeat
+		})
+
+		// Also set it as urgent to get attention
+		window.SetUrgencyHint(true)
+	}
 }
 
 // getAppStatus gets the installation status of an app
@@ -1386,8 +1486,8 @@ func (g *GUI) performAppAction(appName, action string) {
 	// This is equivalent to: "${DIRECTORY}/api" terminal_manage "$action" "$app"
 	apiScript := filepath.Join(g.directory, "api")
 	// Debug logging
-	fmt.Println(apiScript, "terminal_manage", action, fmt.Sprintf("'%s'", appName))
-	cmd := exec.Command(apiScript, "terminal_manage", action, fmt.Sprintf("'%s'", appName))
+	fmt.Printf("%s terminal_manage %s %s\n", apiScript, action, appName)
+	cmd := exec.Command(apiScript, "terminal_manage", action, appName)
 
 	// Set environment variables that might be needed
 	cmd.Env = append(os.Environ(),
@@ -1458,32 +1558,6 @@ func (g *GUI) downloadAnnouncements() {
 
 	announcementsFile := filepath.Join(g.directory, "data", "announcements")
 	os.WriteFile(announcementsFile, output, 0644)
-}
-
-// runYADMode runs the GUI in YAD compatibility mode
-func (g *GUI) runYADMode() error {
-	// For YAD mode, we can either:
-	// 1. Call the original YAD-based GUI
-	// 2. Implement YAD command generation in Go
-	// For now, let's fall back to calling the bash script
-
-	fmt.Println("YAD mode not yet fully implemented in Go, falling back to bash")
-	cmd := exec.Command(filepath.Join(g.directory, "gui"))
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
-}
-
-// runXlunchMode runs the GUI in Xlunch compatibility mode
-func (g *GUI) runXlunchMode() error {
-	// Similar to YAD mode, fall back for now
-	fmt.Println("Xlunch mode not yet fully implemented in Go, falling back to bash")
-	cmd := exec.Command(filepath.Join(g.directory, "gui"))
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
 }
 
 // canUseGTK checks if GTK can be used (display available)
@@ -2231,7 +2305,7 @@ func (g *GUI) showSearchResults(query string, results []string) {
 
 	// Connect app selection handler
 	listBox.Connect("row-activated", func(listBox *gtk.ListBox, row *gtk.ListBoxRow) {
-		logger.Info(fmt.Sprintf("Search result app row activated"))
+		logger.Info("Search result app row activated")
 		rowIndex := row.GetIndex()
 		logger.Info(fmt.Sprintf("Selected row index: %d", rowIndex))
 
@@ -2526,4 +2600,30 @@ func (g *GUI) performAdvancedSearch(query string, searchFiles []string) {
 	// Multiple results - show search results view
 	logger.Info(fmt.Sprintf("Multiple search results: %d apps found", len(results)))
 	g.showSearchResults(query, results)
+}
+
+// addCommasToNumber formats a number with commas (matching original printf "%'d")
+func addCommasToNumber(n int) string {
+	str := fmt.Sprintf("%d", n)
+	if len(str) <= 3 {
+		return str
+	}
+
+	// Add commas every 3 digits from right to left
+	var result []string
+	for i, r := range str {
+		if i > 0 && (len(str)-i)%3 == 0 {
+			result = append(result, ",")
+		}
+		result = append(result, string(r))
+	}
+	return strings.Join(result, "")
+}
+
+// minInt returns the minimum of two integers
+func minInt(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }

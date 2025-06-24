@@ -219,11 +219,25 @@ func PackageInfo(packageName string) (string, error) {
 		return "", fmt.Errorf("no package specified")
 	}
 
+	// Validate package name to prevent dpkg errors with spaces or invalid characters
+	if strings.ContainsAny(packageName, " \t\n\r") {
+		return "", fmt.Errorf("package name '%s' contains invalid characters (spaces or whitespace)", packageName)
+	}
+
 	// We'll directly use exec.Command to get package info since syspkg doesn't
 	// seem to have a direct method for detailed package info
 	cmd := exec.Command("dpkg", "-s", packageName)
 	output, err := cmd.Output()
 	if err != nil {
+		// Check if it's a specific dpkg error about package not being installed
+		if exitError, ok := err.(*exec.ExitError); ok {
+			stderr := string(exitError.Stderr)
+			if strings.Contains(stderr, "is not installed and no information is available") {
+				return "", fmt.Errorf("package '%s' is not installed and no information is available", packageName)
+			}
+			// for debugging purposes show the output of the command
+			Debug("Output of dpkg -s " + packageName + ": " + string(stderr))
+		}
 		return "", fmt.Errorf("failed to get package info: %w", err)
 	}
 
@@ -240,6 +254,13 @@ func PackageInstalled(packageName string) bool {
 	// Use dpkg to check if the package is installed
 	cmd := exec.Command("dpkg", "-s", packageName)
 	if err := cmd.Run(); err != nil {
+		// Check if it's a specific dpkg error about package not being installed
+		if exitError, ok := err.(*exec.ExitError); ok {
+			stderr := string(exitError.Stderr)
+			if strings.Contains(stderr, "is not installed and no information is available") {
+				return false
+			}
+		}
 		return false
 	}
 
@@ -272,8 +293,29 @@ func PackageAvailable(packageName string, dpkgArch string) bool {
 		return false
 	}
 
+	// Check if the output contains "Unable to locate package" even with exit code 0
+	outputStr := string(output)
+	if strings.Contains(outputStr, "Unable to locate package") {
+		return false
+	}
+
 	// Parse the output to see if a candidate version is available
-	return !strings.Contains(string(output), "Candidate: (none)")
+	lines := strings.Split(outputStr, "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "Candidate:") {
+			parts := strings.SplitN(line, ":", 2)
+			if len(parts) < 2 {
+				continue
+			}
+			candidate := strings.TrimSpace(parts[1])
+			// Package is available if candidate is not empty and not "(none)"
+			return candidate != "" && candidate != "(none)"
+		}
+	}
+
+	// If no Candidate line found, package is not available
+	return false
 }
 
 // PackageDependencies outputs the list of dependencies for the specified package
@@ -357,8 +399,15 @@ func PackageLatestVersion(packageName string, repo ...string) (string, error) {
 		return "", err
 	}
 
+	outputStr := string(output)
+
+	// Check if the package cannot be located
+	if strings.Contains(outputStr, "N: Unable to locate package "+packageName) {
+		return "", fmt.Errorf("package %s is not available", packageName)
+	}
+
 	// Parse the output to extract the Candidate version
-	lines := strings.Split(string(output), "\n")
+	lines := strings.Split(outputStr, "\n")
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
 		if strings.HasPrefix(line, "Candidate:") {
@@ -367,11 +416,16 @@ func PackageLatestVersion(packageName string, repo ...string) (string, error) {
 				continue
 			}
 			version := strings.TrimSpace(parts[1])
+			// If candidate is "(none)", the package is not available
+			if version == "(none)" {
+				return "", fmt.Errorf("package %s is not available", packageName)
+			}
 			return version, nil
 		}
 	}
 
-	return "", fmt.Errorf("candidate version not found for package %s", packageName)
+	// If no Candidate line found, package is not available
+	return "", fmt.Errorf("package %s is not available", packageName)
 }
 
 // PackageIsNewEnough checks if the package has an available version greater than or equal to compareVersion
@@ -582,89 +636,5 @@ func EnsureDir(path string) error {
 		return fmt.Errorf("failed to create directory %s: %w", path, err)
 	}
 
-	return nil
-}
-
-// InstallPackage installs a package using apt-get
-//
-//	error - error if package is not specified
-func InstallPackage(packageName string) error {
-	if packageName == "" {
-		return fmt.Errorf("no package specified")
-	}
-
-	// Use direct command execution for more control
-	cmd := exec.Command("sudo", "apt-get", "install", "-y", packageName)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	Status(fmt.Sprintf("Installing package %s", packageName))
-	err := cmd.Run()
-	if err != nil {
-		return fmt.Errorf("failed to install package %s: %w", packageName, err)
-	}
-
-	StatusGreen(fmt.Sprintf("Successfully installed package %s", packageName))
-	return nil
-}
-
-// RemovePackage removes a package using apt-get
-//
-//	error - error if package is not specified
-func RemovePackage(packageName string) error {
-	if packageName == "" {
-		return fmt.Errorf("no package specified")
-	}
-
-	// Use direct command execution for more control
-	cmd := exec.Command("sudo", "apt-get", "remove", "-y", packageName)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	Status(fmt.Sprintf("Removing package %s", packageName))
-	err := cmd.Run()
-	if err != nil {
-		return fmt.Errorf("failed to remove package %s: %w", packageName, err)
-	}
-
-	StatusGreen(fmt.Sprintf("Successfully removed package %s", packageName))
-	return nil
-}
-
-// UpdatePackages updates package lists
-//
-//	error - error if package lists are not updated
-func UpdatePackages() error {
-	// Use direct command execution for more control
-	cmd := exec.Command("sudo", "apt-get", "update")
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	Status("Updating package lists")
-	err := cmd.Run()
-	if err != nil {
-		return fmt.Errorf("failed to update package lists: %w", err)
-	}
-
-	StatusGreen("Successfully updated package lists")
-	return nil
-}
-
-// UpgradePackages upgrades all packages
-//
-//	error - error if packages are not upgraded
-func UpgradePackages() error {
-	// Use direct command execution for more control
-	cmd := exec.Command("sudo", "apt-get", "upgrade", "-y")
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	Status("Upgrading packages")
-	err := cmd.Run()
-	if err != nil {
-		return fmt.Errorf("failed to upgrade packages: %w", err)
-	}
-
-	StatusGreen("Successfully upgraded packages")
 	return nil
 }

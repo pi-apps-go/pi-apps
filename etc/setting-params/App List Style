@@ -1,4 +1,4 @@
-#Pi-Apps can display the apps as a compact list (yad), or as a group of larger icons. (xlunch)
+#Pi-Apps can display the apps as a compact list (GTK 3 via gotk3), or as a group of larger icons. (xlunch like interface)
 yad-default
 yad-light
 yad-dark

@@ -197,7 +197,7 @@ func (sw *SettingsWindow) createWindow() error {
 	}
 
 	// Configure window
-	sw.window.SetTitle("Pi-Apps Settings")
+	sw.window.SetTitle(T("Pi-Apps Settings"))
 	sw.window.SetDefaultSize(600, 550)
 	sw.window.SetPosition(gtk.WIN_POS_CENTER)
 	sw.window.SetResizable(true)

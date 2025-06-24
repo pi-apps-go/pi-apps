@@ -165,7 +165,8 @@ func CheckCanSendErrorReport(app, action, errorType string) (bool, string) {
 	}
 
 	// Check 4 & 5: Check if app script matches the official version
-	if action == "install" {
+	switch action {
+	case "install":
 		scriptName, err := ScriptNameCPU(app)
 		if err != nil {
 			return false, "Error report cannot be sent because the script name couldn't be determined."
@@ -182,7 +183,7 @@ func CheckCanSendErrorReport(app, action, errorType string) (bool, string) {
 		if !match {
 			return false, "Error report cannot be sent because this app is not the official version."
 		}
-	} else if action == "uninstall" {
+	case "uninstall":
 		// Check if uninstall script matches
 		match, err := FilesMatch(
 			filepath.Join(directory, "update", "pi-apps", "apps", app, "uninstall"),
@@ -531,34 +532,26 @@ func DiagnoseApps(failureList string) []DiagnoseResult {
 					AppName:   appName,
 					ActionStr: failure,
 				})
-				// Exit the loop to close dialog
-				break
 			case gtk.RESPONSE_APPLY: // Send Report
 				results = append(results, DiagnoseResult{
 					Action:    "send",
 					AppName:   appName,
 					ActionStr: failure,
 				})
-				// Exit the loop to close dialog
-				break
 			case gtk.RESPONSE_CANCEL: // Close/Next
 				results = append(results, DiagnoseResult{
 					Action:    "next",
 					AppName:   appName,
 					ActionStr: failure,
 				})
-				// Exit the loop to close dialog
-				break
 			default: // Any other response (e.g., window closed)
 				results = append(results, DiagnoseResult{
 					Action:    "close",
 					AppName:   appName,
 					ActionStr: failure,
 				})
-				// Exit the loop to close dialog
-				break
 			}
-			// Break out of the for loop when we want to close the dialog
+			// Exit the loop to close dialog
 			break
 		}
 

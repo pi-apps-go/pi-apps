@@ -37,6 +37,10 @@ var (
 )
 
 func main() {
+
+	// initialize variables required for api to function
+	api.Init()
+
 	// Parse command line flags
 	debugFlag := flag.Bool("debug", false, "Enable debug mode")
 	helpFlag := flag.Bool("help", false, "Show help message")
@@ -426,9 +430,10 @@ func main() {
 
 		// Process results
 		for _, result := range results {
-			if result.Action == "retry" {
+			switch result.Action {
+			case "retry":
 				fmt.Printf("Retrying %s...\n", result.ActionStr)
-			} else if result.Action == "send" {
+			case "send":
 				logfilePath := api.GetLogfile(result.AppName)
 				fmt.Printf("Sending error report for %s...\n", result.AppName)
 				response, err := api.ProcessSendErrorReport(logfilePath)

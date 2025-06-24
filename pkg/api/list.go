@@ -599,9 +599,10 @@ func getSystemArchitecture() string {
 	cmd := exec.Command("getconf", "LONG_BIT")
 	if output, err := cmd.Output(); err == nil {
 		bits := strings.TrimSpace(string(output))
-		if bits == "64" {
+		switch bits {
+		case "64":
 			return "64"
-		} else if bits == "32" {
+		case "32":
 			return "32"
 		}
 	}
@@ -920,7 +921,8 @@ func AppPrefixCategory(directory, category string) ([]string, error) {
 
 	// Prepare filter function based on settings
 	filterApps := func(apps []string) ([]string, error) {
-		if showAppsSetting == "standard" {
+		switch showAppsSetting {
+		case "standard":
 			// If only showing standard apps, hide package apps
 			packageApps, err := getAppsWithFile(directory, "packages")
 			if err != nil {
@@ -934,7 +936,7 @@ func AppPrefixCategory(directory, category string) ([]string, error) {
 			}
 
 			return ListSubtractPartial(apps, formattedPackageApps), nil
-		} else if showAppsSetting == "packages" {
+		case "packages":
 			// If only showing package apps, hide standard apps
 			standardApps, err := getStandardApps(directory)
 			if err != nil {
@@ -948,10 +950,10 @@ func AppPrefixCategory(directory, category string) ([]string, error) {
 			}
 
 			return ListSubtractPartial(apps, formattedStandardApps), nil
+		default:
+			// Default case: don't filter
+			return apps, nil
 		}
-
-		// Default case: don't filter
-		return apps, nil
 	}
 
 	// Get hidden apps
@@ -960,7 +962,8 @@ func AppPrefixCategory(directory, category string) ([]string, error) {
 		return nil, err
 	}
 
-	if category == "Installed" {
+	switch category {
+	case "Installed":
 		// Show special "Installed" category - don't filter it
 		installedApps, err := getAppsWithStatus(directory, true)
 		if err != nil {
@@ -974,7 +977,7 @@ func AppPrefixCategory(directory, category string) ([]string, error) {
 		for _, app := range filteredApps {
 			result = append(result, "Installed/"+app)
 		}
-	} else if category == "Packages" {
+	case "Packages":
 		// Show special "Packages" category
 		packageApps, err := getAppsWithFile(directory, "packages")
 		if err != nil {
@@ -988,7 +991,7 @@ func AppPrefixCategory(directory, category string) ([]string, error) {
 		for _, app := range filteredApps {
 			result = append(result, "Packages/"+app)
 		}
-	} else if category == "All Apps" {
+	case "All Apps":
 		// Show special "All Apps" category
 		cpuInstallableApps, err := getCPUInstallableApps(directory)
 		if err != nil {
@@ -1011,7 +1014,7 @@ func AppPrefixCategory(directory, category string) ([]string, error) {
 		}
 
 		result = append(result, filteredResult...)
-	} else if category == "" {
+	case "":
 		// Show all categories
 
 		// First, get regular categories
@@ -1106,7 +1109,7 @@ func AppPrefixCategory(directory, category string) ([]string, error) {
 		}
 
 		result = append(result, filteredAllAppsResult...)
-	} else {
+	default:
 		// Show apps in specific category
 		categoryEntries, err := ReadCategoryFiles(directory)
 		if err != nil {

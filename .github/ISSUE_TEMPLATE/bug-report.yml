@@ -36,15 +36,16 @@ body:
       placeholder: |
         OS: Debian GNU/Linux 12 (bookworm)
         OS architecture: 64-bit
-        Last updated Pi-Apps on: 1/1/2024
-        Latest Pi-Apps version: 1/1/2024
-        Kernel: aarch64 6.1.0-rpi7-rpi-v8
+        Last updated Pi-Apps on: 07/01/2025
+        Latest Pi-Apps version: 07/01/2025
+        Kernel: aarch64 6.12.3-rpi7-rpi-v8
         Device model: Raspberry Pi 5 Model B Rev 1.0
         SOC identifier: bcm2712
         Cpu name: Cortex-A76
         Ram size: 7.94 GB
-        Raspberry Pi OS image version: 2023-12-05
+        Raspberry Pi OS image version: 2025-05-13
         Language: en_US.UTF-8
+        Go runtime used: go1.24.4
       render: bash
     validations:
       required: true

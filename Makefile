@@ -9,6 +9,8 @@ all: build
 
 build: build-api build-pi-apps build-manage build-settings build-updater build-gui
 build-debug: build-api-debug build-pi-apps-debug build-manage-debug build-settings-debug build-updater-debug build-gui-debug
+build-with-xlunch: build-api build-pi-apps build-manage build-settings build-updater build-gui-with-xlunch
+build-with-xlunch-debug: build-api-debug build-pi-apps-debug build-manage-debug build-settings-debug build-updater-debug build-gui-with-xlunch-debug
 
 build-api:
 	go build -o bin/api -ldflags "$(LDFLAGS) -w -s" -trimpath ./cmd/api
@@ -33,6 +35,12 @@ build-gui:
 
 build-gui-debug:
 	go build -o bin/gui-demo -ldflags "$(LDFLAGS)" ./cmd/gui-demo/main.go
+
+build-gui-with-xlunch:
+	go build -o bin/gui-demo -ldflags "$(LDFLAGS) -w -s" -tags=xlunch -trimpath ./cmd/gui-demo/main.go
+
+build-gui-with-xlunch-debug:
+	go build -o bin/gui-demo -ldflags "$(LDFLAGS)" -tags=xlunch ./cmd/gui-demo/main.go
 
 build-settings:
 	go build -o bin/settings -ldflags "$(LDFLAGS) -w -s" -trimpath ./cmd/settings

@@ -341,15 +341,15 @@ func main() {
 					}
 				}
 			case "uninstall":
-				// Check if already uninstalled, unless ForceReinstall flag is set
-				// Allow uninstall for corrupted apps
-				appStatus, err := api.GetAppStatus(queue[i].AppName)
-				if err != nil {
-					err = fmt.Errorf("failed to get app status: %w", err)
-				} else if appStatus == "uninstalled" && !queue[i].ForceReinstall {
+				// Check if already uninstalled and allow uninstall for corrupted apps
+				appStatus, statusErr := api.GetAppStatus(queue[i].AppName)
+				switch {
+				case statusErr != nil:
+					err = fmt.Errorf("failed to get app status: %w", statusErr)
+				case appStatus == "uninstalled":
 					api.Status(fmt.Sprintf("App '%s' is already uninstalled, skipping", queue[i].AppName))
 					continue
-				} else {
+				default:
 					err = api.UninstallApp(queue[i].AppName)
 				}
 			case "update":
@@ -407,12 +407,13 @@ func main() {
 			case "uninstall":
 				// Check if already uninstalled and allow uninstall for corrupted apps
 				appStatus, statusErr := api.GetAppStatus(queue[i].AppName)
-				if statusErr != nil {
+				switch {
+				case statusErr != nil:
 					err = fmt.Errorf("failed to get app status: %w", statusErr)
-				} else if appStatus == "uninstalled" {
+				case appStatus == "uninstalled":
 					api.Status(fmt.Sprintf("App '%s' is already uninstalled, skipping", queue[i].AppName))
 					continue
-				} else {
+				default:
 					err = api.UninstallApp(queue[i].AppName)
 				}
 			case "update":

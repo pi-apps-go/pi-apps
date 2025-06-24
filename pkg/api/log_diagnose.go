@@ -884,7 +884,8 @@ func LogDiagnose(logfilePath string, allowWrite bool) (*ErrorDiagnosis, error) {
 	ubuntuSourcesExists := fileExists("/etc/apt/sources.list.d/ubuntu.sources")
 
 	if !sourcesListExists && !ubuntuSourcesExists {
-		if rpiIssueExists && getArchitecture() == "32" {
+		switch {
+		case rpiIssueExists && getArchitecture() == "32":
 			diagnosis.Captions = append(diagnosis.Captions,
 				"Packages failed to install because you deleted an important repository file: /etc/apt/sources.list\n\n"+
 					"You appear to be using Raspberry Pi OS 32-bit, so the sources.list file should contain this:\n"+
@@ -892,7 +893,7 @@ func LogDiagnose(logfilePath string, allowWrite bool) (*ErrorDiagnosis, error) {
 					"# Uncomment line below then 'apt-get update' to enable 'apt-get source'\n"+
 					"deb-src http://raspbian.raspberrypi.org/raspbian/ "+getCodename()+" main contrib non-free rpi")
 			diagnosis.ErrorType = "system"
-		} else if rpiIssueExists && getArchitecture() == "64" {
+		case rpiIssueExists && getArchitecture() == "64":
 			diagnosis.Captions = append(diagnosis.Captions,
 				"Packages failed to install because you deleted an important repository file: /etc/apt/sources.list\n\n"+
 					"You appear to be using Raspberry Pi OS 64-bit, so the sources.list file should contain this:\n"+
@@ -904,7 +905,7 @@ func LogDiagnose(logfilePath string, allowWrite bool) (*ErrorDiagnosis, error) {
 					"#deb-src http://security.debian.org/debian-security "+getCodename()+"-security main contrib non-free\n"+
 					"#deb-src http://deb.debian.org/debian "+getCodename()+"-updates main contrib non-free")
 			diagnosis.ErrorType = "system"
-		} else {
+		default:
 			diagnosis.Captions = append(diagnosis.Captions,
 				"Packages failed to install because you deleted an important repository file: /etc/apt/sources.list\n\n"+
 					"Refer to your Linux distro's documentation for how to restore this file.\n"+

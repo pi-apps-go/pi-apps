@@ -13,7 +13,7 @@ if [[ "$(id -u)" == 0 ]]; then
 fi
 
 #ensure debian
-command -v apt >/dev/null || error "apt: command not found. Most likely this system is not running Debian."
+command -v apt >/dev/null || error "apt: command not found. Most likely this system is not running Debian, support for other distros (like Arch Linux) is coming soon."
 # TODO: add check if it's running on anything other then Debian systems, and if so change install commands to use the correct package manager
 
 #Ensure running supported processors
@@ -35,11 +35,11 @@ if ! dpkg -s $dependencies &>/dev/null ;then
   sudo apt install $dependencies -y -f --no-install-recommends || error "Pi-Apps Go dependencies failed to install and so the Pi-Apps Go install has been aborted. Before Pi-Apps Go can be installed you must solve any errors above."
 fi
 
-# Check if Go is installed and version is at least 1.18
+# Check if Go is installed and version is at least 1.23
 if ! command -v go &>/dev/null; then
   echo "Go is not installed. Installing Go..."
   # Download and install Go
-  GO_VERSION="1.24.2"
+  GO_VERSION="1.24.3"
   ARCH=$(uname -m)
   case $ARCH in
     x86_64) GO_ARCH="amd64" ;;
@@ -70,10 +70,10 @@ else
     MAJOR=$(echo "$GO_VERSION_NUM" | cut -d. -f1)
     MINOR=$(echo "$GO_VERSION_NUM" | cut -d. -f2)
     
-    if [ "$MAJOR" -lt 1 ] || ([ "$MAJOR" -eq 1 ] && [ "$MINOR" -lt 18 ]); then
-      echo "Go version $GO_VERSION_NUM is too old (need 1.18+). Updating Go..."
+    if [ "$MAJOR" -lt 1 ] || ([ "$MAJOR" -eq 1 ] && [ "$MINOR" -lt 23 ]); then
+      echo "Go version $GO_VERSION_NUM is too old (need 1.23+). Updating Go..."
       # Download and install newer Go
-      GO_VERSION="1.24.2"
+      GO_VERSION="1.24.3"
       ARCH=$(uname -m)
       case $ARCH in
         x86_64) GO_ARCH="amd64" ;;
@@ -97,10 +97,10 @@ else
       
       cd "$HOME"
     else
-      echo "Go version $GO_VERSION_NUM is sufficient (1.18+ required)"
+      echo "Go version $GO_VERSION_NUM is sufficient (1.23+ required), but you should update to the latest version."
     fi
   else
-    error "Go is installed but 'go version' command failed"
+    error "Go is installed but 'go version' command failed, before Pi-Apps Go can be installed you must fix your Go installation."
   fi
 fi
 
@@ -226,7 +226,7 @@ echo "[Desktop Entry]
 Name=Pi-Apps Go
 Comment=Raspberry Pi App Store for open source projects
 Exec=${PI_APPS_DIR}/gui
-Icon=${PI_APPS_DIR}/icons/logo-go.png
+Icon=${PI_APPS_DIR}/icons/logo.png
 Terminal=false
 StartupWMClass=Pi-Apps Go
 Type=Application
@@ -237,7 +237,7 @@ echo "[Desktop Entry]
 Name=Pi-Apps Go
 Comment=Raspberry Pi App Store for open source projects
 Exec=${PI_APPS_DIR}/gui
-Icon=${PI_APPS_DIR}/icons/logo-go.png
+Icon=${PI_APPS_DIR}/icons/logo.png
 Terminal=false
 StartupWMClass=Pi-Apps Go
 Type=Application
@@ -269,7 +269,7 @@ Comment=Configure Pi-Apps or create an App
 Exec=${PI_APPS_DIR}/settings
 Icon=${PI_APPS_DIR}/icons/settings.png
 Terminal=false
-StartupWMClass=Pi-Apps Go-Settings
+StartupWMClass=Pi-Apps Go Settings
 Type=Application
 Categories=Settings;
 StartupNotify=true" > ~/.local/share/applications/pi-apps-go-settings.desktop
@@ -281,7 +281,7 @@ mkdir -p ~/.config/autostart
 echo "[Desktop Entry]
 Name=Pi-Apps Go Updater
 Exec=${PI_APPS_DIR}/updater onboot
-Icon=${PI_APPS_DIR}/icons/logo-go.png
+Icon=${PI_APPS_DIR}/icons/logo.png
 Terminal=false
 StartupWMClass=Pi-Apps Go
 Type=Application

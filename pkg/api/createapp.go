@@ -150,10 +150,13 @@ func CreateApp(appName string) error {
 				}
 
 				step++
-			} else if result == "Previous" {
-				step--
 			} else {
-				return nil // User cancelled
+				switch result {
+				case "Previous":
+					step--
+				default:
+					return nil // User cancelled
+				}
 			}
 
 		case 2:
@@ -165,7 +168,8 @@ func CreateApp(appName string) error {
 
 			appDetails = details // Store details for use in later steps
 
-			if result == "Next" {
+			switch result {
+			case "Next":
 				// Process the entered details
 				if appDetails.Icon != "" {
 					if err := GenerateAppIcons(appDetails.Icon, appName); err != nil {
@@ -222,12 +226,12 @@ func CreateApp(appName string) error {
 				}
 
 				step++
-			} else if result == "Previous" {
+			case "Previous":
 				step--
-			} else if result == "Save" {
+			case "Save":
 				// If Save was clicked, exit after saving changes
 				return nil
-			} else {
+			default:
 				return nil // User cancelled
 			}
 
@@ -237,10 +241,72 @@ func CreateApp(appName string) error {
 			var scriptType string
 
 			// Use the compatibility from the appDetails struct
-			if appDetails != nil && appDetails.Compatibility == "32bit only" {
-				scriptType = "install-32"
-			} else if appDetails != nil && appDetails.Compatibility == "64bit only" {
-				scriptType = "install-64"
+			if appDetails != nil {
+				switch appDetails.Compatibility {
+				case "32bit only":
+					scriptType = "install-32"
+				case "64bit only":
+					scriptType = "install-64"
+				default:
+					// Check if they want 1 combined or 2 separate scripts
+					scriptDialog := gtk.MessageDialogNew(nil, gtk.DIALOG_MODAL, gtk.MESSAGE_QUESTION, gtk.BUTTONS_NONE,
+						"Do you want two install scripts, one for 32bit and the other for 64bit?\nOr do you want one combined install script?")
+
+					prevButton, _ := scriptDialog.AddButton("Previous", gtk.RESPONSE_CANCEL)
+					twoScriptsButton, _ := scriptDialog.AddButton("2 scripts", gtk.RESPONSE_REJECT)
+					oneScriptButton, _ := scriptDialog.AddButton("1 script", gtk.RESPONSE_ACCEPT)
+
+					// Add icons to the buttons
+					backIcon, _ := gtk.ImageNewFromFile(filepath.Join(piAppsDir, "icons", "back.png"))
+					if backIcon != nil {
+						prevButton.SetImage(backIcon)
+						prevButton.SetAlwaysShowImage(true)
+						prevButton.SetImagePosition(gtk.POS_LEFT)
+					}
+
+					// Use appropriate icons for script choice buttons
+					scriptIcon, _ := gtk.ImageNewFromFile(filepath.Join(piAppsDir, "icons", "shellscript.png"))
+					scriptIconMulti, _ := gtk.ImageNewFromFile(filepath.Join(piAppsDir, "icons", "shellscript-multi.png"))
+					if scriptIcon != nil {
+						twoScriptsButton.SetImage(scriptIconMulti)
+						twoScriptsButton.SetAlwaysShowImage(true)
+						twoScriptsButton.SetImagePosition(gtk.POS_LEFT)
+
+						oneScriptButton.SetImage(scriptIcon)
+						oneScriptButton.SetAlwaysShowImage(true)
+						oneScriptButton.SetImagePosition(gtk.POS_LEFT)
+					}
+
+					scriptDialog.SetName("Pi-Apps Settings")
+
+					// Set window icon
+					iconPath := filepath.Join(piAppsDir, "icons", "settings.png")
+					if _, err := os.Stat(iconPath); err == nil {
+						scriptDialog.SetIconFromFile(iconPath)
+					}
+
+					scriptDialog.Connect("delete-event", func() bool {
+						scriptDialog.Response(gtk.RESPONSE_DELETE_EVENT)
+						return true
+					})
+
+					dialogResponse := scriptDialog.Run()
+					scriptDialog.Destroy()
+
+					switch dialogResponse {
+					case gtk.RESPONSE_CANCEL:
+						fmt.Println("Debug: Going back from step 3 to step 2")
+						step--
+						continue
+					case gtk.RESPONSE_REJECT:
+						scriptType = "install-32-and-64"
+					case gtk.RESPONSE_ACCEPT:
+						scriptType = "install"
+					default:
+						// If user closes dialog by clicking X, exit program
+						return nil
+					}
+				}
 			} else {
 				// Check if they want 1 combined or 2 separate scripts
 				scriptDialog := gtk.MessageDialogNew(nil, gtk.DIALOG_MODAL, gtk.MESSAGE_QUESTION, gtk.BUTTONS_NONE,
@@ -287,15 +353,16 @@ func CreateApp(appName string) error {
 				dialogResponse := scriptDialog.Run()
 				scriptDialog.Destroy()
 
-				if dialogResponse == gtk.RESPONSE_CANCEL {
+				switch dialogResponse {
+				case gtk.RESPONSE_CANCEL:
 					fmt.Println("Debug: Going back from step 3 to step 2")
 					step--
 					continue
-				} else if dialogResponse == gtk.RESPONSE_REJECT {
+				case gtk.RESPONSE_REJECT:
 					scriptType = "install-32-and-64"
-				} else if dialogResponse == gtk.RESPONSE_ACCEPT {
+				case gtk.RESPONSE_ACCEPT:
 					scriptType = "install"
-				} else {
+				default:
 					// If user closes dialog by clicking X, exit program
 					return nil
 				}
@@ -962,10 +1029,11 @@ func showBasicsDialog(currentName, currentType string) (string, string, string, 
 
 	// Handle app type selection differently based on whether it's already set
 	if currentType != "" {
-		if currentType == "standard" {
+		switch currentType {
+		case "standard":
 			typeLabel.SetMarkup("<b>App type:</b> standard")
 			appType = "standard"
-		} else if currentType == "package" {
+		case "package":
 			typeLabel.SetMarkup("<b>App type:</b> package")
 			appType = "package"
 		}
@@ -983,9 +1051,10 @@ func showBasicsDialog(currentName, currentType string) (string, string, string, 
 		// Connect signal to update appType when selection changes
 		typeCombo.Connect("changed", func() {
 			text := typeCombo.GetActiveText()
-			if strings.HasPrefix(text, "standard") {
+			switch {
+			case strings.HasPrefix(text, "standard"):
 				appType = "standard"
-			} else if strings.HasPrefix(text, "package") {
+			case strings.HasPrefix(text, "package"):
 				appType = "package"
 			}
 		})
@@ -1268,19 +1337,20 @@ func showAppDetailsDialog(appName, appType string) (string, *AppDetails, error) 
 		}
 
 		// Create or setup the compatibility selection based on existing scripts
-		if hasInstall || (hasInstall32 && hasInstall64) {
+		switch {
+		case hasInstall || (hasInstall32 && hasInstall64):
 			// App has combined script or both 32/64 scripts - show as read-only
 			compatLabel.SetMarkup("<b>Compatibility:</b> 64bit and 32bit")
 			details.Compatibility = "64bit and 32bit"
-		} else if hasInstall32 && !hasInstall64 {
+		case hasInstall32 && !hasInstall64:
 			// App has only 32-bit script - show as read-only
 			compatLabel.SetMarkup("<b>Compatibility:</b> 32bit only")
 			details.Compatibility = "32bit only"
-		} else if !hasInstall32 && hasInstall64 {
+		case !hasInstall32 && hasInstall64:
 			// App has only 64-bit script - show as read-only
 			compatLabel.SetMarkup("<b>Compatibility:</b> 64bit only")
 			details.Compatibility = "64bit only"
-		} else {
+		default:
 			// No scripts found - let user choose
 			compatCombo, err := gtk.ComboBoxTextNew()
 			if err != nil {
@@ -1300,152 +1370,155 @@ func showAppDetailsDialog(appName, appType string) (string, *AppDetails, error) 
 			details.Compatibility = "64bit and 32bit" // Default value
 		}
 		row++
-	} else if appType == "package" {
-		// Packages field for package apps
-		packagesLabel, err := gtk.LabelNew("Package(s) to install:")
-		if err != nil {
-			return "", nil, fmt.Errorf("failed to create packages label: %v", err)
-		}
-		packagesLabel.SetHAlign(gtk.ALIGN_START)
-		grid.Attach(packagesLabel, 0, row, 1, 1)
-
-		// Create entry for packages
-		packagesEntry, err := gtk.EntryNew()
-		if err != nil {
-			return "", nil, fmt.Errorf("failed to create packages entry: %v", err)
-		}
-
-		// Read existing packages if available
-		packagesFile := filepath.Join(piAppsDir, "apps", appName, "packages")
-		if _, err := os.Stat(packagesFile); err == nil {
-			packagesContent, err := os.ReadFile(packagesFile)
-			if err == nil {
-				packagesEntry.SetText(string(packagesContent))
-				details.Packages = string(packagesContent)
+	} else {
+		switch appType {
+		case "package":
+			// Packages field for package apps
+			packagesLabel, err := gtk.LabelNew("Package(s) to install:")
+			if err != nil {
+				return "", nil, fmt.Errorf("failed to create packages label: %v", err)
 			}
-		}
+			packagesLabel.SetHAlign(gtk.ALIGN_START)
+			grid.Attach(packagesLabel, 0, row, 1, 1)
 
-		grid.Attach(packagesEntry, 1, row, 1, 1)
-
-		// Connect to the changed signal
-		packagesEntry.Connect("changed", func() {
-			text, _ := packagesEntry.GetText()
-			details.Packages = text
-		})
-
-		row++
-
-		// Add icon selection for package apps
-		iconLabel, err := gtk.LabelNew("Icon:")
-		if err != nil {
-			return "", nil, fmt.Errorf("failed to create icon label: %v", err)
-		}
-		iconLabel.SetHAlign(gtk.ALIGN_START)
-		grid.Attach(iconLabel, 0, row, 1, 1)
-
-		// Create icon file chooser or auto-find button
-		iconBox, _ := gtk.BoxNew(gtk.ORIENTATION_HORIZONTAL, 5)
-
-		// Create file chooser for icon
-		iconChooser, err := gtk.FileChooserButtonNew("Select Icon", gtk.FILE_CHOOSER_ACTION_OPEN)
-		if err != nil {
-			return "", nil, fmt.Errorf("failed to create file chooser: %v", err)
-		}
-
-		// Set file filter for images
-		filter, err := gtk.FileFilterNew()
-		if err != nil {
-			return "", nil, fmt.Errorf("failed to create file filter: %v", err)
-		}
-		filter.SetName("Image files")
-		filter.AddPattern("*.png")
-		filter.AddPattern("*.jpg")
-		filter.AddPattern("*.jpeg")
-		filter.AddPattern("*.svg")
-		iconChooser.AddFilter(filter)
-		iconBox.PackStart(iconChooser, true, true, 0)
-
-		// Add auto-find icon button
-		autoFindBtn, _ := gtk.ButtonNewWithLabel("Auto-find")
-		iconBox.PackStart(autoFindBtn, false, false, 0)
-
-		// Connect to auto-find button click
-		autoFindBtn.Connect("clicked", func() {
-			// Get the package name
-			pkgText, _ := packagesEntry.GetText()
-			if pkgText == "" {
-				// If package field is empty, show an error
-				dialog := gtk.MessageDialogNew(nil, gtk.DIALOG_MODAL, gtk.MESSAGE_ERROR, gtk.BUTTONS_OK,
-					"Please enter a package name first")
-				dialog.Run()
-				dialog.Destroy()
-				return
+			// Create entry for packages
+			packagesEntry, err := gtk.EntryNew()
+			if err != nil {
+				return "", nil, fmt.Errorf("failed to create packages entry: %v", err)
 			}
 
-			// Get the first package from the list
-			pkgName := strings.Split(pkgText, " ")[0]
-
-			// Try to find the icon from the package
-			iconPath := getIconFromPackage(pkgName, piAppsDir)
-			if iconPath != "" {
-				details.Icon = iconPath
-
-				// Show a success message
-				dialog := gtk.MessageDialogNew(nil, gtk.DIALOG_MODAL, gtk.MESSAGE_INFO, gtk.BUTTONS_OK,
-					"Found icon for package: %s", pkgName)
-				dialog.Run()
-				dialog.Destroy()
-			} else {
-				// If icon not found, prompt to select one
-				dialog := gtk.MessageDialogNew(nil, gtk.DIALOG_MODAL, gtk.MESSAGE_WARNING, gtk.BUTTONS_OK,
-					"No icon found for package: %s\nPlease select one manually.", pkgName)
-				dialog.Run()
-				dialog.Destroy()
+			// Read existing packages if available
+			packagesFile := filepath.Join(piAppsDir, "apps", appName, "packages")
+			if _, err := os.Stat(packagesFile); err == nil {
+				packagesContent, err := os.ReadFile(packagesFile)
+				if err == nil {
+					packagesEntry.SetText(string(packagesContent))
+					details.Packages = string(packagesContent)
+				}
 			}
-		})
 
-		grid.Attach(iconBox, 1, row, 1, 1)
+			grid.Attach(packagesEntry, 1, row, 1, 1)
 
-		// Connect to the file-set signal for the icon chooser
-		iconChooser.Connect("file-set", func() {
-			details.Icon = iconChooser.GetFilename()
-		})
+			// Connect to the changed signal
+			packagesEntry.Connect("changed", func() {
+				text, _ := packagesEntry.GetText()
+				details.Packages = text
+			})
 
-		row++
+			row++
 
-		// Website field for package apps too
-		websiteLabel, err := gtk.LabelNew("Website:")
-		if err != nil {
-			return "", nil, fmt.Errorf("failed to create website label: %v", err)
-		}
-		websiteLabel.SetHAlign(gtk.ALIGN_START)
-		grid.Attach(websiteLabel, 0, row, 1, 1)
-
-		// Create entry for website
-		websiteEntry, err := gtk.EntryNew()
-		if err != nil {
-			return "", nil, fmt.Errorf("failed to create website entry: %v", err)
-		}
-
-		// Read existing website if available
-		websiteFile := filepath.Join(piAppsDir, "apps", appName, "website")
-		if _, err := os.Stat(websiteFile); err == nil {
-			websiteContent, err := os.ReadFile(websiteFile)
-			if err == nil {
-				websiteEntry.SetText(string(websiteContent))
-				details.Website = string(websiteContent)
+			// Add icon selection for package apps
+			iconLabel, err := gtk.LabelNew("Icon:")
+			if err != nil {
+				return "", nil, fmt.Errorf("failed to create icon label: %v", err)
 			}
+			iconLabel.SetHAlign(gtk.ALIGN_START)
+			grid.Attach(iconLabel, 0, row, 1, 1)
+
+			// Create icon file chooser or auto-find button
+			iconBox, _ := gtk.BoxNew(gtk.ORIENTATION_HORIZONTAL, 5)
+
+			// Create file chooser for icon
+			iconChooser, err := gtk.FileChooserButtonNew("Select Icon", gtk.FILE_CHOOSER_ACTION_OPEN)
+			if err != nil {
+				return "", nil, fmt.Errorf("failed to create file chooser: %v", err)
+			}
+
+			// Set file filter for images
+			filter, err := gtk.FileFilterNew()
+			if err != nil {
+				return "", nil, fmt.Errorf("failed to create file filter: %v", err)
+			}
+			filter.SetName("Image files")
+			filter.AddPattern("*.png")
+			filter.AddPattern("*.jpg")
+			filter.AddPattern("*.jpeg")
+			filter.AddPattern("*.svg")
+			iconChooser.AddFilter(filter)
+			iconBox.PackStart(iconChooser, true, true, 0)
+
+			// Add auto-find icon button
+			autoFindBtn, _ := gtk.ButtonNewWithLabel("Auto-find")
+			iconBox.PackStart(autoFindBtn, false, false, 0)
+
+			// Connect to auto-find button click
+			autoFindBtn.Connect("clicked", func() {
+				// Get the package name
+				pkgText, _ := packagesEntry.GetText()
+				if pkgText == "" {
+					// If package field is empty, show an error
+					dialog := gtk.MessageDialogNew(nil, gtk.DIALOG_MODAL, gtk.MESSAGE_ERROR, gtk.BUTTONS_OK,
+						"Please enter a package name first")
+					dialog.Run()
+					dialog.Destroy()
+					return
+				}
+
+				// Get the first package from the list
+				pkgName := strings.Split(pkgText, " ")[0]
+
+				// Try to find the icon from the package
+				iconPath := getIconFromPackage(pkgName, piAppsDir)
+				if iconPath != "" {
+					details.Icon = iconPath
+
+					// Show a success message
+					dialog := gtk.MessageDialogNew(nil, gtk.DIALOG_MODAL, gtk.MESSAGE_INFO, gtk.BUTTONS_OK,
+						"Found icon for package: %s", pkgName)
+					dialog.Run()
+					dialog.Destroy()
+				} else {
+					// If icon not found, prompt to select one
+					dialog := gtk.MessageDialogNew(nil, gtk.DIALOG_MODAL, gtk.MESSAGE_WARNING, gtk.BUTTONS_OK,
+						"No icon found for package: %s\nPlease select one manually.", pkgName)
+					dialog.Run()
+					dialog.Destroy()
+				}
+			})
+
+			grid.Attach(iconBox, 1, row, 1, 1)
+
+			// Connect to the file-set signal for the icon chooser
+			iconChooser.Connect("file-set", func() {
+				details.Icon = iconChooser.GetFilename()
+			})
+
+			row++
+
+			// Website field for package apps too
+			websiteLabel, err := gtk.LabelNew("Website:")
+			if err != nil {
+				return "", nil, fmt.Errorf("failed to create website label: %v", err)
+			}
+			websiteLabel.SetHAlign(gtk.ALIGN_START)
+			grid.Attach(websiteLabel, 0, row, 1, 1)
+
+			// Create entry for website
+			websiteEntry, err := gtk.EntryNew()
+			if err != nil {
+				return "", nil, fmt.Errorf("failed to create website entry: %v", err)
+			}
+
+			// Read existing website if available
+			websiteFile := filepath.Join(piAppsDir, "apps", appName, "website")
+			if _, err := os.Stat(websiteFile); err == nil {
+				websiteContent, err := os.ReadFile(websiteFile)
+				if err == nil {
+					websiteEntry.SetText(string(websiteContent))
+					details.Website = string(websiteContent)
+				}
+			}
+
+			grid.Attach(websiteEntry, 1, row, 1, 1)
+
+			// Connect to the changed signal
+			websiteEntry.Connect("changed", func() {
+				text, _ := websiteEntry.GetText()
+				details.Website = text
+			})
+
+			row++
 		}
-
-		grid.Attach(websiteEntry, 1, row, 1, 1)
-
-		// Connect to the changed signal
-		websiteEntry.Connect("changed", func() {
-			text, _ := websiteEntry.GetText()
-			details.Website = text
-		})
-
-		row++
 	}
 
 	// Add description field (common to both app types)
@@ -1694,7 +1767,8 @@ func createAppDirectory(appName, appType string) error {
 	}
 
 	// Create appropriate files based on app type
-	if appType == "standard" {
+	switch appType {
+	case "standard":
 		// Create install script
 		installFile := filepath.Join(appDir, "install")
 		if _, err := os.Stat(installFile); os.IsNotExist(err) {
@@ -1706,7 +1780,7 @@ func createAppDirectory(appName, appType string) error {
 				return fmt.Errorf("failed to make install script executable: %v", err)
 			}
 		}
-	} else if appType == "package" {
+	case "package":
 		// Create empty packages file
 		packagesFile := filepath.Join(appDir, "packages")
 		if _, err := os.Stat(packagesFile); os.IsNotExist(err) {
@@ -2142,10 +2216,11 @@ func showSuccessDialog(appName string, piAppsDir string) {
 		detailsDialog.Destroy()
 
 		// Handle response from details dialog
-		if detailsResponse == gtk.RESPONSE_OK {
+		switch detailsResponse {
+		case gtk.RESPONSE_OK:
 			// If Next is clicked, show success dialog again
 			showSuccessDialog(appName, piAppsDir)
-		} else if detailsResponse == gtk.RESPONSE_CANCEL {
+		case gtk.RESPONSE_CANCEL:
 			// If Previous is clicked, show app preview dialog (Step 5)
 			previewDialog := createAppPreviewDialog(appName, piAppsDir)
 			previewResponse := previewDialog.Run()
@@ -2168,7 +2243,7 @@ func showSuccessDialog(appName string, piAppsDir string) {
 				// If dialog is closed with X button, exit
 				return
 			}
-		} else {
+		default:
 			// If details dialog is closed with X button, exit
 			return
 		}
