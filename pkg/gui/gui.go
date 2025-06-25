@@ -1322,6 +1322,14 @@ func (g *GUI) showAppDetails(appPath string) {
 		if g.hasInstallScript(appName) {
 			scriptsBtn, err := gtk.ButtonNewWithLabel("Scripts")
 			if err == nil {
+				// Add scripts icon to button
+				scriptsIcon := filepath.Join(g.directory, "icons", "shellscript.png")
+				if pixbuf, err := gdk.PixbufNewFromFileAtSize(scriptsIcon, 18, 18); err == nil {
+					if img, err := gtk.ImageNewFromPixbuf(pixbuf); err == nil {
+						scriptsBtn.SetImage(img)
+						scriptsBtn.SetAlwaysShowImage(true)
+					}
+				}
 				scriptsBtn.Connect("clicked", func() {
 					g.openAppScripts(appName)
 				})
@@ -1335,6 +1343,14 @@ func (g *GUI) showAppDetails(appPath string) {
 			// Only uninstall button for installed apps
 			uninstallBtn, err := gtk.ButtonNewWithLabel("Uninstall")
 			if err == nil {
+				// Add uninstall icon to button
+				uninstallIcon := filepath.Join(g.directory, "icons", "uninstall.png")
+				if pixbuf, err := gdk.PixbufNewFromFileAtSize(uninstallIcon, 18, 18); err == nil {
+					if img, err := gtk.ImageNewFromPixbuf(pixbuf); err == nil {
+						uninstallBtn.SetImage(img)
+						uninstallBtn.SetAlwaysShowImage(true)
+					}
+				}
 				uninstallBtn.Connect("clicked", func() {
 					g.performAppAction(appName, "uninstall")
 					window.Destroy()
@@ -1346,6 +1362,14 @@ func (g *GUI) showAppDetails(appPath string) {
 			// Only install button for uninstalled apps
 			installBtn, err := gtk.ButtonNewWithLabel("Install")
 			if err == nil {
+				// Add install icon to button
+				installIcon := filepath.Join(g.directory, "icons", "install.png")
+				if pixbuf, err := gdk.PixbufNewFromFileAtSize(installIcon, 18, 18); err == nil {
+					if img, err := gtk.ImageNewFromPixbuf(pixbuf); err == nil {
+						installBtn.SetImage(img)
+						installBtn.SetAlwaysShowImage(true)
+					}
+				}
 				installBtn.Connect("clicked", func() {
 					g.performAppAction(appName, "install")
 					window.Destroy()
@@ -1370,6 +1394,14 @@ func (g *GUI) showAppDetails(appPath string) {
 			if status == "corrupted" {
 				errorsBtn, err := gtk.ButtonNewWithLabel("Errors")
 				if err == nil {
+					// Add logs icon to button
+					logsIcon := filepath.Join(g.directory, "icons", "log-file.png")
+					if pixbuf, err := gdk.PixbufNewFromFileAtSize(logsIcon, 18, 18); err == nil {
+						if img, err := gtk.ImageNewFromPixbuf(pixbuf); err == nil {
+							errorsBtn.SetImage(img)
+							errorsBtn.SetAlwaysShowImage(true)
+						}
+					}
 					errorsBtn.Connect("clicked", func() {
 						g.viewAppErrors(appName)
 					})
@@ -1380,6 +1412,14 @@ func (g *GUI) showAppDetails(appPath string) {
 			// Uninstall button
 			uninstallBtn, err := gtk.ButtonNewWithLabel("Uninstall")
 			if err == nil {
+				// Add uninstall icon to button
+				uninstallIcon := filepath.Join(g.directory, "icons", "uninstall.png")
+				if pixbuf, err := gdk.PixbufNewFromFileAtSize(uninstallIcon, 18, 18); err == nil {
+					if img, err := gtk.ImageNewFromPixbuf(pixbuf); err == nil {
+						uninstallBtn.SetImage(img)
+						uninstallBtn.SetAlwaysShowImage(true)
+					}
+				}
 				uninstallBtn.Connect("clicked", func() {
 					g.performAppAction(appName, "uninstall")
 					window.Destroy()
@@ -1391,6 +1431,14 @@ func (g *GUI) showAppDetails(appPath string) {
 			// Install button
 			installBtn, err := gtk.ButtonNewWithLabel("Install")
 			if err == nil {
+				// Add install icon to button
+				installIcon := filepath.Join(g.directory, "icons", "install.png")
+				if pixbuf, err := gdk.PixbufNewFromFileAtSize(installIcon, 18, 18); err == nil {
+					if img, err := gtk.ImageNewFromPixbuf(pixbuf); err == nil {
+						installBtn.SetImage(img)
+						installBtn.SetAlwaysShowImage(true)
+					}
+				}
 				installBtn.Connect("clicked", func() {
 					g.performAppAction(appName, "install")
 					window.Destroy()

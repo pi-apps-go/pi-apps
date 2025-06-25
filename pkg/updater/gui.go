@@ -284,36 +284,40 @@ func (g *UpdaterGUI) createButtonSection(parent *gtk.Box) error {
 	}
 	buttonBox.SetHAlign(gtk.ALIGN_END)
 
-	// Cancel button
+	// Cancel button with exit icon
 	g.cancelButton, err = gtk.ButtonNewWithLabel("Cancel")
 	if err != nil {
 		return err
 	}
+	g.addButtonIcon(g.cancelButton, "exit.png")
 	g.cancelButton.Connect("clicked", func() {
 		gtk.MainQuit()
 	})
 
-	// Retry button (initially hidden)
+	// Retry button with refresh icon (initially hidden)
 	g.retryButton, err = gtk.ButtonNewWithLabel("Retry")
 	if err != nil {
 		return err
 	}
+	g.addButtonIcon(g.retryButton, "refresh.png")
 	g.retryButton.SetVisible(false)
 	g.retryButton.Connect("clicked", g.onRetryClicked)
 
-	// Rollback button (initially hidden)
+	// Rollback button with backup icon (initially hidden)
 	g.rollbackButton, err = gtk.ButtonNewWithLabel("Rollback")
 	if err != nil {
 		return err
 	}
+	g.addButtonIcon(g.rollbackButton, "backup.png")
 	g.rollbackButton.SetVisible(false)
 	g.rollbackButton.Connect("clicked", g.onRollbackClicked)
 
-	// Update button
+	// Update button with download icon
 	g.updateButton, err = gtk.ButtonNewWithLabel("Update Now")
 	if err != nil {
 		return err
 	}
+	g.addButtonIcon(g.updateButton, "download.png")
 	g.updateButton.SetSensitive(false)
 	g.updateButton.Connect("clicked", g.onUpdateClicked)
 
@@ -806,4 +810,27 @@ func (g *UpdaterGUI) loadAppIconPixbuf(appName string) interface{} {
 	// Final fallback: return nil
 	log.Printf("Failed to load icon for app: %s", appName)
 	return nil
+}
+
+// addButtonIcon adds an icon to a button
+func (g *UpdaterGUI) addButtonIcon(button *gtk.Button, iconName string) {
+	iconPath := g.updater.directory + "/icons/" + iconName
+
+	// Try to load the icon
+	if pixbuf, err := gdk.PixbufNewFromFile(iconPath); err == nil {
+		// Scale icon to appropriate size for buttons (16x16)
+		if scaled, err := pixbuf.ScaleSimple(16, 16, gdk.INTERP_BILINEAR); err == nil {
+			// Create image widget
+			if image, err := gtk.ImageNewFromPixbuf(scaled); err == nil {
+				button.SetImage(image)
+				button.SetAlwaysShowImage(true) // Ensure both icon and text are shown
+			}
+		} else if image, err := gtk.ImageNewFromPixbuf(pixbuf); err == nil {
+			button.SetImage(image)
+			button.SetAlwaysShowImage(true)
+		}
+	} else {
+		// If icon loading fails, log but don't prevent button creation
+		log.Printf("Failed to load button icon: %s", iconPath)
+	}
 }
