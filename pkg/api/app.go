@@ -30,6 +30,16 @@ import (
 	"unsafe"
 )
 
+// getManageBinary returns the correct manage binary path, checking for multi-call binary first
+func getManageBinary(directory string) (string, []string) {
+	if multiCallBinary := os.Getenv("PI_APPS_MULTI_CALL_BINARY"); multiCallBinary != "" {
+		// Use multi-call binary: multi-call-pi-apps manage [args...]
+		return multiCallBinary, []string{"manage"}
+	}
+	// Use separate binary: manage [args...]
+	return filepath.Join(directory, "manage"), []string{}
+}
+
 // AppStatus returns the current status of an app: installed, uninstalled, etc.
 func AppStatus(app string) (string, error) {
 	if app == "" {
@@ -133,7 +143,9 @@ func RemoveDeprecatedApp(app, removalArch, message string) error {
 
 		// If user chose to uninstall, run the uninstall command
 		if output == "Uninstall now" {
-			uninstallCmd := exec.Command(filepath.Join(directory, "manage"), "-uninstall", app)
+			manageBinary, baseArgs := getManageBinary(directory)
+			args := append(baseArgs, "-uninstall", app)
+			uninstallCmd := exec.Command(manageBinary, args...)
 			uninstallCmd.Stdout = os.Stdout
 			uninstallCmd.Stderr = os.Stderr
 			if err := uninstallCmd.Run(); err != nil {
@@ -211,7 +223,9 @@ func TerminalManageMulti(queue string) error {
 			// Send signal 0 to check if process is running
 			if err := process.Signal(syscall.Signal(0)); err == nil {
 				// Process exists, send the queue to the daemon and exit
-				daemonCmd := exec.Command(filepath.Join(directory, "manage"), "-daemon", queue)
+				manageBinary, baseArgs := getManageBinary(directory)
+				args := append(baseArgs, "-daemon", queue)
+				daemonCmd := exec.Command(manageBinary, args...)
 				daemonCmd.Stdout = os.Stdout
 				daemonCmd.Stderr = os.Stderr
 
@@ -226,7 +240,9 @@ func TerminalManageMulti(queue string) error {
 
 	// If we reached here, there's no active daemon or the PID file doesn't exist
 	// We'll run the daemon with our queue
-	daemonCmd := exec.Command(filepath.Join(directory, "manage"), "-daemon", queue)
+	manageBinary, baseArgs := getManageBinary(directory)
+	args := append(baseArgs, "-daemon", queue)
+	daemonCmd := exec.Command(manageBinary, args...)
 	daemonCmd.Stdout = os.Stdout
 	daemonCmd.Stderr = os.Stderr
 

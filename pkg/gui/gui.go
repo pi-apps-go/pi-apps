@@ -1530,18 +1530,35 @@ func (g *GUI) createAppInfoLabel(appName string) *gtk.Label {
 func (g *GUI) performAppAction(appName, action string) {
 	fmt.Printf("Performing %s action for app: %s\n", action, appName)
 
-	// Call the API's terminal_manage function like the original bash GUI does
-	// This is equivalent to: "${DIRECTORY}/api" terminal_manage "$action" "$app"
-	apiScript := filepath.Join(g.directory, "api")
-	// Debug logging
-	fmt.Printf("%s terminal_manage %s %s\n", apiScript, action, appName)
-	cmd := exec.Command(apiScript, "terminal_manage", action, appName)
+	// Check if we're using the multi-call binary
+	var apiScript string
+	var args []string
+
+	if multiCallBinary := os.Getenv("PI_APPS_MULTI_CALL_BINARY"); multiCallBinary != "" {
+		// Use multi-call binary: multi-call-pi-apps api terminal_manage action app
+		apiScript = multiCallBinary
+		args = []string{"api", "terminal_manage", action, appName}
+		fmt.Printf("%s api terminal_manage %s %s\n", apiScript, action, appName)
+	} else {
+		// Use separate binary: api terminal_manage action app
+		apiScript = filepath.Join(g.directory, "api")
+		args = []string{"terminal_manage", action, appName}
+		fmt.Printf("%s terminal_manage %s %s\n", apiScript, action, appName)
+	}
+
+	cmd := exec.Command(apiScript, args...)
 
 	// Set environment variables that might be needed
 	cmd.Env = append(os.Environ(),
 		"DIRECTORY="+g.directory,
+		"PI_APPS_DIR="+g.directory,
 		"GUI_FORMAT_VERSION=2",
 	)
+
+	// Ensure the multi-call binary environment variable is passed through
+	if multiCallBinary := os.Getenv("PI_APPS_MULTI_CALL_BINARY"); multiCallBinary != "" {
+		cmd.Env = append(cmd.Env, "PI_APPS_MULTI_CALL_BINARY="+multiCallBinary)
+	}
 
 	if err := cmd.Start(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error starting %s for %s: %v\n", action, appName, err)
@@ -2262,7 +2279,15 @@ func (g *GUI) viewAppErrors(appName string) {
 
 		if latestLog != "" {
 			// Open log file with logviewer command like original
-			cmd := exec.Command(filepath.Join(g.directory, "api-go"), "logviewer", latestLog)
+			var cmd *exec.Cmd
+			if multiCallBinary := os.Getenv("PI_APPS_MULTI_CALL_BINARY"); multiCallBinary != "" {
+				// Use multi-call binary
+				cmd = exec.Command(multiCallBinary, "api", "logviewer", latestLog)
+			} else {
+				// Use separate binary
+				cmd = exec.Command(filepath.Join(g.directory, "api-go"), "logviewer", latestLog)
+			}
+
 			if err := cmd.Start(); err != nil {
 				logger.Error(fmt.Sprintf("Failed to open log viewer: %v\n", err))
 				// Fallback: open in text editor

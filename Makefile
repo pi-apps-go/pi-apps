@@ -7,10 +7,12 @@ LDFLAGS=-X main.BuildDate="$(BUILD_DATE)" -X main.GitCommit="$(GIT_COMMIT_HASH)"
 
 all: build
 
-build: build-api build-pi-apps build-manage build-settings build-updater build-gui
-build-debug: build-api-debug build-pi-apps-debug build-manage-debug build-settings-debug build-updater-debug build-gui-debug
+build: build-api build-pi-apps build-manage build-settings build-updater build-gui build-multi-call-pi-apps
+build-debug: build-api-debug build-pi-apps-debug build-manage-debug build-settings-debug build-updater-debug build-gui-debug build-multi-call-pi-apps-debug
 build-with-xlunch: build-api build-pi-apps build-manage build-settings build-updater build-gui-with-xlunch
 build-with-xlunch-debug: build-api-debug build-pi-apps-debug build-manage-debug build-settings-debug build-updater-debug build-gui-with-xlunch-debug
+build-with-multi-call: build-multi-call-pi-apps
+build-with-multi-call-debug: build-multi-call-pi-apps-debug
 
 build-api:
 	go build -o bin/api -ldflags "$(LDFLAGS) -w -s" -trimpath ./cmd/api
@@ -31,16 +33,16 @@ build-manage-debug:
 	go build -o bin/manage -ldflags "$(LDFLAGS)" ./cmd/manage/main.go
 
 build-gui:
-	go build -o bin/gui-demo -ldflags "$(LDFLAGS) -w -s" -trimpath ./cmd/gui-demo/main.go
+	go build -o bin/gui -ldflags "$(LDFLAGS) -w -s" -trimpath ./cmd/gui/main.go
 
 build-gui-debug:
-	go build -o bin/gui-demo -ldflags "$(LDFLAGS)" ./cmd/gui-demo/main.go
+	go build -o bin/gui -ldflags "$(LDFLAGS)" ./cmd/gui/main.go
 
 build-gui-with-xlunch:
-	go build -o bin/gui-demo -ldflags "$(LDFLAGS) -w -s" -tags=xlunch -trimpath ./cmd/gui-demo/main.go
+	go build -o bin/gui -ldflags "$(LDFLAGS) -w -s" -tags=xlunch -trimpath ./cmd/gui/main.go
 
 build-gui-with-xlunch-debug:
-	go build -o bin/gui-demo -ldflags "$(LDFLAGS)" -tags=xlunch ./cmd/gui-demo/main.go
+	go build -o bin/gui -ldflags "$(LDFLAGS)" -tags=xlunch ./cmd/gui/main.go
 
 build-settings:
 	go build -o bin/settings -ldflags "$(LDFLAGS) -w -s" -trimpath ./cmd/settings
@@ -61,15 +63,22 @@ build-error-report-server:
 build-error-report-server-debug:
 	go build -o bin/error-report-server ./cmd/error-report-server/main.go
 
+build-multi-call-pi-apps:
+	go build -o bin/multi-call-pi-apps -ldflags "$(LDFLAGS) -w -s" -trimpath ./cmd/multi-call-pi-apps
+
+build-multi-call-pi-apps-debug:
+	go build -o bin/multi-call-pi-apps -ldflags "$(LDFLAGS)" ./cmd/multi-call-pi-apps
+
 clean:
-	rm -rf bin/
+	rm -rf bin/ api-go manage pi-apps settings updater gui error-report-server multi-call-pi-apps
 
 install: build
 	install -m 755 bin/api api-go
 	install -m 755 bin/manage manage
 	install -m 755 bin/settings settings
 	install -m 755 bin/updater updater
-	install -m 755 bin/gui-demo gui-demo
+	install -m 755 bin/gui gui
+	install -m 755 bin/multi-call-pi-apps multi-call-pi-apps
 	#install -m 755 bin/pi-apps $(BINDIR)/pi-apps
 	#install -m 755 bash-go-api $(BINDIR)/api
 	
@@ -78,9 +87,26 @@ install-debug: build-debug
 	install -m 755 bin/manage manage
 	install -m 755 bin/settings settings
 	install -m 755 bin/updater updater
-	install -m 755 bin/gui-demo gui-demo
+	install -m 755 bin/gui gui
+	install -m 755 bin/multi-call-pi-apps multi-call-pi-apps
 	#install -m 755 bin/pi-apps $(BINDIR)/pi-apps
 	#install -m 755 bash-go-api $(BINDIR)/api
+
+install-with-multi-call: build-with-multi-call
+	install -m 755 bin/multi-call-pi-apps multi-call-pi-apps
+	ln -s multi-call-pi-apps api-go
+	ln -s multi-call-pi-apps manage
+	ln -s multi-call-pi-apps settings
+	ln -s multi-call-pi-apps updater
+	ln -s multi-call-pi-apps gui
+
+install-with-multi-call-debug: build-with-multi-call-debug
+	install -m 755 bin/multi-call-pi-apps multi-call-pi-apps
+	ln -s multi-call-pi-apps api-go
+	ln -s multi-call-pi-apps manage
+	ln -s multi-call-pi-apps settings
+	ln -s multi-call-pi-apps updater
+	ln -s multi-call-pi-apps gui
 
 test:
 	go test -v ./...
