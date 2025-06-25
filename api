@@ -648,6 +648,17 @@ flatpak_uninstall() {
     return $?
 }
 
+get_pi_app_icon() { #get the path to an app's icon file (icon-64.png)
+  local app_name="$1"
+  
+  if [ -z "$app_name" ]; then
+    error "get_pi_app_icon: app name is required"
+  fi
+  
+  "$GO_API_BIN" $GO_API_ARGS get_pi_app_icon "$app_name"
+  return $?
+}
+
 # If script is executed directly (not sourced), handle command line arguments
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     # If called with arguments, pass them to the Go API

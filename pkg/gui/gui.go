@@ -26,6 +26,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
@@ -37,6 +38,7 @@ import (
 	"github.com/gotk3/gotk3/glib"
 	"github.com/gotk3/gotk3/gtk"
 	"github.com/kbinani/screenshot"
+	"github.com/toqueteos/webbrowser"
 )
 
 // GUI represents the main Pi-Apps GUI application
@@ -1300,10 +1302,8 @@ func (g *GUI) showAppDetails(appPath string) {
 				textView.SetMarginStart(5)
 				textView.SetMarginEnd(5)
 
-				buffer, err := textView.GetBuffer()
-				if err == nil {
-					buffer.SetText(desc)
-				}
+				// Set up clickable links in the text view
+				g.setupClickableLinks(textView, desc)
 
 				scrolled.Add(textView)
 				vbox.PackStart(scrolled, true, true, 0)
@@ -2245,7 +2245,12 @@ func (g *GUI) viewAppErrors(appName string) {
 		var latestTime time.Time
 
 		for _, entry := range entries {
-			if strings.Contains(entry.Name(), "fail-"+appName) {
+			fileName := entry.Name()
+			// Look for logs that contain the app name and are error logs (fail or incomplete)
+			// Pattern: {action}-{fail|incomplete}-{appName}.log
+			if strings.Contains(fileName, appName) &&
+				(strings.Contains(fileName, "-fail-") || strings.Contains(fileName, "-incomplete-")) &&
+				strings.HasSuffix(fileName, ".log") {
 				if info, err := entry.Info(); err == nil {
 					if info.ModTime().After(latestTime) {
 						latestTime = info.ModTime()
@@ -2666,6 +2671,70 @@ func addCommasToNumber(n int) string {
 		result = append(result, string(r))
 	}
 	return strings.Join(result, "")
+}
+
+// setupClickableLinks sets up visually highlighted links in a TextView
+func (g *GUI) setupClickableLinks(textView *gtk.TextView, text string) {
+	buffer, err := textView.GetBuffer()
+	if err != nil {
+		return
+	}
+
+	// Set the text first
+	buffer.SetText(text)
+
+	// Create a tag for links to make them visually distinct
+	linkTag := buffer.CreateTag("link", map[string]interface{}{
+		"foreground": "#4A90E2",
+		"underline":  1, // PANGO_UNDERLINE_SINGLE
+	})
+	if linkTag == nil {
+		return
+	}
+
+	// Find URLs in the text using regex
+	urlPattern := `https?://[^\s<>"{}|\\^` + "`" + `\[\]]+`
+	urls := regexp.MustCompile(urlPattern).FindAllStringIndex(text, -1)
+
+	// Apply link tags to each URL to make them visually distinct
+	for _, match := range urls {
+		startIter := buffer.GetIterAtOffset(match[0])
+		endIter := buffer.GetIterAtOffset(match[1])
+		buffer.ApplyTag(linkTag, startIter, endIter)
+	}
+
+	// Make links clickable with precise click detection
+	if len(urls) > 0 {
+		// Store URL information for click detection
+		urlPattern := `https?://[^\s<>"{}|\\^` + "`" + `\[\]]+`
+		urlMatches := regexp.MustCompile(urlPattern).FindAllStringIndex(text, -1)
+		foundUrls := regexp.MustCompile(urlPattern).FindAllString(text, -1)
+
+		textView.Connect("button-press-event", func(widget *gtk.TextView, event *gdk.Event) bool {
+			// Get click position
+			eventButton := gdk.EventButtonNewFromEvent(event)
+			if eventButton.Button() == 1 { // Left click
+				x, y := textView.WindowToBufferCoords(gtk.TEXT_WINDOW_WIDGET, int(eventButton.X()), int(eventButton.Y()))
+				iter := textView.GetIterAtLocation(x, y)
+				clickOffset := iter.GetOffset()
+
+				// Check if click is within any URL range
+				for i, match := range urlMatches {
+					if clickOffset >= match[0] && clickOffset <= match[1] {
+						// Clicked on this specific URL
+						webbrowser.Open(foundUrls[i])
+						return true
+					}
+				}
+			}
+			return false
+		})
+
+		// Add note at the end of the text about links
+		endIter := buffer.GetEndIter()
+		linkNote := "\n\nNote: Links are highlighted in blue. Click directly on a link to open it."
+		buffer.Insert(endIter, linkNote)
+	}
 }
 
 // minInt returns the minimum of two integers

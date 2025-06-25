@@ -582,6 +582,19 @@ func main() {
 		}
 		fmt.Println(iconPath)
 
+	case "get_pi_app_icon":
+		if len(args) < 1 {
+			api.ErrorNoExit("Error: No app name specified")
+			api.Status("Usage: api get_pi_app_icon <app-name>")
+			os.Exit(1)
+		}
+
+		iconPath, err := api.GetPiAppIcon(args[0])
+		if err != nil {
+			api.Error(fmt.Sprintf("Error: %v", err))
+		}
+		fmt.Println(iconPath)
+
 	case "ubuntu_ppa_installer":
 		if len(args) < 1 {
 			api.ErrorNoExit("Error: No PPA name specified")
@@ -1514,6 +1527,7 @@ func printUsage() {
 	fmt.Println("  install_packages <package1> [package2] ... [-t repo] - Install packages (requires $app environment variable)")
 	fmt.Println("  purge_packages [--update]                    - Remove packages for app (requires $app environment variable)")
 	fmt.Println("  get_icon_from_package <package-name> [package-name2] ... - Get package icon")
+	fmt.Println("  get_pi_app_icon <app-name>                    - Get Pi-Apps app icon path")
 	fmt.Println("")
 	fmt.Println("Repository Management:")
 	fmt.Println("  repo_add <file1> [file2] [...]               - Add repository files")

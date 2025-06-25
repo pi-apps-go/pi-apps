@@ -199,7 +199,7 @@ func createDesktopEntry() error {
 		return nil
 	}
 
-	desktopPath := filepath.Join(home, ".local", "share", "applications", "pi-apps-settings.desktop")
+	desktopPath := filepath.Join(home, ".local", "share", "applications", "pi-apps-go-settings.desktop")
 
 	// Check if already exists
 	if fileExists(desktopPath) {
@@ -222,7 +222,7 @@ StartupWMClass=Pi-Apps-Settings
 Type=Application
 Categories=Settings;
 StartupNotify=true
-`, T("Pi-Apps Settings"), T("Configure Pi-Apps or create an App"), directory, directory)
+`, T("Pi-Apps Go Settings"), T("Configure Pi-Apps Go or create an App"), directory, directory)
 
 	// Write desktop file
 	if err := os.WriteFile(desktopPath, []byte(content), 0644); err != nil {

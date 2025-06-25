@@ -543,6 +543,35 @@ func getAppsWithStatusFiles(directory string) ([]string, error) {
 	return apps, nil
 }
 
+// shouldSkipDirectory checks if a directory should be skipped during filesystem walking
+func shouldSkipDirectory(path string, d fs.DirEntry) bool {
+	if !d.IsDir() {
+		return false
+	}
+
+	dirName := d.Name()
+
+	// Skip CMake build directories and other problematic directories
+	skipPatterns := []string{
+		"build",
+		"CMakeFiles",
+		".git",
+		"node_modules",
+		"__pycache__",
+		".cache",
+		"tmp",
+		"temp",
+	}
+
+	for _, pattern := range skipPatterns {
+		if dirName == pattern || strings.HasPrefix(dirName, pattern) {
+			return true
+		}
+	}
+
+	return false
+}
+
 // getCPUInstallableApps returns a list of apps that can be installed on the current CPU
 func getCPUInstallableApps(directory string) ([]string, error) {
 	// Get system architecture using multiple methods for better compatibility
@@ -554,7 +583,16 @@ func getCPUInstallableApps(directory string) ([]string, error) {
 	// Find apps with install script, install-XX script, or packages file
 	err := filepath.WalkDir(appPath, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
+			// Skip permission denied errors for problematic directories
+			if os.IsPermission(err) {
+				return nil
+			}
 			return err
+		}
+
+		// Skip problematic directories entirely
+		if shouldSkipDirectory(path, d) {
+			return fs.SkipDir
 		}
 
 		if !d.IsDir() {
@@ -638,7 +676,16 @@ func getAppsWithFile(directory string, fileName string) ([]string, error) {
 
 	err := filepath.WalkDir(appPath, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
+			// Skip permission denied errors for problematic directories
+			if os.IsPermission(err) {
+				return nil
+			}
 			return err
+		}
+
+		// Skip problematic directories entirely
+		if shouldSkipDirectory(path, d) {
+			return fs.SkipDir
 		}
 
 		if !d.IsDir() && d.Name() == fileName {
@@ -665,7 +712,16 @@ func getStandardApps(directory string) ([]string, error) {
 
 	err := filepath.WalkDir(appPath, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
+			// Skip permission denied errors for problematic directories
+			if os.IsPermission(err) {
+				return nil
+			}
 			return err
+		}
+
+		// Skip problematic directories entirely
+		if shouldSkipDirectory(path, d) {
+			return fs.SkipDir
 		}
 
 		if !d.IsDir() {

@@ -1054,13 +1054,13 @@ func GitClone(args ...string) error {
 		return fmt.Errorf("git_clone(): no repository URL specified")
 	}
 
-	// Get current directory to determine folder path
-	currentDir, err := os.Getwd()
+	// Get user's home directory for cloning (matching original bash behavior)
+	homeDir, err := os.UserHomeDir()
 	if err != nil {
-		return fmt.Errorf("failed to get current directory: %w", err)
+		return fmt.Errorf("failed to get user home directory: %w", err)
 	}
 
-	folder := filepath.Join(currentDir, repoName)
+	folder := filepath.Join(homeDir, repoName)
 
 	// Display status message
 	Status("Downloading " + repoName + " repository...")
@@ -1076,8 +1076,9 @@ func GitClone(args ...string) error {
 		}
 	}
 
-	// Clone the repository
-	gitCmd := exec.Command("git", args...)
+	// Clone the repository (run from home directory)
+	gitCmd := exec.Command("git", "clone", repoURL, repoName)
+	gitCmd.Dir = homeDir // Set working directory to home directory
 	output, err := gitCmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("\nFailed to download %s repository.\nErrors: %s", repoName, string(output))
@@ -1590,6 +1591,20 @@ func UnzipWithArgs(args ...string) error {
 	}
 
 	return Unzip(zipFile, destDir, flags)
+}
+
+// GetPiAppIcon returns the path to an app's icon file (icon-64.png)
+// Returns the full path to the icon file, or an error if not found
+func GetPiAppIcon(appName string) (string, error) {
+	piAppsDir := getPiAppsDir()
+	iconPath := filepath.Join(piAppsDir, "apps", appName, "icon-64.png")
+
+	// Check if the icon file exists
+	if _, err := os.Stat(iconPath); os.IsNotExist(err) {
+		return "", fmt.Errorf("icon file not found for app '%s': %s", appName, iconPath)
+	}
+
+	return iconPath, nil
 }
 
 // ChmodWithArgs wraps Chmod to handle command-line style arguments

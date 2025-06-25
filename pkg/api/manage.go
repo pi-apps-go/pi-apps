@@ -105,21 +105,13 @@ func ManageApp(action Action, appName string, isUpdate bool) error {
 	logFilename := fmt.Sprintf("%s-incomplete-%s.log", action, appName)
 	logPath := filepath.Join(logDir, logFilename)
 
-	// If log file already exists with another status, create a new one with a suffix
+	// Remove any existing incomplete log file to ensure we start fresh
+	// This prevents old log content from persisting in incomplete files
 	if _, err := os.Stat(logPath); err == nil {
-		// File already exists, add a number to the filename
-		i := 1
-		for {
-			newLogPath := fmt.Sprintf("%s%d", logPath, i)
-			if _, err := os.Stat(newLogPath); os.IsNotExist(err) {
-				logPath = newLogPath
-				break
-			}
-			i++
-		}
+		os.Remove(logPath)
 	}
 
-	// Create log file
+	// Create log file (this will create a new file or truncate existing one)
 	logFile, err := os.Create(logPath)
 	if err != nil {
 		return fmt.Errorf("failed to create log file: %w", err)
@@ -689,21 +681,13 @@ func runAppScript(appName, scriptName string) error {
 	logFilename := fmt.Sprintf("%s-incomplete-%s.log", scriptName, appName)
 	logPath := filepath.Join(logDir, logFilename)
 
-	// If log file already exists with another status, create a new one with a suffix
+	// Remove any existing incomplete log file to ensure we start fresh
+	// This prevents old log content from persisting in incomplete files
 	if _, err := os.Stat(logPath); err == nil {
-		// File already exists, add a number to the filename
-		i := 1
-		for {
-			newLogPath := fmt.Sprintf("%s%d", logPath, i)
-			if _, err := os.Stat(newLogPath); os.IsNotExist(err) {
-				logPath = newLogPath
-				break
-			}
-			i++
-		}
+		os.Remove(logPath)
 	}
 
-	// Create log file
+	// Create log file (this will create a new file or truncate existing one)
 	logFile, err := os.Create(logPath)
 	if err != nil {
 		return fmt.Errorf("failed to create log file: %w", err)
@@ -791,9 +775,6 @@ func runAppScript(appName, scriptName string) error {
 	// Check if we need sudo (for system operations)
 	needsSudo := scriptName == "install" || scriptName == "uninstall"
 
-	// Set up the app directory
-	appDir := filepath.Join(getPiAppsDir(), "apps", appName)
-
 	// Get the path to the api-go binary
 	apiDir := filepath.Dir(apiBashWrapper)
 	apiBinaryPath := filepath.Join(apiDir, "api-go")
@@ -807,6 +788,9 @@ func runAppScript(appName, scriptName string) error {
 	// Create a new script with the API environment explicitly set
 	newScriptContent := fmt.Sprintf(`#!/bin/bash
 
+# Exit immediately if any command fails (this prevents scripts from continuing after errors)
+set -e
+
 # Set the path to api-go binary explicitly
 export GO_API_BIN="%s"
 export PI_APPS_DIR="%s"
@@ -814,11 +798,12 @@ export PI_APPS_DIR="%s"
 # Source the API with explicit binary location
 source "%s"
 
-# Change to the app directory
-cd "%s"
+# Install scripts should run from home directory, not app directory
+# This matches the original bash behavior
+cd "$HOME"
 
 # Original script content follows
-%s`, apiBinaryPath, piAppsDir, apiBashWrapper, appDir, string(scriptContent))
+%s`, apiBinaryPath, piAppsDir, apiBashWrapper, string(scriptContent))
 
 	// Write the new script to a temporary file
 	tempScriptPath := filepath.Join(tempDir, "temp_script.sh")
@@ -840,7 +825,7 @@ cd "%s"
 	multiWriter := io.MultiWriter(ansiStripLogWriter, os.Stdout)
 	cmd.Stdout = multiWriter
 	cmd.Stderr = multiWriter
-	cmd.Dir = appDir
+	cmd.Dir = os.Getenv("HOME") // Install scripts should run from home directory, not app directory
 
 	// Set environment variables that scripts might need
 	env := os.Environ()

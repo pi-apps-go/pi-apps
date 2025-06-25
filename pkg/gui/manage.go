@@ -412,6 +412,10 @@ func ProgressMonitorWithOptions(queue []QueueItem, daemonMode bool) error {
 	// Variable to track if we should close the window
 	shouldClose := false
 
+	// Track timeout for stuck operations
+	startTime := time.Now()
+	const maxWaitTime = 5 * time.Minute // Auto-close after 5 minutes if stuck
+
 	// Update function for the tree view
 	updateFunc := func() bool {
 		// Check if we should close the window
@@ -428,6 +432,18 @@ func ProgressMonitorWithOptions(queue []QueueItem, daemonMode bool) error {
 			statusFile := filepath.Join(piAppsDir, "data", "manage-daemon", "status")
 			if updatedQueue, err := readQueueFromStatusFile(statusFile); err == nil && len(updatedQueue) > 0 {
 				currentQueue = updatedQueue
+			} else {
+				// If status file can't be read and enough time has passed, assume failure
+				// This handles cases where the installation process crashes before writing status
+				if time.Since(startTime) > 30*time.Second {
+					// Mark any in-progress items as potentially failed
+					for i := range currentQueue {
+						if currentQueue[i].Status == "in-progress" || currentQueue[i].Status == "waiting" {
+							currentQueue[i].Status = "failure"
+							currentQueue[i].ErrorMessage = "Installation process appears to have failed (timeout)"
+						}
+					}
+				}
 			}
 		}
 
@@ -440,18 +456,27 @@ func ProgressMonitorWithOptions(queue []QueueItem, daemonMode bool) error {
 		// Check if all operations are complete (success or failure)
 		allComplete := true
 		daemonShouldClose := false
+		hasFailures := false
+
 		for _, item := range currentQueue {
 			if item.Status == "daemon-complete" {
 				daemonShouldClose = true
+			}
+			if item.Status == "failure" {
+				hasFailures = true
 			}
 			if item.Status != "success" && item.Status != "failure" && item.Status != "daemon-complete" && item.Status != "diagnosed" {
 				allComplete = false
 			}
 		}
 
+		// Check for timeout - auto-close if stuck for too long
+		timeoutReached := time.Since(startTime) > maxWaitTime
+
 		// If all operations are complete, close after a short delay (unless in daemon mode)
 		// In daemon mode, only close when explicitly signaled
-		if (allComplete && !daemonMode) || (daemonMode && daemonShouldClose) {
+		// Also auto-close if we detect failures and timeout is reached (stuck process handling)
+		if (allComplete && !daemonMode) || (daemonMode && daemonShouldClose) || (hasFailures && timeoutReached) {
 			// Wait 1 second so user can see the status, then close
 			time.Sleep(1 * time.Second)
 
@@ -905,7 +930,7 @@ func addQueueItemToPixbufListStore(listStore *gtk.ListStore, item QueueItem, use
 	}
 
 	// Determine if this is a completed installation or uninstallation and if we should use large icons
-	isCompletedInstallOrUninstall := item.Status == "success" &&
+	isCompletedInstallOrUninstall := (item.Status == "success" || item.Status == "failure") &&
 		(item.Action == "install" || item.Action == "uninstall")
 
 	// Define the target app icon height based on whether this is a completed installation/uninstall
