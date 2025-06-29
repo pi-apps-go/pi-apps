@@ -544,7 +544,7 @@ func getAppsWithStatusFiles(directory string) ([]string, error) {
 }
 
 // shouldSkipDirectory checks if a directory should be skipped during filesystem walking
-func shouldSkipDirectory(path string, d fs.DirEntry) bool {
+func shouldSkipDirectory(_ string, d fs.DirEntry) bool {
 	if !d.IsDir() {
 		return false
 	}

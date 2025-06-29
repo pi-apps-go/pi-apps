@@ -75,6 +75,13 @@ func Init() {
 
 	// Add /usr/local/bin to PATH if not already present
 	addUsrLocalBinToPath()
+
+	// Initialize internationalization for API package
+	if err := InitializeApiI18n(); err != nil {
+		// Log error but continue - translations will fall back to English
+		// Don't use translated error messages here as i18n init failed
+		fmt.Printf("Warning: failed to initialize API i18n: %v\n", err)
+	}
 }
 
 // initPiAppsDir determines and sets the Pi-Apps directory location

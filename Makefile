@@ -7,8 +7,8 @@ LDFLAGS=-X main.BuildDate="$(BUILD_DATE)" -X main.GitCommit="$(GIT_COMMIT_HASH)"
 
 all: build
 
-build: build-api build-pi-apps build-manage build-settings build-updater build-gui build-multi-call-pi-apps
-build-debug: build-api-debug build-pi-apps-debug build-manage-debug build-settings-debug build-updater-debug build-gui-debug build-multi-call-pi-apps-debug
+build: build-api build-pi-apps build-manage build-settings build-updater build-gui
+build-debug: build-api-debug build-pi-apps-debug build-manage-debug build-settings-debug build-updater-debug build-gui-debug
 build-with-xlunch: build-api build-pi-apps build-manage build-settings build-updater build-gui-with-xlunch
 build-with-xlunch-debug: build-api-debug build-pi-apps-debug build-manage-debug build-settings-debug build-updater-debug build-gui-with-xlunch-debug
 build-with-multi-call: build-multi-call-pi-apps
@@ -63,6 +63,7 @@ build-error-report-server:
 build-error-report-server-debug:
 	go build -o bin/error-report-server ./cmd/error-report-server/main.go
 
+# If multi-call-pi-apps is used, the normal pi-apps-go seperated binaries cannot be used at the same time..
 build-multi-call-pi-apps:
 	go build -o bin/multi-call-pi-apps -ldflags "$(LDFLAGS) -w -s" -trimpath ./cmd/multi-call-pi-apps
 
@@ -78,8 +79,7 @@ install: build
 	install -m 755 bin/settings settings
 	install -m 755 bin/updater updater
 	install -m 755 bin/gui gui
-	install -m 755 bin/multi-call-pi-apps multi-call-pi-apps
-	#install -m 755 bin/pi-apps $(BINDIR)/pi-apps
+	sudo install -m 755 bin/pi-apps $(BINDIR)/pi-apps
 	#install -m 755 bash-go-api $(BINDIR)/api
 	
 install-debug: build-debug
@@ -88,20 +88,21 @@ install-debug: build-debug
 	install -m 755 bin/settings settings
 	install -m 755 bin/updater updater
 	install -m 755 bin/gui gui
-	install -m 755 bin/multi-call-pi-apps multi-call-pi-apps
-	#install -m 755 bin/pi-apps $(BINDIR)/pi-apps
+	sudo install -m 755 bin/pi-apps $(BINDIR)/pi-apps
 	#install -m 755 bash-go-api $(BINDIR)/api
 
-install-with-multi-call: build-with-multi-call
+install-with-multi-call: clean build-with-multi-call build-pi-apps
 	install -m 755 bin/multi-call-pi-apps multi-call-pi-apps
+	sudo install -m 755 bin/pi-apps $(BINDIR)/pi-apps
 	ln -s multi-call-pi-apps api-go
 	ln -s multi-call-pi-apps manage
 	ln -s multi-call-pi-apps settings
 	ln -s multi-call-pi-apps updater
 	ln -s multi-call-pi-apps gui
 
-install-with-multi-call-debug: build-with-multi-call-debug
+install-with-multi-call-debug: clean build-with-multi-call-debug build-pi-apps-debug
 	install -m 755 bin/multi-call-pi-apps multi-call-pi-apps
+	sudo install -m 755 bin/pi-apps $(BINDIR)/pi-apps
 	ln -s multi-call-pi-apps api-go
 	ln -s multi-call-pi-apps manage
 	ln -s multi-call-pi-apps settings

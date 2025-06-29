@@ -505,13 +505,23 @@ func (u *Updater) needsRecompilation(files []FileChange) bool {
 
 func (u *Updater) recompile() error {
 	fmt.Println("Recompiling Pi-Apps...")
-	cmd := exec.Command("make", "install")
+
+	// Determine which make target to use based on whether we're in multi-call mode
+	makeTarget := "install"
+
+	// Check if we're running from a multi-call binary
+	if u.isMultiCallMode() {
+		makeTarget = "install-with-multi-call"
+		fmt.Println("Multi-call mode detected, using install-with-multi-call target")
+	}
+
+	cmd := exec.Command("make", makeTarget)
 	cmd.Dir = u.directory
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("make install failed: %w", err)
+		return fmt.Errorf("make %s failed: %w", makeTarget, err)
 	}
 
 	fmt.Println("Recompilation completed successfully")
@@ -1335,11 +1345,36 @@ func (u *Updater) hasContent(filePath string) bool {
 		return false
 	}
 
-	data, err := os.ReadFile(filePath)
+	file, err := os.Open(filePath)
+	if err != nil {
+		return false
+	}
+	defer file.Close()
+
+	// Check if file has any non-whitespace content
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line != "" {
+			return true
+		}
+	}
+	return false
+}
+
+// isMultiCallMode checks if we're running from a multi-call binary
+func (u *Updater) isMultiCallMode() bool {
+	// Check if PI_APPS_MULTI_CALL_BINARY environment variable is set
+	if os.Getenv("PI_APPS_MULTI_CALL_BINARY") != "" {
+		return true
+	}
+
+	// Check if the current executable name suggests multi-call mode
+	executable, err := os.Executable()
 	if err != nil {
 		return false
 	}
 
-	content := strings.TrimSpace(string(data))
-	return content != ""
+	baseName := filepath.Base(executable)
+	return strings.Contains(strings.ToLower(baseName), "multi-call")
 }

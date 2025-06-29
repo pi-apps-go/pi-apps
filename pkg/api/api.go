@@ -166,17 +166,17 @@ func checkUnicodeSupport() bool {
 	return majorVersion >= 66
 }
 
-// AddEnglish adds en_US locale for more accurate error messages
+// AddEnglish adds en_US locale or fixes the locale to prevent application crashes
 func AddEnglish() {
 	// Check if en_US.UTF-8 is supported
 	supported, err := os.ReadFile("/usr/share/i18n/SUPPORTED")
 	if err != nil {
-		Warning("Could not read /usr/share/i18n/SUPPORTED")
+		WarningT("Could not read /usr/share/i18n/SUPPORTED")
 		return
 	}
 
 	if !strings.Contains(string(supported), "en_US.UTF-8") {
-		Warning("en_US locale is not available on your system. This may cause bad logging experience.")
+		WarningT("en_US locale is not available on your system. This may cause bad logging experience.")
 		return
 	}
 
@@ -184,32 +184,74 @@ func AddEnglish() {
 	cmd := exec.Command("locale", "-a")
 	output, err := cmd.Output()
 	if err != nil {
-		Warning("Could not check available locales")
+		WarningT("Could not check available locales")
 		return
 	}
 
 	if !strings.Contains(string(output), "en_US.utf8") {
-		Status("Adding en_US locale for better logging... ")
+		StatusT("Adding en_US locale for better logging...")
 
 		// Uncomment en_US.UTF-8 in /etc/locale.gen
 		sedCmd := exec.Command("sudo", "sed", "-i", "/en_US.UTF-8/s/^#[ ]//g", "/etc/locale.gen")
 		if err := sedCmd.Run(); err != nil {
-			Warning("Failed to edit /etc/locale.gen: " + err.Error())
+			WarningT("Failed to edit /etc/locale.gen: %s", err.Error())
 			return
 		}
 
 		// Generate the locale
 		genCmd := exec.Command("sudo", "locale-gen")
 		if err := genCmd.Run(); err != nil {
-			Warning("Failed to generate locale: " + err.Error())
+			WarningT("Failed to generate locale: %s", err.Error())
 			return
 		}
 	}
 
-	// Set environment variables
-	os.Setenv("LANG", "en_US.UTF-8")
-	os.Setenv("LANGUAGE", "en_US.UTF-8")
-	os.Setenv("LC_ALL", "en_US.UTF-8")
+	// Check if user's locale is problematic (C, POSIX, or non-UTF-8)
+	// and fix it to prevent application crashes
+	lang := os.Getenv("LANG")
+	lcAll := os.Getenv("LC_ALL")
+
+	// Check if the current locale is problematic
+	needsFixing := false
+	fixedLang := lang
+	fixedLcAll := lcAll
+
+	// If the user's locale has the ISO-8859-1 encoding associated with it, keep the language by converting it to UTF-8 version
+	if strings.Contains(lang, "ISO-8859-1") {
+		fixedLang = strings.Replace(lang, "ISO-8859-1", "UTF-8", 1)
+		StatusT("Converting locale from ISO-8859-1 to UTF-8: %s", fixedLang)
+		os.Setenv("LANG", fixedLang)
+		needsFixing = false
+	}
+
+	if strings.Contains(lcAll, "ISO-8859-1") {
+		fixedLcAll = strings.Replace(lcAll, "ISO-8859-1", "UTF-8", 1)
+		StatusT("Converting LC_ALL from ISO-8859-1 to UTF-8: %s", fixedLcAll)
+		os.Setenv("LC_ALL", fixedLcAll)
+		needsFixing = false
+	}
+
+	// If LC_ALL is set and problematic, it overrides everything else
+	if fixedLcAll != "" {
+		if fixedLcAll == "C" || fixedLcAll == "POSIX" || !strings.Contains(fixedLcAll, "UTF-8") {
+			needsFixing = true
+		}
+	} else if fixedLang != "" {
+		// Check LANG if LC_ALL is not set
+		if fixedLang == "C" || fixedLang == "POSIX" || !strings.Contains(fixedLang, "UTF-8") {
+			needsFixing = true
+		}
+	} else {
+		// No locale set at all, default to English UTF-8
+		needsFixing = true
+	}
+
+	// Only override if the current locale would cause problems
+	if needsFixing {
+		StatusT("Setting locale to en_US.UTF-8 to prevent application crashes...")
+		os.Setenv("LANG", "en_US.UTF-8")
+		os.Setenv("LC_ALL", "en_US.UTF-8")
+	}
 }
 
 // PackageInfo lists everything dpkg knows about the specified package
@@ -226,14 +268,16 @@ func PackageInfo(packageName string) (string, error) {
 
 	// We'll directly use exec.Command to get package info since syspkg doesn't
 	// seem to have a direct method for detailed package info
+	// Force English locale to ensure consistent error message parsing
 	cmd := exec.Command("dpkg", "-s", packageName)
+	cmd.Env = append(os.Environ(), "LANG=en_US.UTF-8", "LC_ALL=en_US.UTF-8")
 	output, err := cmd.Output()
 	if err != nil {
 		// Check if it's a specific dpkg error about package not being installed
 		if exitError, ok := err.(*exec.ExitError); ok {
 			stderr := string(exitError.Stderr)
 			if strings.Contains(stderr, "is not installed and no information is available") {
-				return "", fmt.Errorf("package '%s' is not installed and no information is available", packageName)
+				return "", fmt.Errorf(T("package '%s' is not installed and no information is available"), packageName)
 			}
 			// for debugging purposes show the output of the command
 			Debug("Output of dpkg -s " + packageName + ": " + string(stderr))
@@ -252,7 +296,9 @@ func PackageInstalled(packageName string) bool {
 	}
 
 	// Use dpkg to check if the package is installed
+	// Force English locale to ensure consistent error message parsing
 	cmd := exec.Command("dpkg", "-s", packageName)
+	cmd.Env = append(os.Environ(), "LANG=en_US.UTF-8", "LC_ALL=en_US.UTF-8")
 	if err := cmd.Run(); err != nil {
 		// Check if it's a specific dpkg error about package not being installed
 		if exitError, ok := err.(*exec.ExitError); ok {
@@ -277,6 +323,7 @@ func PackageAvailable(packageName string, dpkgArch string) bool {
 	// If dpkgArch is not specified, get the current architecture
 	if dpkgArch == "" {
 		cmd := exec.Command("dpkg", "--print-architecture")
+		cmd.Env = append(os.Environ(), "LANG=en_US.UTF-8", "LC_ALL=en_US.UTF-8")
 		output, err := cmd.Output()
 		if err != nil {
 			Debug("Error getting dpkg architecture: " + err.Error())
@@ -286,7 +333,9 @@ func PackageAvailable(packageName string, dpkgArch string) bool {
 	}
 
 	// Use apt-cache to check if package is available
+	// Force English locale to ensure consistent output parsing
 	cmd := exec.Command("apt-cache", "policy", packageName+":"+dpkgArch)
+	cmd.Env = append(os.Environ(), "LANG=en_US.UTF-8", "LC_ALL=en_US.UTF-8")
 	output, err := cmd.Output()
 	if err != nil {
 		Debug("Error checking if package is available: " + err.Error())
@@ -337,9 +386,9 @@ func PackageDependencies(packageName string) ([]string, error) {
 	// Extract the Depends line from package info
 	var deps []string
 	for _, line := range strings.Split(info, "\n") {
-		if strings.HasPrefix(line, "Depends:") {
+		if after, ok := strings.CutPrefix(line, "Depends:"); ok {
 			// Return the entire dependency line, which includes version requirements
-			depLine := strings.TrimSpace(strings.TrimPrefix(line, "Depends:"))
+			depLine := strings.TrimSpace(after)
 			if depLine != "" {
 				return []string{depLine}, nil
 			}
@@ -361,10 +410,12 @@ func PackageInstalledVersion(packageName string) (string, error) {
 	}
 
 	// Use dpkg to get the installed version
+	// Force English locale to ensure consistent output format
 	cmd := exec.Command("dpkg-query", "-W", "-f=${Version}", packageName)
+	cmd.Env = append(os.Environ(), "LANG=en_US.UTF-8", "LC_ALL=en_US.UTF-8")
 	output, err := cmd.Output()
 	if err != nil {
-		return "", fmt.Errorf("package %s is not installed", packageName)
+		return "", fmt.Errorf(T("package %s is not installed"), packageName)
 	}
 
 	return strings.TrimSpace(string(output)), nil
@@ -387,12 +438,14 @@ func PackageLatestVersion(packageName string, repo ...string) (string, error) {
 	}
 
 	// Get the latest version using apt-cache policy
+	// Force English locale to ensure consistent output parsing
 	var cmd *exec.Cmd
 	if len(additionalFlags) > 0 {
 		cmd = exec.Command("apt-cache", append([]string{"policy"}, append(additionalFlags, packageName)...)...)
 	} else {
 		cmd = exec.Command("apt-cache", "policy", packageName)
 	}
+	cmd.Env = append(os.Environ(), "LANG=en_US.UTF-8", "LC_ALL=en_US.UTF-8")
 
 	output, err := cmd.Output()
 	if err != nil {
@@ -529,7 +582,7 @@ func DownloadFile(url, destination string) error {
 	}
 
 	// Start the download
-	Status("Downloading " + url)
+	StatusT("Downloading %s", url)
 	resp := client.Do(req)
 
 	// Monitor the download progress
@@ -546,7 +599,7 @@ func DownloadFile(url, destination string) error {
 			if err := resp.Err(); err != nil {
 				return fmt.Errorf("download failed: %w", err)
 			}
-			StatusGreen(fmt.Sprintf("Download completed: %s", destination))
+			StatusGreenT("Download completed: %s", destination)
 			return nil
 		}
 	}

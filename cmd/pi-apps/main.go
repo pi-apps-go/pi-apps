@@ -51,7 +51,7 @@ func main() {
 			os.Exit(1)
 		}
 
-		guiPath := piAppsDir + "/gui-demo"
+		guiPath := piAppsDir + "/gui"
 
 		// Check if gui-demo exists
 		if _, err := os.Stat(guiPath); os.IsNotExist(err) {

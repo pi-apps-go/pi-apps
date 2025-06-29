@@ -29,7 +29,7 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=3; plural=(n==1 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
 
-# Window title
+# Window titles
 msgid "Pi-Apps Settings"
 msgstr "Ustawienia Pi-Apps"
 
@@ -41,20 +41,15 @@ msgid "Actions"
 msgstr "Akcje"
 
 # Button labels
-msgid "Reset"
-msgstr "Zresetuj"
+msgid "Save"
+msgstr "Zapisz"
 
 msgid "Cancel"
 msgstr "Anuluj"
 
-msgid "Save"
-msgstr "Zapisz"
+msgid "Reset all settings"
+msgstr "Zresetuj wszystkie ustawienia"
 
-# Button tooltips
-msgid "Reset all settings to their defaults"
-msgstr "Zresetuj wszystkie ustawienia do wartości domyślnych"
-
-# Action button names
 msgid "Categories"
 msgstr "Kategorie"
 
@@ -62,23 +57,32 @@ msgid "Log files"
 msgstr "Pliki dziennika"
 
 msgid "Multi-Install"
-msgstr "Instalacja wielokrotna"
+msgstr "Multi-Instalacja"
 
-msgid "New App"
-msgstr "Nowa aplikacja"
+msgid "Create App"
+msgstr "Stwórz Aplikację"
 
 msgid "Import App"
-msgstr "Importuj aplikację"
+msgstr "Importuj Aplikację"
 
 msgid "Multi-Uninstall"
-msgstr "Odinstalowanie wielokrotne"
+msgstr "Multi-Odinstalowanie"
 
-# Action button tooltips
-msgid "Does an App belong in Editors instead of Tools? This lets you move it."
-msgstr "Czy aplikacja należy do Edytorów zamiast Narzędzi? To pozwala ci ją przenieść."
+# Button tooltips
+msgid "Save all settings and exit"
+msgstr "Zapisz wszystkie ustawienia i wyjdź"
 
-msgid "View past installation logs. Useful for debugging, or to see what you installed yesterday."
-msgstr "Wyświetl wcześniejsze dzienniki instalacji. Przydatne do debugowania lub aby zobaczyć co zainstalowałeś wczoraj."
+msgid "Exit without saving changes"
+msgstr "Wyjdź bez zapisywania zmian"
+
+msgid "Reset all settings to their default values"
+msgstr "Zresetuj wszystkie ustawienia do ich domyślnych wartości"
+
+msgid "Manage app categories"
+msgstr "Zarządzaj kategoriami aplikacji"
+
+msgid "View installation and error logs"
+msgstr "Wyświetl dzienniki instalacji i błędów"
 
 msgid "Install multiple apps at the same time."
 msgstr "Zainstaluj wiele aplikacji jednocześnie."
@@ -217,4 +221,1024 @@ msgid "When viewing an App's details, display an Edit button to tweak it. Beware
 msgstr "Podczas przeglądania szczegółów aplikacji, wyświetl przycisk Edytuj aby ją dostosować. Uważaj, że późniejsza aktualizacja tej aplikacji cofnie twoje zmiany."
 
 msgid "Tired of Apps being sorted alphabetically? Randomizing the order will keep things fresh."
-msgstr "Zmęczyło cię alfabetyczne sortowanie aplikacji? Losowa kolejność utrzyma rzeczy świeże." 
+msgstr "Zmęczyło cię alfabetyczne sortowanie aplikacji? Losowa kolejność utrzyma rzeczy świeże."
+
+# API CLI messages
+msgid "Downloading %s"
+msgstr "Pobieranie %s"
+
+msgid "Download completed: %s"
+msgstr "Pobieranie zakończone: %s"
+
+msgid "Note: This command may require sudo privileges for system operations."
+msgstr "Uwaga: To polecenie może wymagać uprawnień sudo do operacji systemowych."
+
+msgid "You may be prompted for your password during execution."
+msgstr "Możesz zostać poproszony o hasło podczas wykonywania."
+
+msgid "Installation completed successfully"
+msgstr "Instalacja zakończona pomyślnie"
+
+msgid "Uninstallation completed successfully"
+msgstr "Odinstalowanie zakończone pomyślnie"
+
+msgid "Update completed successfully"
+msgstr "Aktualizacja zakończona pomyślnie"
+
+msgid "Command completed successfully"
+msgstr "Polecenie zakończone pomyślnie"
+
+# Warning prefix
+msgid "WARNING:"
+msgstr "OSTRZEŻENIE:"
+
+# Error messages
+msgid "Error: %s"
+msgstr "Błąd: %s"
+
+msgid "Error: No message specified"
+msgstr "Błąd: Nie określono wiadomości"
+
+msgid "Error: No package specified"
+msgstr "Błąd: Nie określono pakietu"
+
+msgid "Error: No app specified"
+msgstr "Błąd: Nie określono aplikacji"
+
+msgid "Error: No file specified"
+msgstr "Błąd: Nie określono pliku"
+
+msgid "Error: Missing arguments"
+msgstr "Błąd: Brakujące argumenty"
+
+msgid "Error: Invalid number of arguments"
+msgstr "Błąd: Nieprawidłowa liczba argumentów"
+
+msgid "Warning: failed to initialize i18n: %v"
+msgstr "Ostrzeżenie: nie udało się zainicjować i18n: %v"
+
+msgid "Adding en_US locale for better logging..."
+msgstr "Dodawanie lokalizacji en_US dla lepszego logowania..."
+
+msgid "Could not read /usr/share/i18n/SUPPORTED"
+msgstr "Nie można odczytać /usr/share/i18n/SUPPORTED"
+
+msgid "en_US locale is not available on your system. This may cause bad logging experience."
+msgstr "Lokalizacja en_US nie jest dostępna w systemie. To może powodować złe doświadczenie logowania."
+
+msgid "Could not check available locales"
+msgstr "Nie można sprawdzić dostępnych lokalizacji"
+
+msgid "Failed to edit /etc/locale.gen: %s"
+msgstr "Nie udało się edytować /etc/locale.gen: %s"
+
+msgid "Failed to generate locale: %s"
+msgstr "Nie udało się wygenerować lokalizacji: %s"
+
+msgid "PI_APPS_DIR environment variable not set, using current directory"
+msgstr "Zmienna środowiskowa PI_APPS_DIR nie jest ustawiona, używanie bieżącego katalogu"
+
+# Usage messages
+msgid "Usage: api package_info <package-name>"
+msgstr "Użycie: api package_info <nazwa-pakietu>"
+
+msgid "Usage: api warning <message>"
+msgstr "Użycie: api warning <wiadomość>"
+
+msgid "Usage: api package_installed <package-name>"
+msgstr "Użycie: api package_installed <nazwa-pakietu>"
+
+msgid "Usage: api package_available <package-name> [dpkg-arch]"
+msgstr "Użycie: api package_available <nazwa-pakietu> [dpkg-arch]"
+
+msgid "Usage: api package_dependencies <package-name>"
+msgstr "Użycie: api package_dependencies <nazwa-pakietu>"
+
+msgid "Usage: api package_installed_version <package-name>"
+msgstr "Użycie: api package_installed_version <nazwa-pakietu>"
+
+msgid "Usage: api package_latest_version <package-name> [repo...]"
+msgstr "Użycie: api package_latest_version <nazwa-pakietu> [repo...]"
+
+msgid "Usage: api package_is_new_enough <package-name> <compare-version>"
+msgstr "Użycie: api package_is_new_enough <nazwa-pakietu> <wersja-porównania>"
+
+msgid "Usage: api download_file <url> <destination>"
+msgstr "Użycie: api download_file <url> <miejsce-docelowe>"
+
+msgid "Usage: api file_exists <path>"
+msgstr "Użycie: api file_exists <ścieżka>"
+
+msgid "Usage: api dir_exists <path>"
+msgstr "Użycie: api dir_exists <ścieżka>"
+
+msgid "Usage: api get_pi_app_icon <app-name>"
+msgstr "Użycie: api get_pi_app_icon <nazwa-aplikacji>"
+
+# Missing error messages
+msgid "Error: No packages specified"
+msgstr "Błąd: Nie określono pakietów"
+
+msgid "Error: No PPA name specified"
+msgstr "Błąd: Nie określono nazwy PPA"
+
+msgid "Error: No app name specified"
+msgstr "Błąd: Nie określono nazwy aplikacji"
+
+# Missing usage messages
+msgid "Usage: api install_packages <package1> [package2] ... [-t repo] - Install packages (requires $app environment variable)"
+msgstr "Użycie: api install_packages <pakiet1> [pakiet2] ... [-t repo] - Zainstaluj pakiety (wymaga zmiennej środowiskowej $app)"
+
+msgid "Note: This command should be used within an app installation context where $app is set"
+msgstr "Uwaga: To polecenie powinno być używane w kontekście instalacji aplikacji, gdzie $app jest ustawione"
+
+msgid "Usage: api ubuntu_ppa_installer <ppa-name>"
+msgstr "Użycie: api ubuntu_ppa_installer <nazwa-ppa>"
+
+msgid "Error: Two files must be specified"
+msgstr "Błąd: Należy określić dwa pliki"
+
+msgid "Error: Missing required arguments"
+msgstr "Błąd: Brakujące wymagane argumenty"
+
+msgid "Error: No directory specified"
+msgstr "Błąd: Nie określono katalogu"
+
+msgid "Error: No files specified"
+msgstr "Błąd: Nie określono plików"
+
+msgid "Error: Failed to send error report: %s"
+msgstr "Błąd: Nie udało się wysłać raportu o błędzie: %s"
+
+msgid "Error: No log file specified"
+msgstr "Błąd: Nie określono pliku dziennika"
+
+msgid "Error: Invalid failure list format. Expected 'action;app'"
+msgstr "Błąd: Nieprawidłowy format listy błędów. Oczekiwano 'akcja;aplikacja'"
+
+msgid "Usage: api send_error_report <logfile>"
+msgstr "Użycie: api send_error_report <plik-dziennika>"
+
+msgid "Usage: api log_diagnose <logfile> [--allow-write]"
+msgstr "Użycie: api log_diagnose <plik-dziennika> [--allow-write]"
+
+msgid "Usage: api format_logfile <logfile>"
+msgstr "Użycie: api format_logfile <plik-dziennika>"
+
+msgid "Usage: api files_match <file1> <file2>"
+msgstr "Użycie: api files_match <plik1> <plik2>"
+
+msgid "Usage: api copy_file <source> <destination>"
+msgstr "Użycie: api copy_file <źródło> <cel>"
+
+msgid "Usage: api file_exists <file-path>"
+msgstr "Użycie: api file_exists <ścieżka-pliku>"
+
+msgid "Usage: api dir_exists <directory-path>"
+msgstr "Użycie: api dir_exists <ścieżka-katalogu>"
+
+msgid "Usage: api ensure_dir <directory-path>"
+msgstr "Użycie: api ensure_dir <ścieżka-katalogu>"
+
+msgid "Usage: api text_editor <file-path>"
+msgstr "Użycie: api text_editor <ścieżka-pliku>"
+
+msgid "Usage: api view_file <file>"
+msgstr "Użycie: api view_file <plik>"
+
+msgid "Usage: api view_log <file>"
+msgstr "Użycie: api view_log <plik>"
+
+msgid "Usage: api app_to_pkgname <app-name>"
+msgstr "Użycie: api app_to_pkgname <nazwa-aplikacji>"
+
+msgid "Usage: api get_icon_from_package <package-name> [package-name2] [...]"
+msgstr "Użycie: api get_icon_from_package <nazwa-pakietu> [nazwa-pakietu2] [...]"
+
+msgid "Usage: api flatpak_install <app-id>"
+msgstr "Użycie: api flatpak_install <id-aplikacji>"
+
+msgid "Usage: api flatpak_uninstall <app-id>"
+msgstr "Użycie: api flatpak_uninstall <id-aplikacji>"
+
+msgid "Usage: api package_available <package-name> [architecture]"
+msgstr "Użycie: api package_available <nazwa-pakietu> [architektura]"
+
+msgid "Usage: api package_latest_version <package-name> [-t <repository>]"
+msgstr "Użycie: api package_latest_version <nazwa-pakietu> [-t <repozytorium>]"
+
+msgid "Usage: api package_is_new_enough <package-name> <version>"
+msgstr "Użycie: api package_is_new_enough <nazwa-pakietu> <wersja>"
+
+msgid "Usage: api repo_add <file1> [file2] [...]"
+msgstr "Użycie: api repo_add <plik1> [plik2] [...]"
+
+msgid "Usage: api debian_ppa_installer <ppa-name> <distribution> <key>"
+msgstr "Użycie: api debian_ppa_installer <nazwa-ppa> <dystrybucja> <klucz>"
+
+msgid "Usage: api status <message> [args...]"
+msgstr "Użycie: api status <wiadomość> [argumenty...]"
+
+msgid "Usage: api status_green <message>"
+msgstr "Użycie: api status_green <wiadomość>"
+
+msgid "Usage: api debug <message>"
+msgstr "Użycie: api debug <wiadomość>"
+
+msgid "Usage: api error <message>"
+msgstr "Użycie: api error <wiadomość>"
+
+msgid "Error: diagnose_apps requires a failure list"
+msgstr "Błąd: diagnose_apps wymaga listy błędów"
+
+msgid "Usage: api script_name <app-name>"
+msgstr "Użycie: api script_name <nazwa-aplikacji>"
+
+msgid "Usage: api script_name_cpu <app-name>"
+msgstr "Użycie: api script_name_cpu <nazwa-aplikacji>"
+
+msgid "Usage: api app_status <app-name>"
+msgstr "Użycie: api app_status <nazwa-aplikacji>"
+
+msgid "Usage: api app_type <app-name>"
+msgstr "Użycie: api app_type <nazwa-aplikacji>"
+
+msgid "Usage: api pkgapp_packages <app-name>"
+msgstr "Użycie: api pkgapp_packages <nazwa-aplikacji>"
+
+msgid "Usage: api will_reinstall <app-name>"
+msgstr "Użycie: api will_reinstall <nazwa-aplikacji>"
+
+msgid "Usage: api app_search <app-name>"
+msgstr "Użycie: api app_search <nazwa-aplikacji>"
+
+msgid "Usage: api repo_refresh"
+msgstr "Użycie: api repo_refresh"
+
+msgid "Usage: api repo_rm <file1> [file2] [...]"
+msgstr "Użycie: api repo_rm <plik1> [plik2] [...]"
+
+msgid "Usage: api add_external_repo <file1> [file2] [...]"
+msgstr "Użycie: api add_external_repo <plik1> [plik2] [...]"
+
+msgid "Usage: api rm_external_repo <file1> [file2] [...]"
+msgstr "Użycie: api rm_external_repo <plik1> [plik2] [...]"
+
+msgid "Usage: api remove_repofile_if_unused <file1> [file2] [...]"
+msgstr "Użycie: api remove_repofile_if_unused <plik1> [plik2] [...]"
+
+msgid "Usage: api anything_installed_from_uri_suite_compoment <uri> [suite] [component]"
+msgstr "Użycie: api anything_installed_from_uri_suite_compoment <uri> [suite] [component]"
+
+msgid "Error: No module name specified"
+msgstr "Błąd: Nie określono nazwy modułu"
+
+msgid "Usage: api enable_module <module-name>"
+msgstr "Użycie: api enable_module <nazwa-modułu>"
+
+msgid "Error: No input specified"
+msgstr "Błąd: Nie określono danych wejściowych"
+
+msgid "Usage: api less_apt <text> or <command> | api less_apt"
+msgstr "Użycie: api less_apt <tekst> lub <polecenie> | api less_apt"
+
+msgid "Error: Missing list to subtract"
+msgstr "Błąd: Brakująca lista do odjęcia"
+
+msgid "Usage: list_subtract <list2> (list1 from stdin)"
+msgstr "Użycie: list_subtract <lista2> (lista1 z stdin)"
+
+msgid "Error: No query specified"
+msgstr "Błąd: Nie określono zapytania"
+
+msgid "Error: purge_packages function can only be used by apps to install packages"
+msgstr "Błąd: funkcja purge_packages może być używana tylko przez aplikacje do instalowania pakietów"
+
+msgid "The $app environment variable is not set"
+msgstr "Zmienna środowiskowa $app nie jest ustawiona"
+
+msgid "Error: Missing list to intersect with"
+msgstr "Błąd: Brakująca lista do przecięcia"
+
+msgid "Usage: list_intersect <list2> (list1 from stdin)"
+msgstr "Użycie: list_intersect <lista2> (lista1 z stdin)"
+
+msgid "Usage: list_intersect_partial <list2> (list1 from stdin)"
+msgstr "Użycie: list_intersect_partial <lista2> (lista1 z stdin)"
+
+msgid "Error: No PID specified"
+msgstr "Błąd: Nie określono PID"
+
+msgid "Usage: api process_exists <pid>"
+msgstr "Użycie: api process_exists <pid>"
+
+msgid "add_external_repo: requires reponame, pubkeyurl, uris and suites"
+msgstr "add_external_repo: wymaga nazwy repozytorium, adresu URL klucza publicznego, URI i suites"
+
+msgid "Usage: api anything_installed_from_uri_suite_component <uri> [suite] [component]"
+msgstr "Użycie: api anything_installed_from_uri_suite_component <uri> [suite] [component]"
+
+msgid "Usage: api app_search <query> [file1 file2 ...]"
+msgstr "Użycie: api app_search <query> [file1 file2 ...]"
+
+msgid "Usage: api bitly_link <app> <trigger>"
+msgstr "Użycie: api bitly_link <app> <trigger>"
+
+msgid "Error: No mode specified"
+msgstr "Błąd: Nie określono trybu"
+
+msgid "Usage: api wget <url>"
+msgstr "Użycie: api wget <url>"
+
+msgid "Usage: api generate_app_icons <icon-path> <app-name>"
+msgstr "Użycie: api generate_app_icons <icon-path> <app-name>"
+
+msgid "Error: No input provided"
+msgstr "Błąd: Nie określono danych wejściowych"
+
+msgid "Usage: api git_clone <url> [dir] [options]"
+msgstr "Użycie: api git_clone <url> [dir] [options]"
+
+msgid "Usage: api chmod <mode> <file>"
+msgstr "Użycie: api chmod <mode> <file>"
+
+msgid "Usage: api unzip <zipfile> [destination]"
+msgstr "Użycie: api unzip <zipfile> [destination]"
+
+msgid "Usage: api remove_repofile_if_unused <file> [test] [key]"
+msgstr "Użycie: api remove_repofile_if_unused <plik> [test] [klucz]"
+
+msgid "Usage: api pipx_install <package1> [package2] [...]"
+msgstr "Użycie: api pipx_install <pakiet1> [pakiet2] [...]"
+
+msgid "Error: terminal_manage_multi: requires a queue of actions"
+msgstr "Błąd: terminal_manage_multi wymaga kolejki akcji"
+
+msgid "Usage: api add_external_repo <reponame> <pubkeyurl> <uris> <suites> [components] [options]"
+msgstr "Użycie: api add_external_repo <reponame> <pubkeyurl> <uris> <suites> [komponenty] [opcje]"
+
+msgid "Usage: api shlink_link <app> <trigger>"
+msgstr "Użycie: api shlink_link <aplikacja> <wyzwalacz>"
+
+msgid "Usage: list_subtract_partial <list2> (list1 from stdin)"
+msgstr "Użycie: list_subtract_partial <lista2> (lista1 z stdin)"
+
+msgid "Error: terminal_manage: requires an action and an app name"
+msgstr "Błąd: terminal_manage wymaga akcji i nazwy aplikacji"
+
+msgid "Error: pipx_uninstall: requires at least one package name"
+msgstr "Błąd: pipx_uninstall wymaga co najmniej jednej nazwy pakietu"
+
+msgid "Error: remove_deprecated_app: requires an app name"
+msgstr "Błąd: remove_deprecated_app wymaga nazwy aplikacji"
+
+msgid "Error: No zip file specified"
+msgstr "Błąd: Nie określono pliku zip"
+
+msgid "Usage: api rm_external_repo <reponame> [force]"
+msgstr "Użycie: api rm_external_repo <reponame> [force]"
+
+msgid "Error: pipx_install: requires at least one package name"
+msgstr "Błąd: pipx_install wymaga co najmniej jednej nazwy pakietu"
+
+msgid "Error: bitly_link: requires an app and a trigger"
+msgstr "Błąd: bitly_link wymaga aplikacji i wyzwalacza"
+
+msgid "Usage: api terminal_manage_multi <queue>"
+msgstr "Użycie: api terminal_manage_multi <kolejka>"
+
+msgid "Usage: api remove_deprecated_app <app-name> [arch] [message]"
+msgstr "Użycie: api remove_deprecated_app <nazwa-aplikacji> [arch] [wiadomość]"
+
+msgid "Usage: api terminal_manage <action> <app-name>"
+msgstr "Użycie: api terminal_manage <akcja> <nazwa-aplikacji>"
+
+msgid "Usage: api pkgapp_packages_required <app-name>"
+msgstr "Użycie: api pkgapp_packages_required <nazwa-aplikacji>"
+
+msgid "Error: userinput_func: requires a description and at least one option"
+msgstr "Błąd: userinput_func wymaga opisu i co najmniej jednej opcji"
+
+msgid "The $app environment variable was not set"
+msgstr "Zmienna środowiskowa $app nie jest ustawiona"
+
+msgid "Usage: api userinput_func <description> <option1> [option2] [...]"
+msgstr "Użycie: api userinput_func <opis> <opcja1> [opcja2] [...]"
+
+msgid "Error: rm_external_repo: requires reponame"
+msgstr "Błąd: rm_external_repo wymaga reponame"
+
+msgid "Usage: api anything_installed_from_uri_suite_component <uri> <suite> [component]"
+msgstr "Użycie: api anything_installed_from_uri_suite_component <uri> <suite> [komponent]"
+
+msgid "Error: add_external_repo: requires reponame, pubkeyurl, uris, and suites"
+msgstr "Błąd: add_external_repo wymaga reponame, pubkeyurl, uris i suites"
+
+msgid "Error: shlink_link: requires an app and a trigger"
+msgstr "Błąd: shlink_link wymaga aplikacji i wyzwalacza"
+
+msgid "Error: No URL specified"
+msgstr "Błąd: Nie określono URL"
+
+msgid "Usage: api pipx_uninstall <package1> [package2] [...]"
+msgstr "Użycie: api pipx_uninstall <pakiet1> [pakiet2] [...]"
+
+msgid "Error: script_name: requires an app name"
+msgstr "Błąd: script_name wymaga nazwy aplikacji"
+
+# API help text
+msgid "Usage: api <command> [args...]"
+msgstr "Użycie: api <polecenie> [argumenty...]"
+
+msgid "Package Management:"
+msgstr "Zarządzanie Pakietami:"
+
+msgid "Repository Management:"
+msgstr "Zarządzanie Repozytoriami:"
+
+msgid "File Operations:"
+msgstr "Operacje na Plikach:"
+
+msgid "App Management:"
+msgstr "Zarządzanie Aplikacjami:"
+
+msgid "List Operations:"
+msgstr "Operacje na Listach:"
+
+msgid "Analytics and Statistics:"
+msgstr "Analityka i Statystyki:"
+
+msgid "Diagnostic Tools:"
+msgstr "Narzędzia Diagnostyczne:"
+
+msgid "User Interface:"
+msgstr "Interfejs Użytkownika:"
+
+msgid "Additional Tools:"
+msgstr "Dodatkowe Narzędzia:"
+
+msgid "System Operations:"
+msgstr "Operacje Systemowe:"
+
+msgid "General Options:"
+msgstr "Opcje Ogólne:"
+
+# Help descriptions
+msgid "Get information about a package"
+msgstr "Pobierz informacje o pakiecie"
+
+msgid "Check if a package is installed"
+msgstr "Sprawdź czy pakiet jest zainstalowany"
+
+msgid "Check if a package is available"
+msgstr "Sprawdź czy pakiet jest dostępny"
+
+msgid "List package dependencies"
+msgstr "Wylistuj zależności pakietu"
+
+msgid "Get installed package version"
+msgstr "Pobierz wersję zainstalowanego pakietu"
+
+msgid "Get latest available package version"
+msgstr "Pobierz najnowszą dostępną wersję pakietu"
+
+msgid "Check if package meets version requirement"
+msgstr "Sprawdź czy pakiet spełnia wymagania wersji"
+
+msgid "Install packages (requires $app environment variable)"
+msgstr "Zainstaluj pakiety (wymaga zmiennej środowiskowej $app)"
+
+msgid "Remove packages for app (requires $app environment variable)"
+msgstr "Usuń pakiety dla aplikacji (wymaga zmiennej środowiskowej $app)"
+
+msgid "Get package icon"
+msgstr "Pobierz ikonę pakietu"
+
+msgid "Get Pi-Apps app icon path"
+msgstr "Pobierz ścieżkę ikony aplikacji Pi-Apps"
+
+msgid "Add repository files"
+msgstr "Dodaj pliki repozytorium"
+
+msgid "Refresh repository data"
+msgstr "Odśwież dane repozytorium"
+
+msgid "Remove repository files"
+msgstr "Usuń pliki repozytorium"
+
+msgid "Add external repository"
+msgstr "Dodaj zewnętrzne repozytorium"
+
+msgid "Remove external repository"
+msgstr "Usuń zewnętrzne repozytorium"
+
+msgid "Install Ubuntu PPA"
+msgstr "Zainstaluj PPA Ubuntu"
+
+msgid "Install Debian PPA"
+msgstr "Zainstaluj PPA Debian"
+
+msgid "Remove repository file if not used"
+msgstr "Usuń plik repozytorium jeśli nie jest używany"
+
+msgid "Check if packages from a repo are installed"
+msgstr "Sprawdź czy pakiety z repozytorium są zainstalowane"
+
+msgid "Wait for APT lock"
+msgstr "Czekaj na blokadę APT"
+
+msgid "Update package lists"
+msgstr "Aktualizuj listy pakietów"
+
+msgid "Download file from URL"
+msgstr "Pobierz plik z URL"
+
+msgid "Check if file exists"
+msgstr "Sprawdź czy plik istnieje"
+
+msgid "Check if directory exists"
+msgstr "Sprawdź czy katalog istnieje"
+
+msgid "Create directory if it doesn't exist"
+msgstr "Utwórz katalog jeśli nie istnieje"
+
+msgid "Copy file"
+msgstr "Kopiuj plik"
+
+msgid "View file contents"
+msgstr "Wyświetl zawartość pliku"
+
+msgid "Check if two files have identical content"
+msgstr "Sprawdź czy dwa pliki mają identyczną zawartość"
+
+msgid "Open file in preferred text editor"
+msgstr "Otwórz plik w preferowanym edytorze tekstu"
+
+msgid "Download files with progress display"
+msgstr "Pobierz pliki z wyświetlaniem postępu"
+
+msgid "Extract zip archives with standard options"
+msgstr "Wypakuj archiwa zip ze standardowymi opcjami"
+
+msgid "Change file permissions with logging"
+msgstr "Zmień uprawnienia pliku z logowaniem"
+
+msgid "Clone git repositories with status display"
+msgstr "Klonuj repozytoria git z wyświetlaniem statusu"
+
+msgid "Get optimal thread count based on available RAM"
+msgstr "Pobierz optymalną liczbę wątków na podstawie dostępnej pamięci RAM"
+
+msgid "Install Flatpak application"
+msgstr "Zainstaluj aplikację Flatpak"
+
+msgid "Uninstall Flatpak application"
+msgstr "Odinstaluj aplikację Flatpak"
+
+msgid "Convert app name to package name"
+msgstr "Konwertuj nazwę aplikacji na nazwę pakietu"
+
+msgid "List apps with optional filter"
+msgstr "Wylistuj aplikacje z opcjonalnym filtrem"
+
+msgid "Read category assignments"
+msgstr "Odczytaj przypisania kategorii"
+
+msgid "List apps with category prefix"
+msgstr "Wylistuj aplikacje z prefiksem kategorii"
+
+msgid "Manage app via terminal"
+msgstr "Zarządzaj aplikacją przez terminal"
+
+msgid "Manage multiple apps"
+msgstr "Zarządzaj wieloma aplikacjami"
+
+msgid "Remove deprecated app"
+msgstr "Usuń przestarzałą aplikację"
+
+msgid "Show install script name(s) for an app"
+msgstr "Pokaż nazwę/nazwy skryptu instalacyjnego dla aplikacji"
+
+msgid "Show appropriate install script for CPU architecture"
+msgstr "Pokaż odpowiedni skrypt instalacyjny dla architektury CPU"
+
+msgid "Get app status (installed, uninstalled, etc.)"
+msgstr "Pobierz status aplikacji (zainstalowana, odinstalowana, itp.)"
+
+msgid "Get app type (standard or package)"
+msgstr "Pobierz typ aplikacji (standardowa lub pakiet)"
+
+msgid "Get packages required for installation"
+msgstr "Pobierz pakiety wymagane do instalacji"
+
+msgid "Check if app will be reinstalled during update"
+msgstr "Sprawdź czy aplikacja zostanie przeinstalowana podczas aktualizacji"
+
+msgid "Search for apps matching query in specified files"
+msgstr "Szukaj aplikacji pasujących do zapytania w określonych plikach"
+
+msgid "Open graphical interface to search for apps"
+msgstr "Otwórz interfejs graficzny do wyszukiwania aplikacji"
+
+msgid "Open graphical interface to install multiple apps"
+msgstr "Otwórz interfejs graficzny do instalacji wielu aplikacji"
+
+msgid "Open graphical interface to uninstall multiple apps"
+msgstr "Otwórz interfejs graficzny do odinstalowania wielu aplikacji"
+
+msgid "Generate 24x24 and 64x64 icons for an app"
+msgstr "Wygeneruj ikony 24x24 i 64x64 dla aplikacji"
+
+msgid "Update status of a package-app"
+msgstr "Zaktualizuj status aplikacji-pakietu"
+
+msgid "Update status of all package-apps"
+msgstr "Zaktualizuj status wszystkich aplikacji-pakietów"
+
+msgid "Force regeneration of the app list"
+msgstr "Wymuś regenerację listy aplikacji"
+
+msgid "Launch the Create App wizard"
+msgstr "Uruchom kreatora Tworzenia Aplikacji"
+
+msgid "Launch the Import App wizard"
+msgstr "Uruchom kreatora Importu Aplikacji"
+
+msgid "Manage apps"
+msgstr "Zarządzaj aplikacjami"
+
+msgid "View log files in a graphical interface"
+msgstr "Wyświetl pliki dziennika w interfejsie graficznym"
+
+msgid "Edit app categories (GUI without args, CLI with args)"
+msgstr "Edytuj kategorie aplikacji (GUI bez argumentów, CLI z argumentami)"
+
+msgid "Show items in both lists"
+msgstr "Pokaż elementy w obu listach"
+
+msgid "Show items in list1 not in list2"
+msgstr "Pokaż elementy z listy1, których nie ma w liście2"
+
+msgid "Show items with partial matches"
+msgstr "Pokaż elementy z częściowymi dopasowaniami"
+
+msgid "Show items without partial matches"
+msgstr "Pokaż elementy bez częściowych dopasowań"
+
+msgid "Send anonymous app usage analytics (legacy)"
+msgstr "Wyślij anonimową analitykę użycia aplikacji (przestarzałe)"
+
+msgid "Send anonymous app usage analytics"
+msgstr "Wyślij anonimową analitykę użycia aplikacji"
+
+msgid "Show number of users for an app or all apps"
+msgstr "Pokaż liczbę użytkowników dla aplikacji lub wszystkich aplikacji"
+
+msgid "Diagnose app error logs"
+msgstr "Diagnozuj dzienniki błędów aplikacji"
+
+msgid "Format log file for readability"
+msgstr "Formatuj plik dziennika dla czytelności"
+
+msgid "Send error log to Pi-Apps developers"
+msgstr "Wyślij dziennik błędów do deweloperów Pi-Apps"
+
+msgid "View log contents"
+msgstr "Wyświetl zawartość dziennika"
+
+msgid "Diagnose app failures"
+msgstr "Diagnozuj awarie aplikacji"
+
+msgid "Show device information"
+msgstr "Pokaż informacje o urządzeniu"
+
+msgid "Format apt output for readability"
+msgstr "Formatuj wyjście apt dla czytelności"
+
+msgid "Interactive selection dialog"
+msgstr "Interaktywne okno dialogowe wyboru"
+
+msgid "Display status message"
+msgstr "Wyświetl komunikat statusu"
+
+msgid "Display success message"
+msgstr "Wyświetl komunikat sukcesu"
+
+msgid "Display debug message"
+msgstr "Wyświetl komunikat debugowania"
+
+msgid "Display error message"
+msgstr "Wyświetl komunikat błędu"
+
+msgid "Display warning message"
+msgstr "Wyświetl komunikat ostrzeżenia"
+
+msgid "Add English (en_US.UTF-8) locale to the system for improved logging"
+msgstr "Dodaj lokalizację angielską (en_US.UTF-8) do systemu dla lepszego logowania"
+
+msgid "Display Pi-Apps logo"
+msgstr "Wyświetl logo Pi-Apps"
+
+msgid "Install Adoptium Java Debian repository"
+msgstr "Zainstaluj repozytorium Debian Adoptium Java"
+
+msgid "Install Python packages with pipx"
+msgstr "Zainstaluj pakiety Python z pipx"
+
+msgid "Uninstall Python packages with pipx"
+msgstr "Odinstaluj pakiety Python z pipx"
+
+msgid "Run script only if it's never been run before"
+msgstr "Uruchom skrypt tylko jeśli nigdy wcześniej nie był uruchamiany"
+
+msgid "Check if the current system is supported by Pi-Apps"
+msgstr "Sprawdź czy aktualny system jest obsługiwany przez Pi-Apps"
+
+msgid "Run command with elevated privileges, using graphical auth if needed"
+msgstr "Uruchom polecenie z podwyższonymi uprawnieniami, używając graficznej autoryzacji jeśli potrzeba"
+
+msgid "Check if a process with the given PID exists"
+msgstr "Sprawdź czy proces o podanym PID istnieje"
+
+msgid "Ensure a kernel module is loaded and configured to load on startup"
+msgstr "Upewnij się, że moduł jądra jest załadowany i skonfigurowany do ładowania przy starcie"
+
+msgid "Show this help message"
+msgstr "Pokaż tę wiadomość pomocy"
+
+msgid "Show version information"
+msgstr "Pokaż informacje o wersji"
+
+msgid "Enable debug mode"
+msgstr "Włącz tryb debugowania"
+
+# APT Update messages
+msgid "Running"
+msgstr "Uruchamianie"
+
+msgid "apt update complete."
+msgstr "apt update zakończone."
+
+msgid "Some packages are unnecessary."
+msgstr "Niektóre pakiety są niepotrzebne."
+
+msgid "Please consider running"
+msgstr "Proszę rozważyć uruchomienie"
+
+msgid "Some packages can be upgraded."
+msgstr "Niektóre pakiety mogą być zaktualizowane."
+
+msgid "One package can be upgraded."
+msgstr "Jeden pakiet może być zaktualizowany."
+
+# Package Management messages
+msgid "Will install these packages: %s"
+msgstr "Zostaną zainstalowane te pakiety: %s"
+
+msgid "local package does not exist: %s"
+msgstr "lokalny pakiet nie istnieje: %s"
+
+msgid "failed to get package info from %s: %w"
+msgstr "nie udało się pobrać informacji o pakiecie z %s: %w"
+
+msgid "failed to determine package name for file: %s"
+msgstr "nie udało się określić nazwy pakietu dla pliku: %s"
+
+msgid "failed to determine package version for file: %s"
+msgstr "nie udało się określić wersji pakietu dla pliku: %s"
+
+msgid "failed to determine package architecture for file: %s"
+msgstr "nie udało się określić architektury pakietu dla pliku: %s"
+
+msgid "downloaded package does not exist: %s"
+msgstr "pobrany pakiet nie istnieje: %s"
+
+msgid "no packages found matching pattern: %s"
+msgstr "nie znaleziono pakietów pasujących do wzorca: %s"
+
+msgid "failed to remove all regex from package list: %s"
+msgstr "nie udało się usunąć wszystkich wyrażeń regularnych z listy pakietów: %s"
+
+msgid "failed to remove all URLs from package list: %s"
+msgstr "nie udało się usunąć wszystkich URL z listy pakietów: %s"
+
+msgid "failed to remove all filenames from package list: %s"
+msgstr "nie udało się usunąć wszystkich nazw plików z listy pakietów: %s"
+
+msgid "Creating an empty apt-package to install the necessary apt packages...\nIt will be named: %s"
+msgstr "Tworzenie pustego pakietu apt do instalacji niezbędnych pakietów apt...\nBędzie nazywać się: %s"
+
+msgid "The %s package is already installed. Inheriting its dependencies: %s"
+msgstr "Pakiet %s jest już zainstalowany. Dziedziczenie jego zależności: %s"
+
+msgid "%s is already installed and no changes would be made. Skipping...\n"
+msgstr "%s jest już zainstalowany i nie zostałyby wprowadzone żadne zmiany. Pomijanie...\n"
+
+msgid "Package installation complete."
+msgstr "Instalacja pakietów zakończona."
+
+msgid "user error: the /tmp/pi-apps-local-packages folder went missing while installing packages - this usually happens if you try to install several apps at the same time in multiple terminals"
+msgstr "błąd użytkownika: folder /tmp/pi-apps-local-packages zniknął podczas instalacji pakietów - zwykle dzieje się to, gdy próbujesz zainstalować kilka aplikacji jednocześnie w wielu terminalach"
+
+msgid "Installing the %s package..."
+msgstr "Instalowanie pakietu %s..."
+
+msgid "Apt finished."
+msgstr "Apt zakończone."
+
+msgid "Failed to install the packages!"
+msgstr "Nie udało się zainstalować pakietów!"
+
+msgid "User error: Apt exited with a failed exitcode (%d) and no error (E/Err) output. This could indicate system corruption (eg: storage corruption or unstable overclocking).\n"
+msgstr "Błąd użytkownika: Apt zakończył się z kodem błędu (%d) i bez wyjścia błędu (E/Err). Może to wskazywać na uszkodzenie systemu (np.: uszkodzenie pamięci masowej lub niestabilne podkręcanie).\n"
+
+msgid "apt exited with error code %d and no error output"
+msgstr "apt zakończył się z kodem błędu %d i bez wyjścia błędu"
+
+msgid "The APT reported these errors:\n\033[91m%s\033[39m\n"
+msgstr "APT zgłosił te błędy:\n\033[91m%s\033[39m\n"
+
+msgid "Done"
+msgstr "Gotowe"
+
+# APT Lock and Error messages
+msgid "Waiting until APT locks are released... "
+msgstr "Oczekiwanie na zwolnienie blokad APT... "
+
+msgid "\033[91mFailed to run \033[4msudo apt update\033[0m\033[39m!\n"
+msgstr "\033[91mNie udało się uruchomić \033[4msudo apt update\033[0m\033[39m!\n"
+
+msgid "APT reported these errors:\n\033[91m%s\033[39m\n"
+msgstr "APT zgłosił te błędy:\n\033[91m%s\033[39m\n"
+
+# Locale messages
+msgid "Converting locale from ISO-8859-1 to UTF-8: %s"
+msgstr "Konwertowanie lokalizacji z ISO-8859-1 na UTF-8: %s"
+
+msgid "Converting LC_ALL from ISO-8859-1 to UTF-8: %s"
+msgstr "Konwertowanie LC_ALL z ISO-8859-1 na UTF-8: %s"
+
+msgid "Setting locale to en_US.UTF-8 to prevent application crashes..."
+msgstr "Ustawianie lokalizacji na en_US.UTF-8 w celu zapobiegania awariom aplikacji..."
+
+msgid "Adding English (en_US.UTF-8) locale to the system for improved logging..."
+msgstr "Dodawanie lokalizacji angielskiej (en_US.UTF-8) do systemu dla lepszego logowania..."
+
+msgid "Allowing packages required by the %s app to be uninstalled"
+msgstr "Zezwolenie na usunięcie pakietów wymaganych przez aplikację %s"
+
+msgid "Purging the %s package..."
+msgstr "Usuwanie pakietu %s..."
+
+msgid "All packages have been purged successfully."
+msgstr "Wszystkie pakiety zostały usunięte pomyślnie."
+
+msgid "These packages were: %s"
+msgstr "Te pakiety były: %s"
+
+msgid "These packages were: %s\n"
+msgstr "Te pakiety były: %s\n"
+
+# APT Translated Function Messages
+msgid "ubuntu_ppa_installer(): This function is used to add a ppa to a ubuntu based install but a required input argument was missing"
+msgstr "ubuntu_ppa_installer(): Ta funkcja służy do dodawania ppa do instalacji opartej na ubuntu, ale brakuje wymaganego argumentu wejściowego"
+
+msgid "failed to check if PPA is already added: %w"
+msgstr "nie udało się sprawdzić, czy PPA jest już dodane: %w"
+
+msgid "Skipping %s PPA, already added"
+msgstr "Pomijanie PPA %s, już dodane"
+
+msgid "Adding %s PPA"
+msgstr "Dodawanie PPA %s"
+
+msgid "failed to add PPA: %w"
+msgstr "nie udało się dodać PPA: %w"
+
+msgid "failed to update APT after adding PPA: %w"
+msgstr "nie udało się zaktualizować APT po dodaniu PPA: %w"
+
+msgid "failed to get OS codename: %w"
+msgstr "nie udało się uzyskać nazwy kodowej systemu operacyjnego: %w"
+
+msgid "failed to rename PPA file: %w"
+msgstr "nie udało się zmienić nazwy pliku PPA: %w"
+
+msgid "debian_ppa_installer(): This function is used to add a ppa to a debian based install but a required input argument was missing"
+msgstr "debian_ppa_installer(): Ta funkcja służy do dodawania ppa do instalacji opartej na debian, ale brakuje wymaganego argumentu wejściowego"
+
+msgid "failed to add repository to sources.list: %w"
+msgstr "nie udało się dodać repozytorium do sources.list: %w"
+
+msgid "failed to sign the %s PPA: %w"
+msgstr "nie udało się podpisać PPA %s: %w"
+
+msgid "no packages specified for pipx installation"
+msgstr "nie określono pakietów do instalacji pipx"
+
+msgid "failed to install pipx and python3-venv: %w"
+msgstr "nie udało się zainstalować pipx i python3-venv: %w"
+
+msgid "failed to install python3-venv: %w"
+msgstr "nie udało się zainstalować python3-venv: %w"
+
+msgid "Installing pipx with pip..."
+msgstr "Instalowanie pipx za pomocą pip..."
+
+msgid "failed to install pipx with pip: %w"
+msgstr "nie udało się zainstalować pipx za pomocą pip: %w"
+
+msgid "failed to install python3.8 and python3.8-venv: %w"
+msgstr "nie udało się zainstalować python3.8 i python3.8-venv: %w"
+
+msgid "Installing pipx with pip using Python 3.8..."
+msgstr "Instalowanie pipx za pomocą pip używając Python 3.8..."
+
+msgid "failed to install pipx with pip using python3.8: %w"
+msgstr "nie udało się zainstalować pipx za pomocą pip używając python3.8: %w"
+
+msgid "pipx is not available on your distro and so cannot install %s to python venv"
+msgstr "pipx nie jest dostępne w twojej dystrybucji i dlatego nie można zainstalować %s do python venv"
+
+msgid "Verifying pipx installation..."
+msgstr "Weryfikowanie instalacji pipx..."
+
+msgid "pipx installation failed: command not found after installation"
+msgstr "instalacja pipx nie powiodła się: polecenie nie znalezione po instalacji"
+
+msgid "Installing %s with pipx...\n"
+msgstr "Instalowanie %s za pomocą pipx...\n"
+
+msgid "failed to install %s with pipx: %w"
+msgstr "nie udało się zainstalować %s za pomocą pipx: %w"
+
+msgid "Successfully installed %s with pipx\n"
+msgstr "Pomyślnie zainstalowano %s za pomocą pipx\n"
+
+msgid "no packages specified for pipx uninstallation"
+msgstr "nie określono pakietów do odinstalowania pipx"
+
+msgid "pipx is not installed: command not found"
+msgstr "pipx nie jest zainstalowane: polecenie nie znalezione"
+
+msgid "Uninstalling %s with pipx...\n"
+msgstr "Odinstalowywanie %s za pomocą pipx...\n"
+
+msgid "failed to uninstall %s with pipx: %w"
+msgstr "nie udało się odinstalować %s za pomocą pipx: %w"
+
+msgid "Successfully uninstalled %s with pipx\n"
+msgstr "Pomyślnie odinstalowano %s za pomocą pipx\n"
+
+# Help text for translated APT functions
+msgid "Install Ubuntu PPA (translated output)"
+msgstr "Zainstaluj PPA Ubuntu (przetłumaczone wyjście)"
+
+msgid "Install Debian PPA (translated output)"
+msgstr "Zainstaluj PPA Debian (przetłumaczone wyjście)"
+
+msgid "Install Python packages with pipx (translated output)"
+msgstr "Zainstaluj pakiety Python z pipx (przetłumaczone wyjście)"
+
+msgid "Uninstall Python packages with pipx (translated output)"
+msgstr "Odinstaluj pakiety Python z pipx (przetłumaczone wyjście)"
+
+# PurgePackages function messages
+msgid "Failed to uninstall the packages!"
+msgstr "Nie udało się odinstalować pakietów!"
+
+msgid "Using the old implementation - an installed-packages file instead of a dummy deb"
+msgstr "Używanie starej implementacji - plik zainstalowanych pakietów zamiast fikcyjnego deb"
+
+msgid "Legacy package file is empty. Nothing to do."
+msgstr "Starszy plik pakietów jest pusty. Nic do zrobienia."
+
+msgid "The %s package is not installed so there's nothing to do."
+msgstr "Pakiet %s nie jest zainstalowany, więc nie ma nic do zrobienia."
+
+msgid "package '%s' is not installed and no information is available"
+msgstr "pakiet '%s' nie jest zainstalowany i nie ma dostępnych informacji"
+
+msgid "Error: %v"
+msgstr "Błąd: %v"
+
+msgid "Pi-Apps Go API binary runtime (rolling release)"
+msgstr "Runtime binarny API Pi-Apps Go (wersja ciągłej aktualizacji)"
+
+msgid "Build date not available"
+msgstr "Data budowy nie jest dostępna"
+
+msgid "Built on %s"
+msgstr "Zbudowano na %s"
+
+msgid "Link to commit: https://github.com/%s/%s/commit/%s"
+msgstr "Link do commitu: https://github.com/%s/%s/commit/%s"
+
+msgid "Git commit: %s"
+msgstr "Commit Git: %s"
+
+msgid "Git commit hash not available"
+msgstr "Hash commitu Git nie jest dostępny"
+
+msgid "package %s is not installed"
+msgstr "pakiet %s nie jest zainstalowany"

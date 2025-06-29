@@ -35,6 +35,12 @@ import (
 	"time"
 )
 
+// getOriginalLang returns the original LANG environment variable set by the user
+func getOriginalLang() string {
+	// Now that AddEnglish() doesn't override locale variables, just use LANG directly
+	return os.Getenv("LANG")
+}
+
 // RepoAdd adds local package files to the /tmp/pi-apps-local-packages repository
 func RepoAdd(files ...string) error {
 	if len(files) == 0 {
@@ -163,7 +169,7 @@ func AptLockWait() error {
 	go func() {
 		select {
 		case <-time.After(5 * time.Second):
-			fmt.Print("Waiting until APT locks are released... ")
+			fmt.Print(T("Waiting until APT locks are released... "))
 			notificationShown <- true
 		case <-notificationDone:
 			return
@@ -246,7 +252,7 @@ func AptLockWait() error {
 	// If the notification was shown, print "Done"
 	select {
 	case <-notificationShown:
-		fmt.Println("Done")
+		fmt.Println(T("Done"))
 	default:
 		// Notification wasn't shown, do nothing
 	}
@@ -348,11 +354,25 @@ func AptUpdate(args ...string) error {
 
 	// Use cyan color with reverse video styling to match the original implementation
 	// \033[96m for cyan, \033[7m for reverse video, \033[27m to end reverse, \033[0m to reset all formatting
-	fmt.Fprintf(os.Stderr, "\033[96mRunning \033[7msudo apt update\033[27m...\033[0m\n")
+	fmt.Fprintf(os.Stderr, "\033[96m%s \033[7msudo apt update\033[27m...\033[0m\n", T("Running"))
 
 	// Prepare the apt update command with provided arguments
-	aptArgs := append([]string{"-E", "apt", "update", "--allow-releaseinfo-change"}, args...)
+	// Use the original LANG that was set by the user, not the one modified by i18n
+	lang := getOriginalLang()
+
+	var aptArgs []string
+
+	if lang != "" {
+		// Set locale variables before sudo for proper APT localization
+		aptArgs = append([]string{"-E", "LANG=" + lang, "LC_ALL=" + lang, "LC_MESSAGES=" + lang, "apt", "update", "--allow-releaseinfo-change"}, args...)
+	} else {
+		aptArgs = append([]string{"-E", "apt", "update", "--allow-releaseinfo-change"}, args...)
+	}
+
 	cmd := exec.Command("sudo", aptArgs...)
+
+	// Preserve environment variables for proper locale handling
+	cmd.Env = os.Environ()
 
 	// Set up pipes for stdout and stderr to capture output in real-time
 	stdout, err := cmd.StdoutPipe()
@@ -413,29 +433,32 @@ func AptUpdate(args ...string) error {
 	// Wait for the command to complete
 	err = cmd.Wait()
 
-	// Show completion message in cyan to match the original
-	fmt.Fprintln(os.Stderr, "\033[96mapt update complete.\033[0m")
-
-	// Process output to show helpful messages about package status
+	// Process output to show helpful messages
 	// Strip color codes first to ensure reliable pattern matching
 	completeOutput := outputBuffer.String()
 	strippedOutput := stripAnsiCodes(completeOutput)
+
+	// Show completion message in cyan to match the original
+	fmt.Fprintf(os.Stderr, "\033[96m%s\033[0m\n", T("apt update complete."))
 
 	// Check for autoremovable packages messages (both APT 2.x and 3.0 formats)
 	if strings.Contains(strippedOutput, "autoremove to remove them") ||
 		strings.Contains(strippedOutput, "can be autoremoved") {
 		// Use direct ANSI codes for exact matching with the original
-		fmt.Println("\033[33mSome packages are unnecessary.\033[39m Please consider running \033[4msudo a\033[0mp\033[4mt autoremove\033[0m.")
+		fmt.Printf("\033[33m%s\033[39m %s \033[4msudo a\033[0mp\033[4mt autoremove\033[0m.\n",
+			T("Some packages are unnecessary."), T("Please consider running"))
 	}
 
 	// Check for upgradeable packages messages (both APT 2.x and 3.0 formats)
 	if strings.Contains(strippedOutput, "packages can be upgraded") ||
 		strings.Contains(strippedOutput, "can be upgraded") ||
 		strings.Contains(strippedOutput, "upgradable") {
-		fmt.Println("\033[33mSome packages can be upgraded.\033[39m Please consider running \033[4msudo a\033[0mp\033[4mt full-u\033[0mpg\033[4mrade\033[0m.")
+		fmt.Printf("\033[33m%s\033[39m %s \033[4msudo a\033[0mp\033[4mt full-u\033[0mpg\033[4mrade\033[0m.\n",
+			T("Some packages can be upgraded."), T("Please consider running"))
 	} else if strings.Contains(strippedOutput, "package can be upgraded") ||
 		strings.Contains(strippedOutput, "is upgradable") {
-		fmt.Println("\033[33mOne package can be upgraded.\033[39m Please consider running \033[4msudo a\033[0mp\033[4mt full-u\033[0mpg\033[4mrade\033[0m.")
+		fmt.Printf("\033[33m%s\033[39m %s \033[4msudo a\033[0mp\033[4mt full-u\033[0mpg\033[4mrade\033[0m.\n",
+			T("One package can be upgraded."), T("Please consider running"))
 	}
 
 	// Handle errors
@@ -450,8 +473,8 @@ func AptUpdate(args ...string) error {
 		}
 
 		errorMessage := strings.Join(errorLines, "\n")
-		fmt.Fprintf(os.Stderr, "\033[91mFailed to run \033[4msudo apt update\033[0m\033[39m!\n")
-		fmt.Fprintf(os.Stderr, "APT reported these errors:\n\033[91m%s\033[39m\n", errorMessage)
+		fmt.Fprint(os.Stderr, T("\033[91mFailed to run \033[4msudo apt update\033[0m\033[39m!\n"))
+		fmt.Fprintf(os.Stderr, T("APT reported these errors:\n\033[91m%s\033[39m\n"), errorMessage)
 
 		// Print the full output for diagnosis
 		fmt.Fprintln(os.Stderr, completeOutput)
@@ -542,7 +565,7 @@ func InstallPackages(app string, args ...string) error {
 		}
 	}
 
-	Status("Will install these packages: " + strings.Join(packages, " "))
+	StatusT(Tf("Will install these packages: %s", strings.Join(packages, " ")))
 
 	// Remove the local repo, just in case the last operation left it in an unrecoverable state
 	if err := RepoRm(); err != nil {
@@ -560,30 +583,32 @@ func InstallPackages(app string, args ...string) error {
 		if strings.HasPrefix(pkg, "/") {
 			// Check if file exists
 			if _, err := os.Stat(pkg); os.IsNotExist(err) {
-				return fmt.Errorf("local package does not exist: %s", pkg)
+				return fmt.Errorf(T("local package does not exist: %s"), pkg)
 			}
 
 			// Get package info using dpkg-deb
 			cmd := exec.Command("dpkg-deb", "-I", pkg)
+			cmd.Env = append(os.Environ(), "LANG=en_US.UTF-8", "LC_ALL=en_US.UTF-8")
 			output, err := cmd.Output()
 			if err != nil {
-				return fmt.Errorf("failed to get package info from %s: %w", pkg, err)
+				return fmt.Errorf(T("failed to get package info from %s: %w"), pkg, err)
 			}
 
 			// Parse the output to get package name, version, and architecture
 			pkgName, pkgVersion, pkgArch := extractPackageInfo(string(output))
 			if pkgName == "" {
-				return fmt.Errorf("failed to determine package name for file: %s", pkg)
+				return fmt.Errorf(T("failed to determine package name for file: %s"), pkg)
 			}
 			if pkgVersion == "" {
-				return fmt.Errorf("failed to determine package version for file: %s", pkg)
+				return fmt.Errorf(T("failed to determine package version for file: %s"), pkg)
 			}
 			if pkgArch == "" {
-				return fmt.Errorf("failed to determine package architecture for file: %s", pkg)
+				return fmt.Errorf(T("failed to determine package architecture for file: %s"), pkg)
 			}
 
 			// Add architecture suffix if it's a foreign architecture
 			cmd = exec.Command("dpkg", "--print-architecture")
+			cmd.Env = append(os.Environ(), "LANG=en_US.UTF-8", "LC_ALL=en_US.UTF-8")
 			currentArch, err := cmd.Output()
 			if err != nil {
 				return fmt.Errorf("failed to get current architecture: %w", err)
@@ -635,11 +660,12 @@ func InstallPackages(app string, args ...string) error {
 			}
 
 			if !success {
-				return fmt.Errorf("downloaded package does not exist: %s", filename)
+				return fmt.Errorf(T("downloaded package does not exist: %s"), filename)
 			}
 
 			// Get package info
 			cmd := exec.Command("dpkg-deb", "-I", filename)
+			cmd.Env = append(os.Environ(), "LANG=en_US.UTF-8", "LC_ALL=en_US.UTF-8")
 			output, err := cmd.Output()
 			if err != nil {
 				return fmt.Errorf("failed to get package info from %s: %w", filename, err)
@@ -659,6 +685,7 @@ func InstallPackages(app string, args ...string) error {
 
 			// Add architecture suffix if needed
 			cmd = exec.Command("dpkg", "--print-architecture")
+			cmd.Env = append(os.Environ(), "LANG=en_US.UTF-8", "LC_ALL=en_US.UTF-8")
 			currentArch, err := cmd.Output()
 			if err != nil {
 				return fmt.Errorf("failed to get current architecture: %w", err)
@@ -713,7 +740,7 @@ func InstallPackages(app string, args ...string) error {
 				// Adjust index since we modified the slice
 				i--
 			} else {
-				return fmt.Errorf("no packages found matching pattern: %s", pkg)
+				return fmt.Errorf(T("no packages found matching pattern: %s"), pkg)
 			}
 
 		} else if repoSelection != "" {
@@ -740,13 +767,13 @@ func InstallPackages(app string, args ...string) error {
 	// Verify no regex, URLs, or file paths remain
 	for _, pkg := range packages {
 		if strings.Contains(pkg, "*") {
-			return fmt.Errorf("failed to remove all regex from package list: %s", strings.Join(packages, "\n"))
+			return fmt.Errorf(T("failed to remove all regex from package list: %s"), strings.Join(packages, "\n"))
 		}
 		if strings.Contains(pkg, "://") {
-			return fmt.Errorf("failed to remove all URLs from package list: %s", strings.Join(packages, "\n"))
+			return fmt.Errorf(T("failed to remove all URLs from package list: %s"), strings.Join(packages, "\n"))
 		}
 		if strings.Contains(pkg, "/") && !strings.Contains(pkg, " (>=") {
-			return fmt.Errorf("failed to remove all filenames from package list: %s", strings.Join(packages, "\n"))
+			return fmt.Errorf(T("failed to remove all filenames from package list: %s"), strings.Join(packages, "\n"))
 		}
 	}
 
@@ -766,7 +793,7 @@ func InstallPackages(app string, args ...string) error {
 		return fmt.Errorf("failed to create package name for app %s: %w", app, err)
 	}
 
-	Status("Creating an empty apt-package to install the necessary apt packages...\nIt will be named: " + pkgName)
+	StatusT(Tf("Creating an empty apt-package to install the necessary apt packages...\nIt will be named: %s", pkgName))
 
 	// Check if package is already installed and get its dependencies
 	pkgInstalled := PackageInstalled(pkgName)
@@ -779,7 +806,7 @@ func InstallPackages(app string, args ...string) error {
 		}
 
 		existingDeps = strings.Join(deps, ", ")
-		Status("The " + pkgName + " package is already installed. Inheriting its dependencies: " + existingDeps)
+		StatusT(Tf("The %s package is already installed. Inheriting its dependencies: %s", pkgName, existingDeps))
 
 		// Add existing dependencies to packages list
 		if existingDeps != "" {
@@ -856,7 +883,7 @@ Package: %s
 
 		// Compare
 		if strings.Join(filteredPkgInfo, "\n") == strings.Join(controlLines, "\n") {
-			fmt.Printf("%s is already installed and no changes would be made. Skipping...\n", pkgName)
+			fmt.Printf(T("%s is already installed and no changes would be made. Skipping...\n"), pkgName)
 
 			// Clean up
 			os.RemoveAll(pkgDir)
@@ -869,7 +896,7 @@ Package: %s
 				}
 			}
 
-			StatusGreen("Package installation complete.")
+			StatusGreenT(T("Package installation complete."))
 			return nil
 		}
 	}
@@ -884,7 +911,7 @@ Package: %s
 
 	// Check if local repo still exists
 	if usingLocalPackages && !FileExists("/tmp/pi-apps-local-packages/Packages") {
-		return fmt.Errorf("user error: the /tmp/pi-apps-local-packages folder went missing while installing packages - this usually happens if you try to install several apps at the same time in multiple terminals")
+		return fmt.Errorf("%s", T("user error: the /tmp/pi-apps-local-packages folder went missing while installing packages - this usually happens if you try to install several apps at the same time in multiple terminals"))
 	}
 
 	// Run apt update and install with retry loop
@@ -895,18 +922,29 @@ Package: %s
 		}
 
 		// Install dummy deb
-		Status("Installing the " + pkgName + " package...")
+		StatusT(Tf("Installing the %s package...", pkgName))
 
 		if err := AptLockWait(); err != nil {
 			return fmt.Errorf("failed to wait for APT locks: %w", err)
 		}
 
 		// Create command for apt install
-		installArgs := []string{"-E", "apt", "install", "-fy", "--no-install-recommends", "--allow-downgrades"}
+		lang := os.Getenv("LANG")
+		var installArgs []string
+
+		if lang != "" {
+			// Set locale variables before sudo for proper APT localization
+			installArgs = []string{"-E", "LANG=" + lang, "LC_ALL=" + lang, "LC_MESSAGES=" + lang, "apt", "install", "-fy", "--no-install-recommends", "--allow-downgrades"}
+		} else {
+			installArgs = []string{"-E", "apt", "install", "-fy", "--no-install-recommends", "--allow-downgrades"}
+		}
 		installArgs = append(installArgs, aptFlags...)
 		installArgs = append(installArgs, pkgDir+".deb")
 
 		cmd = exec.Command("sudo", installArgs...)
+
+		// Preserve environment variables for proper locale handling
+		cmd.Env = os.Environ()
 
 		// Set up pipes for stdout and stderr to capture output in real-time
 		stdout, err := cmd.StdoutPipe()
@@ -967,7 +1005,7 @@ Package: %s
 		// Wait for the command to complete
 		err = cmd.Wait()
 
-		Status("Apt finished.")
+		StatusT(T("Apt finished."))
 
 		// Get the complete output
 		combinedOutput := outputBuffer.String()
@@ -993,13 +1031,13 @@ Package: %s
 			errorStr := strings.Join(errorLines, "\n")
 
 			if len(errorLines) == 0 {
-				fmt.Println("\033[91mFailed to install the packages!\033[39m")
-				fmt.Printf("User error: Apt exited with a failed exitcode (%d) and no error (E/Err) output. "+
-					"This could indicate system corruption (eg: storage corruption or unstable overclocking).\n", cmd.ProcessState.ExitCode())
-				return fmt.Errorf("apt exited with error code %d and no error output", cmd.ProcessState.ExitCode())
+				fmt.Printf("\033[91m%s\033[39m\n", T("Failed to install the packages!"))
+				fmt.Printf(T("User error: Apt exited with a failed exitcode (%d) and no error (E/Err) output. "+
+					"This could indicate system corruption (eg: storage corruption or unstable overclocking).\n"), cmd.ProcessState.ExitCode())
+				return fmt.Errorf(T("apt exited with error code %d and no error output"), cmd.ProcessState.ExitCode())
 			} else {
-				fmt.Println("\033[91mFailed to install the packages!\033[39m")
-				fmt.Printf("The APT reported these errors:\n\033[91m%s\033[39m\n", errorStr)
+				fmt.Printf("\033[91m%s\033[39m\n", T("Failed to install the packages!"))
+				fmt.Printf(T("The APT reported these errors:\n\033[91m%s\033[39m\n"), errorStr)
 
 				// Debug output for local repository issues
 				if usingLocalPackages && !FileExists("/tmp/pi-apps-local-packages/Packages") {
@@ -1061,7 +1099,7 @@ Package: %s
 		}
 	}
 
-	StatusGreen("Package installation complete.")
+	StatusGreenT(T("Package installation complete."))
 	return nil
 }
 
@@ -1151,7 +1189,7 @@ func PurgePackages(app string, isUpdate bool) error {
 		return fmt.Errorf("purge_packages function can only be used by apps to install packages (the app variable was not set)")
 	}
 
-	Status("Allowing packages required by the " + app + " app to be uninstalled")
+	Status(Tf("Allowing packages required by the %s app to be uninstalled", app))
 
 	// Create a unique package name using app_to_pkgname
 	pkgName, err := AppToPkgName(app)
@@ -1167,8 +1205,8 @@ func PurgePackages(app string, isUpdate bool) error {
 			return fmt.Errorf("failed to get dependencies for package %s: %w", pkgName, err)
 		}
 
-		fmt.Printf("These packages were: %s\n", strings.Join(deps, ", "))
-		Status("Purging the " + pkgName + " package...")
+		fmt.Print(Tf("These packages were: %s\n", strings.Join(deps, ", ")))
+		Status(Tf("Purging the %s package...", pkgName))
 
 		// Wait for APT locks
 		if err := AptLockWait(); err != nil {
@@ -1176,16 +1214,32 @@ func PurgePackages(app string, isUpdate bool) error {
 		}
 
 		// Create command for apt purge
+		lang := os.Getenv("LANG")
 		var purgeArgs []string
-		if isUpdate {
-			// Skip --autoremove for faster updates
-			purgeArgs = []string{"-E", "apt", "purge", "-y", pkgName}
+
+		if lang != "" {
+			// Set locale variables before sudo for proper APT localization
+			if isUpdate {
+				// Skip --autoremove for faster updates
+				purgeArgs = []string{"-E", "LANG=" + lang, "LC_ALL=" + lang, "LC_MESSAGES=" + lang, "apt", "purge", "-y", pkgName}
+			} else {
+				// Normal case, use --autoremove
+				purgeArgs = []string{"-E", "LANG=" + lang, "LC_ALL=" + lang, "LC_MESSAGES=" + lang, "apt", "purge", "-y", pkgName, "--autoremove"}
+			}
 		} else {
-			// Normal case, use --autoremove
-			purgeArgs = []string{"-E", "apt", "purge", "-y", pkgName, "--autoremove"}
+			if isUpdate {
+				// Skip --autoremove for faster updates
+				purgeArgs = []string{"-E", "apt", "purge", "-y", pkgName}
+			} else {
+				// Normal case, use --autoremove
+				purgeArgs = []string{"-E", "apt", "purge", "-y", pkgName, "--autoremove"}
+			}
 		}
 
 		cmd := exec.Command("sudo", purgeArgs...)
+
+		// Preserve environment variables for proper locale handling
+		cmd.Env = os.Environ()
 
 		// Set up pipes for stdout and stderr to capture output in real-time
 		stdout, err := cmd.StdoutPipe()
@@ -1246,7 +1300,7 @@ func PurgePackages(app string, isUpdate bool) error {
 		// Wait for the command to complete
 		err = cmd.Wait()
 
-		Status("Apt finished.")
+		Status(T("Apt finished."))
 
 		// Get complete output
 		combinedOutput := outputBuffer.String()
@@ -1265,8 +1319,8 @@ func PurgePackages(app string, isUpdate bool) error {
 			// Handle error cases
 			errorStr := strings.Join(errorLines, "\n")
 
-			fmt.Println("\033[91mFailed to uninstall the packages!\033[39m")
-			fmt.Printf("The APT reported these errors:\n\033[91m%s\033[39m\n", errorStr)
+			fmt.Printf("\033[91m%s\033[39m\n", T("Failed to uninstall the packages!"))
+			fmt.Printf(T("The APT reported these errors:\n\033[91m%s\033[39m\n"), errorStr)
 			fmt.Println(combinedOutput)
 
 			return fmt.Errorf("apt reported errors: %s", errorStr)
@@ -1281,7 +1335,7 @@ func PurgePackages(app string, isUpdate bool) error {
 		legacyPkgFile := filepath.Join(installDataDir, "data", "installed-packages", app)
 
 		if FileExists(legacyPkgFile) {
-			Warning("Using the old implementation - an installed-packages file instead of a dummy deb")
+			WarningT(T("Using the old implementation - an installed-packages file instead of a dummy deb"))
 
 			// Read the package list from the file
 			pkgData, err := os.ReadFile(legacyPkgFile)
@@ -1299,10 +1353,10 @@ func PurgePackages(app string, isUpdate bool) error {
 			}
 
 			if pkgList == "" {
-				Status("Legacy package file is empty. Nothing to do.")
+				StatusT(T("Legacy package file is empty. Nothing to do."))
 				// Remove the legacy file
 				os.Remove(legacyPkgFile)
-				StatusGreen("All packages have been purged successfully.")
+				StatusGreenT("All packages have been purged successfully.")
 				return nil
 			}
 
@@ -1315,8 +1369,20 @@ func PurgePackages(app string, isUpdate bool) error {
 			}
 
 			// Create command for apt purge with real-time output
-			purgeArgs := append([]string{"-E", "apt", "purge", "-y"}, packages...)
+			lang := os.Getenv("LANG")
+			var purgeArgs []string
+
+			if lang != "" {
+				// Set locale variables before sudo for proper APT localization
+				purgeArgs = append([]string{"-E", "LANG=" + lang, "LC_ALL=" + lang, "LC_MESSAGES=" + lang, "apt", "purge", "-y"}, packages...)
+			} else {
+				purgeArgs = append([]string{"-E", "apt", "purge", "-y"}, packages...)
+			}
+
 			cmd := exec.Command("sudo", purgeArgs...)
+
+			// Preserve environment variables for proper locale handling
+			cmd.Env = os.Environ()
 
 			// Set up pipes for stdout and stderr to capture output in real-time
 			stdout, err := cmd.StdoutPipe()
@@ -1377,7 +1443,7 @@ func PurgePackages(app string, isUpdate bool) error {
 			// Wait for the command to complete
 			err = cmd.Wait()
 
-			Status("Apt finished.")
+			Status(T("Apt finished."))
 
 			// Check for errors
 			if err != nil {
@@ -1395,14 +1461,14 @@ func PurgePackages(app string, isUpdate bool) error {
 
 				errorStr := strings.Join(errorLines, "\n")
 
-				fmt.Println("\033[91mFailed to uninstall the packages!\033[39m")
-				fmt.Printf("The APT reported these errors:\n\033[91m%s\033[39m\n", errorStr)
+				fmt.Printf("\033[91m%s\033[39m\n", T("Failed to uninstall the packages!"))
+				fmt.Printf(T("The APT reported these errors:\n\033[91m%s\033[39m\n"), errorStr)
 				fmt.Println(combinedOutput)
 
 				return fmt.Errorf("apt reported errors: %s", errorStr)
 			}
 		} else {
-			Status("The " + pkgName + " package is not installed so there's nothing to do.")
+			StatusT(Tf("The %s package is not installed so there's nothing to do.", pkgName))
 		}
 	}
 
@@ -1417,7 +1483,7 @@ func PurgePackages(app string, isUpdate bool) error {
 		os.Remove(legacyPkgFile)
 	}
 
-	StatusGreen("All packages have been purged successfully.")
+	StatusGreenT("All packages have been purged successfully.")
 	return nil
 }
 
@@ -1475,6 +1541,7 @@ func GetIconFromPackage(packages ...string) (string, error) {
 	// Run dpkg-query to list all files installed by the packages
 	args := append([]string{"-L"}, allPackages...)
 	cmd := exec.Command("dpkg-query", args...)
+	cmd.Env = append(os.Environ(), "LANG=en_US.UTF-8", "LC_ALL=en_US.UTF-8")
 	output, err := cmd.Output()
 	if err != nil {
 		// Continue even if there's an error, as the bash version ignores errors
@@ -1539,7 +1606,7 @@ func GetIconFromPackage(packages ...string) (string, error) {
 // This is a Go implementation of the original bash ubuntu_ppa_installer function
 func UbuntuPPAInstaller(ppaName string) error {
 	if ppaName == "" {
-		return fmt.Errorf("ubuntu_ppa_installer(): This function is used to add a ppa to a ubuntu based install but a required input argument was missing")
+		return fmt.Errorf(T("ubuntu_ppa_installer(): This function is used to add a ppa to a ubuntu based install but a required input argument was missing"))
 	}
 
 	// Prepare ppaGrep for checking if the PPA is already added
@@ -1550,9 +1617,10 @@ func UbuntuPPAInstaller(ppaName string) error {
 
 	// Check if PPA is already added
 	cmd := exec.Command("apt-get", "indextargets", "--no-release-info", "--format", "$(SITE) $(RELEASE) $(TARGET_OF)")
+	cmd.Env = append(os.Environ(), "LANG=en_US.UTF-8", "LC_ALL=en_US.UTF-8")
 	output, err := cmd.Output()
 	if err != nil {
-		return fmt.Errorf("failed to check if PPA is already added: %w", err)
+		return fmt.Errorf(T("failed to check if PPA is already added: %w"), err)
 	}
 
 	ppaAdded := false
@@ -1565,21 +1633,21 @@ func UbuntuPPAInstaller(ppaName string) error {
 	}
 
 	if ppaAdded {
-		Status("Skipping " + ppaName + " PPA, already added")
+		Status(Tf("Skipping %s PPA, already added", ppaName))
 	} else {
-		Status("Adding " + ppaName + " PPA")
+		Status(Tf("Adding %s PPA", ppaName))
 
 		// Add the PPA
 		cmd = exec.Command("sudo", "add-apt-repository", "ppa:"+ppaName, "-y")
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		if err := cmd.Run(); err != nil {
-			return fmt.Errorf("failed to add PPA: %w", err)
+			return fmt.Errorf(T("failed to add PPA: %w"), err)
 		}
 
 		// Update APT
 		if err := AptUpdate(); err != nil {
-			return fmt.Errorf("failed to update APT after adding PPA: %w", err)
+			return fmt.Errorf(T("failed to update APT after adding PPA: %w"), err)
 		}
 	}
 
@@ -1589,7 +1657,7 @@ func UbuntuPPAInstaller(ppaName string) error {
 	// Get the OS codename
 	osCodename, err := getOSCodename()
 	if err != nil {
-		return fmt.Errorf("failed to get OS codename: %w", err)
+		return fmt.Errorf(T("failed to get OS codename: %w"), err)
 	}
 
 	// Format the standard filename
@@ -1609,7 +1677,7 @@ func UbuntuPPAInstaller(ppaName string) error {
 			// Rename to the standard filename
 			cmd = exec.Command("sudo", "mv", originalFilename, standardFilename)
 			if err := cmd.Run(); err != nil {
-				return fmt.Errorf("failed to rename PPA file: %w", err)
+				return fmt.Errorf(T("failed to rename PPA file: %w"), err)
 			}
 
 			// Remove related distUpgrade and save files
@@ -1628,7 +1696,7 @@ func UbuntuPPAInstaller(ppaName string) error {
 // This is a Go implementation of the original bash debian_ppa_installer function
 func DebianPPAInstaller(ppaName, ppaDist, key string) error {
 	if ppaName == "" || ppaDist == "" || key == "" {
-		return fmt.Errorf("debian_ppa_installer(): This function is used to add a ppa to a debian based install but a required input argument was missing")
+		return fmt.Errorf(T("debian_ppa_installer(): This function is used to add a ppa to a debian based install but a required input argument was missing"))
 	}
 
 	// Prepare ppaGrep for checking if the PPA is already added
@@ -1639,9 +1707,10 @@ func DebianPPAInstaller(ppaName, ppaDist, key string) error {
 
 	// Check if PPA is already added
 	cmd := exec.Command("apt-get", "indextargets", "--no-release-info", "--format", "$(SITE) $(RELEASE) $(TARGET_OF)")
+	cmd.Env = append(os.Environ(), "LANG=en_US.UTF-8", "LC_ALL=en_US.UTF-8")
 	output, err := cmd.Output()
 	if err != nil {
-		return fmt.Errorf("failed to check if PPA is already added: %w", err)
+		return fmt.Errorf(T("failed to check if PPA is already added: %w"), err)
 	}
 
 	ppaAdded := false
@@ -1654,9 +1723,9 @@ func DebianPPAInstaller(ppaName, ppaDist, key string) error {
 	}
 
 	if ppaAdded {
-		Status("Skipping " + ppaName + " PPA, already added")
+		Status(Tf("Skipping %s PPA, already added", ppaName))
 	} else {
-		Status("Adding " + ppaName + " PPA")
+		Status(Tf("Adding %s PPA", ppaName))
 
 		// Create the .list file
 		ppaOwner := strings.Split(ppaName, "/")[0]
@@ -1667,7 +1736,7 @@ func DebianPPAInstaller(ppaName, ppaDist, key string) error {
 		cmd = exec.Command("sudo", "tee", listFilename)
 		cmd.Stdin = strings.NewReader(fmt.Sprintf("deb https://ppa.launchpadcontent.net/%s/ubuntu %s main", ppaName, ppaDist))
 		if err := cmd.Run(); err != nil {
-			return fmt.Errorf("failed to add repository to sources.list: %w", err)
+			return fmt.Errorf(T("failed to add repository to sources.list: %w"), err)
 		}
 
 		// Add GPG key
@@ -1677,12 +1746,12 @@ func DebianPPAInstaller(ppaName, ppaDist, key string) error {
 			removeCmd := exec.Command("sudo", "rm", "-f", listFilename)
 			removeCmd.Run() // Ignore errors from removal
 
-			return fmt.Errorf("failed to sign the %s PPA: %w", ppaName, err)
+			return fmt.Errorf(T("failed to sign the %s PPA: %w"), ppaName, err)
 		}
 
 		// Update APT
 		if err := AptUpdate(); err != nil {
-			return fmt.Errorf("failed to update APT after adding PPA: %w", err)
+			return fmt.Errorf(T("failed to update APT after adding PPA: %w"), err)
 		}
 	}
 
@@ -1693,6 +1762,7 @@ func DebianPPAInstaller(ppaName, ppaDist, key string) error {
 func getOSCodename() (string, error) {
 	// Try to get OS codename from lsb_release
 	cmd := exec.Command("lsb_release", "-cs")
+	cmd.Env = append(os.Environ(), "LANG=en_US.UTF-8", "LC_ALL=en_US.UTF-8")
 	output, err := cmd.Output()
 	if err == nil {
 		return strings.TrimSpace(string(output)), nil
@@ -1965,7 +2035,7 @@ func AdoptiumInstaller() error {
 // This is a Go implementation of the original bash pipx_install function
 func PipxInstall(packages ...string) error {
 	if len(packages) == 0 {
-		return fmt.Errorf("no packages specified for pipx installation")
+		return fmt.Errorf("%s", T("no packages specified for pipx installation"))
 	}
 
 	// Use "pipx" as the app name for tracking dependencies
@@ -1982,7 +2052,7 @@ func PipxInstall(packages ...string) error {
 	if pipxAvailable && pipxNewEnough {
 		// Install pipx from package manager if it's available and new enough
 		if err := InstallPackages(appName, "pipx", "python3-venv"); err != nil {
-			return fmt.Errorf("failed to install pipx and python3-venv: %w", err)
+			return fmt.Errorf(T("failed to install pipx and python3-venv: %w"), err)
 		}
 	} else {
 		// Check Python version to determine installation method
@@ -1991,15 +2061,15 @@ func PipxInstall(packages ...string) error {
 		if python3NewEnough {
 			// Python 3.7+ is available, install pipx using pip
 			if err := InstallPackages(appName, "python3-venv"); err != nil {
-				return fmt.Errorf("failed to install python3-venv: %w", err)
+				return fmt.Errorf(T("failed to install python3-venv: %w"), err)
 			}
 
-			fmt.Println("Installing pipx with pip...")
+			fmt.Println(T("Installing pipx with pip..."))
 			cmd := exec.Command("sudo", "-H", "python3", "-m", "pip", "install", "--upgrade", "pipx")
 			cmd.Stdout = os.Stdout
 			cmd.Stderr = os.Stderr
 			if err := cmd.Run(); err != nil {
-				return fmt.Errorf("failed to install pipx with pip: %w", err)
+				return fmt.Errorf(T("failed to install pipx with pip: %w"), err)
 			}
 		} else {
 			// Check if Python 3.8 is available
@@ -2008,32 +2078,32 @@ func PipxInstall(packages ...string) error {
 			if python38Available {
 				// Install Python 3.8 and its venv package
 				if err := InstallPackages(appName, "python3.8", "python3.8-venv"); err != nil {
-					return fmt.Errorf("failed to install python3.8 and python3.8-venv: %w", err)
+					return fmt.Errorf(T("failed to install python3.8 and python3.8-venv: %w"), err)
 				}
 
-				fmt.Println("Installing pipx with pip using Python 3.8...")
+				fmt.Println(T("Installing pipx with pip using Python 3.8..."))
 				cmd := exec.Command("sudo", "-H", "python3.8", "-m", "pip", "install", "--upgrade", "pipx")
 				cmd.Stdout = os.Stdout
 				cmd.Stderr = os.Stderr
 				if err := cmd.Run(); err != nil {
-					return fmt.Errorf("failed to install pipx with pip using python3.8: %w", err)
+					return fmt.Errorf(T("failed to install pipx with pip using python3.8: %w"), err)
 				}
 			} else {
 				// No suitable Python version found
-				return fmt.Errorf("pipx is not available on your distro and so cannot install %s to python venv", strings.Join(packages, " "))
+				return fmt.Errorf(T("pipx is not available on your distro and so cannot install %s to python venv"), strings.Join(packages, " "))
 			}
 		}
 	}
 
 	// Check if pipx command exists after installation
-	fmt.Println("Verifying pipx installation...")
+	fmt.Println(T("Verifying pipx installation..."))
 	checkCmd := exec.Command("which", "pipx")
 	if err := checkCmd.Run(); err != nil {
-		return fmt.Errorf("pipx installation failed: command not found after installation")
+		return fmt.Errorf("%s", T("pipx installation failed: command not found after installation"))
 	}
 
 	// Install the requested packages with pipx
-	fmt.Printf("Installing %s with pipx...\n", strings.Join(packages, ", "))
+	fmt.Printf(T("Installing %s with pipx...\n"), strings.Join(packages, ", "))
 
 	// Create the pipx install command with environment variables
 	cmd := exec.Command("sudo", "-E", "bash", "-c",
@@ -2044,10 +2114,10 @@ func PipxInstall(packages ...string) error {
 	cmd.Stderr = os.Stderr
 
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("failed to install %s with pipx: %w", strings.Join(packages, " "), err)
+		return fmt.Errorf(T("failed to install %s with pipx: %w"), strings.Join(packages, " "), err)
 	}
 
-	fmt.Printf("Successfully installed %s with pipx\n", strings.Join(packages, ", "))
+	fmt.Printf(T("Successfully installed %s with pipx\n"), strings.Join(packages, ", "))
 	return nil
 }
 
@@ -2055,17 +2125,17 @@ func PipxInstall(packages ...string) error {
 // This is a Go implementation of the original bash pipx_uninstall function
 func PipxUninstall(packages ...string) error {
 	if len(packages) == 0 {
-		return fmt.Errorf("no packages specified for pipx uninstallation")
+		return fmt.Errorf("%s", T("no packages specified for pipx uninstallation"))
 	}
 
 	// Check if pipx command exists
 	checkCmd := exec.Command("which", "pipx")
 	if err := checkCmd.Run(); err != nil {
-		return fmt.Errorf("pipx is not installed: command not found")
+		return fmt.Errorf("%s", T("pipx is not installed: command not found"))
 	}
 
 	// Uninstall the requested packages with pipx
-	fmt.Printf("Uninstalling %s with pipx...\n", strings.Join(packages, ", "))
+	fmt.Printf(T("Uninstalling %s with pipx...\n"), strings.Join(packages, ", "))
 
 	// Create the pipx uninstall command with environment variables
 	cmd := exec.Command("sudo", "-E", "bash", "-c",
@@ -2076,9 +2146,9 @@ func PipxUninstall(packages ...string) error {
 	cmd.Stderr = os.Stderr
 
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("failed to uninstall %s with pipx: %w", strings.Join(packages, " "), err)
+		return fmt.Errorf(T("failed to uninstall %s with pipx: %w"), strings.Join(packages, " "), err)
 	}
 
-	fmt.Printf("Successfully uninstalled %s with pipx\n", strings.Join(packages, ", "))
+	fmt.Printf(T("Successfully uninstalled %s with pipx\n"), strings.Join(packages, ", "))
 	return nil
 }

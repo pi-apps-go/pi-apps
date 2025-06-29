@@ -41,7 +41,7 @@ import (
 	"unsafe"
 
 	"github.com/botspot/pi-apps/pkg/api"
-	"github.com/h2non/bimg"
+	"github.com/davidbyttow/govips/v2/vips"
 )
 
 // XLunchNativeConfig holds configuration for native xlunch
@@ -140,7 +140,7 @@ func (xl *XLunchNative) LoadEntriesFromPreload(directory, prefix string) error {
 	return nil
 }
 
-// ProcessIcon processes an icon to the required size and format using libvips
+// ProcessIcon processes an icon to the required size and format using govips
 func (xl *XLunchNative) ProcessIcon(iconPath string) (string, error) {
 	if iconPath == "" {
 		return "", nil
@@ -167,37 +167,38 @@ func (xl *XLunchNative) ProcessIcon(iconPath string) (string, error) {
 		return outputPath, nil
 	}
 
-	// Read and process image with libvips
-	buffer, err := bimg.Read(iconPath)
+	// Load image with govips
+	image, err := vips.NewImageFromFile(iconPath)
 	if err != nil {
-		// If libvips fails, try to copy original file to a temporary location
+		// If govips fails, try to copy original file to a temporary location
 		return xl.copyIconToTemp(iconPath, tempDir)
 	}
-
-	// Determine input format
-	imageType := bimg.DetermineImageType(buffer)
-	if imageType == bimg.UNKNOWN {
-		return xl.copyIconToTemp(iconPath, tempDir)
-	}
+	defer image.Close()
 
 	// Resize image with proper aspect ratio
-	options := bimg.Options{
-		Width:        xl.config.IconSize,
-		Height:       xl.config.IconSize,
-		Crop:         true,
-		Quality:      95,
-		Type:         bimg.PNG,
-		Interpolator: bimg.Bicubic,
+	err = image.Resize(float64(xl.config.IconSize)/float64(image.Width()), vips.KernelAuto)
+	if err != nil {
+		return xl.copyIconToTemp(iconPath, tempDir)
 	}
 
-	// Process the image
-	newImage, err := bimg.NewImage(buffer).Process(options)
+	// Crop to square if needed
+	if image.Width() != image.Height() {
+		size := xl.config.IconSize
+		err = image.ExtractArea(0, 0, size, size)
+		if err != nil {
+			return xl.copyIconToTemp(iconPath, tempDir)
+		}
+	}
+
+	// Export as PNG
+	ep := vips.NewDefaultPNGExportParams()
+	imageBytes, _, err := image.Export(ep)
 	if err != nil {
 		return xl.copyIconToTemp(iconPath, tempDir)
 	}
 
 	// Save processed image
-	if err := bimg.Write(outputPath, newImage); err != nil {
+	if err := os.WriteFile(outputPath, imageBytes, 0644); err != nil {
 		return xl.copyIconToTemp(iconPath, tempDir)
 	}
 

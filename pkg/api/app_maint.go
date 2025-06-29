@@ -29,12 +29,12 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/h2non/bimg"
+	"github.com/davidbyttow/govips/v2/vips"
 )
 
 // GenerateAppIcons converts the given image into icon-24.png and icon-64.png files for the specified app
 //
-// This implementation uses the bimg library for image processing and preserves the original aspect ratio
+// This implementation uses the govips library for image processing and preserves the original aspect ratio
 // of the image when resizing, similar to how ImageMagick would handle it in the bash implementation
 func GenerateAppIcons(iconPath, appName string) error {
 	if iconPath == "" {
@@ -56,88 +56,82 @@ func GenerateAppIcons(iconPath, appName string) error {
 		return fmt.Errorf("error creating app directory: %w", err)
 	}
 
-	// Read the source image
-	buffer, err := bimg.Read(iconPath)
+	// Initialize govips
+	vips.Startup(nil)
+	defer vips.Shutdown()
+
+	// Load the source image
+	image, err := vips.NewImageFromFile(iconPath)
 	if err != nil {
 		return fmt.Errorf("error reading source image: %w", err)
 	}
+	defer image.Close()
 
 	// Get original dimensions
-	size, err := bimg.NewImage(buffer).Size()
-	if err != nil {
-		return fmt.Errorf("error getting source image size: %w", err)
-	}
+	originalWidth := image.Width()
+	originalHeight := image.Height()
 
-	originalWidth := size.Width
-	originalHeight := size.Height
-
-	// Create a 24x24 icon using bimg (preserving aspect ratio)
+	// Create a 24x24 icon (preserving aspect ratio)
 	icon24Path := filepath.Join(appDir, "icon-24.png")
 
-	var options24 bimg.Options
+	// Clone the image for 24x24 processing
+	image24, err := image.Copy()
+	if err != nil {
+		return fmt.Errorf("error copying image for 24x24 processing: %w", err)
+	}
+	defer image24.Close()
+
 	if originalWidth >= originalHeight {
 		// Image is wider than tall or square, constrain by height
-		newWidth := int(24.0 * float64(originalWidth) / float64(originalHeight))
-		options24 = bimg.Options{
-			Width:   newWidth,
-			Height:  24,
-			Crop:    false,
-			Enlarge: true,
-			Type:    bimg.PNG,
-		}
+		err = image24.Resize(24.0/float64(originalHeight), vips.KernelLanczos3)
 	} else {
 		// Image is taller than wide, constrain by width
-		newHeight := int(24.0 * float64(originalHeight) / float64(originalWidth))
-		options24 = bimg.Options{
-			Width:   24,
-			Height:  newHeight,
-			Crop:    false,
-			Enlarge: true,
-			Type:    bimg.PNG,
-		}
+		err = image24.Resize(24.0/float64(originalWidth), vips.KernelLanczos3)
 	}
 
-	newImage24, err := bimg.NewImage(buffer).Process(options24)
 	if err != nil {
-		return fmt.Errorf("error creating 24x24 icon: %w", err)
+		return fmt.Errorf("error resizing image to 24px: %w", err)
 	}
 
-	if err := bimg.Write(icon24Path, newImage24); err != nil {
+	// Export as PNG
+	image24bytes, _, err := image24.ExportPng(vips.NewPngExportParams())
+	if err != nil {
+		return fmt.Errorf("error exporting 24x24 icon: %w", err)
+	}
+
+	if err := os.WriteFile(icon24Path, image24bytes, 0644); err != nil {
 		return fmt.Errorf("error saving 24x24 icon: %w", err)
 	}
 
-	// Create a 64x64 icon using bimg (preserving aspect ratio)
+	// Create a 64x64 icon (preserving aspect ratio)
 	icon64Path := filepath.Join(appDir, "icon-64.png")
 
-	var options64 bimg.Options
+	// Clone the original image for 64x64 processing
+	image64, err := image.Copy()
+	if err != nil {
+		return fmt.Errorf("error copying image for 64x64 processing: %w", err)
+	}
+	defer image64.Close()
+
 	if originalWidth >= originalHeight {
 		// Image is wider than tall or square, constrain by height
-		newWidth := int(64.0 * float64(originalWidth) / float64(originalHeight))
-		options64 = bimg.Options{
-			Width:   newWidth,
-			Height:  64,
-			Crop:    false,
-			Enlarge: true,
-			Type:    bimg.PNG,
-		}
+		err = image64.Resize(64.0/float64(originalHeight), vips.KernelLanczos3)
 	} else {
 		// Image is taller than wide, constrain by width
-		newHeight := int(64.0 * float64(originalHeight) / float64(originalWidth))
-		options64 = bimg.Options{
-			Width:   64,
-			Height:  newHeight,
-			Crop:    false,
-			Enlarge: true,
-			Type:    bimg.PNG,
-		}
+		err = image64.Resize(64.0/float64(originalWidth), vips.KernelLanczos3)
 	}
 
-	newImage64, err := bimg.NewImage(buffer).Process(options64)
 	if err != nil {
-		return fmt.Errorf("error creating 64x64 icon: %w", err)
+		return fmt.Errorf("error resizing image to 64px: %w", err)
 	}
 
-	if err := bimg.Write(icon64Path, newImage64); err != nil {
+	// Export as PNG
+	image64bytes, _, err := image64.ExportPng(vips.NewPngExportParams())
+	if err != nil {
+		return fmt.Errorf("error exporting 64x64 icon: %w", err)
+	}
+
+	if err := os.WriteFile(icon64Path, image64bytes, 0644); err != nil {
 		return fmt.Errorf("error saving 64x64 icon: %w", err)
 	}
 

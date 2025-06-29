@@ -24,6 +24,11 @@ func runUpdater() {
 		os.Exit(1)
 	}
 
+	// Set environment variable to indicate we're running from multi-call binary
+	if executable, err := os.Executable(); err == nil {
+		os.Setenv("PI_APPS_MULTI_CALL_BINARY", executable)
+	}
+
 	// Parse command line arguments with enhanced support
 	mode, speed, useTerminal, extraArgs, err := parseArgs()
 	if err != nil {
