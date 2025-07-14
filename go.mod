@@ -15,7 +15,7 @@ require (
 	github.com/leonelquinteros/gotext v1.7.2
 	github.com/toqueteos/webbrowser v1.2.0
 	golang.org/x/term v0.33.0
-	golang.org/x/text v0.26.0
+	golang.org/x/text v0.27.0
 	golang.org/x/time v0.12.0
 )
 
