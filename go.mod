@@ -13,7 +13,7 @@ require (
 	github.com/joho/godotenv v1.5.1
 	github.com/kbinani/screenshot v0.0.0-20250624051815-089614a94018
 	github.com/leonelquinteros/gotext v1.7.2
-	github.com/toqueteos/webbrowser v1.2.0
+	github.com/toqueteos/webbrowser v1.2.1
 	golang.org/x/term v0.33.0
 	golang.org/x/text v0.27.0
 	golang.org/x/time v0.12.0
