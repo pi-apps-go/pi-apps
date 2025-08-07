@@ -34,6 +34,7 @@
     <a href="https://discord.gg/RXSTvaUvuu"><img src="https://img.shields.io/discord/770629697909424159.svg?color=7289da&label=Discord%20server&logo=discord" alt="Join the Discord server"></a>
     <img src="https://img.shields.io/github/go-mod/go-version/pi-apps-go/pi-apps" alt="go.mod Go version">
     <img src="https://img.shields.io/github/languages/count/pi-apps-go/pi-apps" alt="Language count">
+    <a href="https://app.fossa.com/projects/git%2Bgithub.com%2Fpi-apps-go%2Fpi-apps?ref=badge_shield" alt="FOSSA Status"><img src="https://app.fossa.com/api/projects/git%2Bgithub.com%2Fpi-apps-go%2Fpi-apps.svg?type=shield"/></a>
 
 <p align="center"><strong> Original made with &#10084; by <a href="https://github.com/Botspot">Botspot</a></strong>, <strong><a href="https://github.com/theofficialgman">theofficialgman</a></strong>, and <a href="https://github.com/pi-apps-go/pi-apps/graphs/contributors">contributors</a>, while rewrite with <strong><a href="https://github.com/matu6968">matu6968</a></strong>
 
