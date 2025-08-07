@@ -49,8 +49,12 @@ Introducing Pi-Apps Go, a Go based app store with a well-maintained collection o
 
 Original Pi-Apps serves **over 1,000,000 people** and hosts [over 200 apps](https://pi-apps.io/wiki/getting-started/apps-list/).
 
-**Pi-Apps Go is very new and is a work in progress.** Please expect some features to be missing/broken and [report](https://github.com/pi-apps-go/pi-apps/issues/new?template=bug-report.yml) any issues you encounter.
-Also as it does not contain any apps yet, it is not recommended to use it as an Pi-Apps replacement until it is throughly tested and the apps are added.
+**Pi-Apps Go is very new and is a work in progress.** Please expect some features to be missing/broken and [report](https://github.com/pi-apps-go/pi-apps/issues/new) any issues you encounter.
+
+Currently it's unsuitable for use outside of developers due to being unstable, this will change soon.
+Current stage: **Development**
+Beta testing stage: **in around late 2025 - early 2026 or eariler** 
+Stable stage: **around early 2026 or eariler**
 
 ## Install Pi-Apps Go
 Open a terminal and run this command:
