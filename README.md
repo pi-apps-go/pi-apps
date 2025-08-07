@@ -26,6 +26,7 @@
 <p align="center">
     <a href="https://github.com/pi-apps-go/pi-apps/stargazers"><img src="https://img.shields.io/github/stars/pi-apps-go/pi-apps" alt="stars"></a>
     <a href="https://github.com/pi-apps-go/pi-apps/network/members"><img src="https://img.shields.io/github/forks/pi-apps-go/pi-apps" alt="forks"></a>
+<a href="https://app.fossa.com/projects/git%2Bgithub.com%2Fpi-apps-go%2Fpi-apps?ref=badge_shield" alt="FOSSA Status"><img src="https://app.fossa.com/api/projects/git%2Bgithub.com%2Fpi-apps-go%2Fpi-apps.svg?type=shield"/></a>
     <a href="https://github.com/pi-apps-go/pi-apps/graphs/contributors"><img src="https://img.shields.io/github/contributors/pi-apps-go/pi-apps" alt="contributors"></a>
     <a href="https://github.com/pi-apps-go/pi-apps/pulls"><img src="https://img.shields.io/github/issues-pr/pi-apps-go/pi-apps" alt="prs"></a>
     <a href="https://github.com/pi-apps-go/pi-apps/issues?q=is%3Aopen+is%3Aissue+label%3Abug"><img src="https://img.shields.io/github/issues/pi-apps-go/pi-apps/bug?color=red&label=bugs"></a>
@@ -40,6 +41,9 @@
 <p align="center">
     Check out our website: (unavailable for the time being) <a href="https://pi-apps-go.io">pi-apps-go.io</a>
 </p>
+
+
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fpi-apps-go%2Fpi-apps.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Fpi-apps-go%2Fpi-apps?ref=badge_large)
 
 ## Introduction
 Let's be honest: **Linux is harder to main than Windows.** Sometimes it's not user-friendly, and following an outdated tutorial may break your Raspberry Pi's operating system.  
