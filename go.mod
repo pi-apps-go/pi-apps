@@ -16,7 +16,7 @@ require (
 	github.com/toqueteos/webbrowser v1.2.1
 	golang.org/x/term v0.35.0
 	golang.org/x/text v0.29.0
-	golang.org/x/time v0.12.0
+	golang.org/x/time v0.13.0
 )
 
 require (
