@@ -5,6 +5,7 @@ go 1.24.0
 toolchain go1.24.4
 
 require (
+	github.com/AllenDang/cimgui-go v1.4.0
 	github.com/cavaliergopher/grab/v3 v3.0.1
 	github.com/charmbracelet/log v0.4.2
 	github.com/davidbyttow/govips/v2 v2.16.0

@@ -333,7 +333,16 @@ func listLocalApps(directory string) ([]string, error) {
 
 		// Only process directories directly under apps/
 		if d.IsDir() && filepath.Dir(path) == appsDir {
-			apps = append(apps, filepath.Base(path))
+			// Check if the directory contains an 'install' script, 'packages' file, or 'flatpak_packages' file
+			// This ensures that only valid applications are listed
+			installScript := filepath.Join(path, "install")
+			packagesFile := filepath.Join(path, "packages")
+			flatpakPackagesFile := filepath.Join(path, "flatpak_packages")
+
+			if checkFileExists(installScript) || checkFileExists(packagesFile) || checkFileExists(flatpakPackagesFile) {
+				apps = append(apps, filepath.Base(path))
+			}
+
 			// Don't descend into subdirectories
 			return filepath.SkipDir
 		}
@@ -603,8 +612,29 @@ func getCPUInstallableApps(directory string) ([]string, error) {
 			// 1. Generic install script (works on all architectures)
 			// 2. Packages file (works on all architectures)
 			// 3. Architecture-specific install script matching current architecture
-			if fileName == "install" || fileName == "packages" {
-				appNames = append(appNames, appName)
+			// 4. Flatpak packages file (works on all architectures that support Flatpak)
+			if fileName == "install" || fileName == "packages" || fileName == "flatpak_packages" {
+				// For flatpak packages, also check architecture compatibility
+				if fileName == "flatpak_packages" {
+					flatpakPackageContent, err := os.ReadFile(path)
+					if err != nil {
+						// logger.Warn(fmt.Sprintf("Failed to read flatpak_packages file for %s: %v", appName, err))
+						return nil // Skip this app if we can't read the file
+					}
+					flatpakIDs := strings.Fields(string(flatpakPackageContent))
+					allCompatible := true
+					for _, id := range flatpakIDs {
+						if !IsFlatpakAppCompatibleWithArch(id, arch) {
+							allCompatible = false
+							break
+						}
+					}
+					if allCompatible {
+						appNames = append(appNames, appName)
+					}
+				} else {
+					appNames = append(appNames, appName)
+				}
 			} else if isArchitectureSpecificInstallScript(fileName, arch) {
 				appNames = append(appNames, appName)
 			}

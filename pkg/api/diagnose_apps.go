@@ -271,7 +271,7 @@ func DiagnoseApps(failureList string) []DiagnoseResult {
 		// Parse action and app name
 		parts := strings.SplitN(failure, ";", 2)
 		if len(parts) != 2 {
-			fmt.Printf("Warning: Invalid failure format: %s (expected 'action;app')\n", failure)
+			WarningT("Invalid failure format: %s (expected 'action;app')\n", failure)
 			continue
 		}
 		action := parts[0]
@@ -284,7 +284,7 @@ func DiagnoseApps(failureList string) []DiagnoseResult {
 		fmt.Printf("Using logfile: %s\n", logFile)
 
 		if !FileExists(logFile) {
-			fmt.Printf("Warning: Log file does not exist: %s\n", logFile)
+			WarningT("Log file does not exist: %s\n", logFile)
 			// Attempt to create a blank log file for diagnosis
 			os.WriteFile(logFile, []byte("No log file found for this app."), 0644)
 		}

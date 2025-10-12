@@ -48,10 +48,10 @@ func FlatpakInstall(app string) error {
 		Status("Flatpak version is older than required. Upgrading...")
 
 		// Upgrade flatpak based on OS distribution
-		osCodename, err := getOSCodename()
-		if err != nil {
-			Error(fmt.Sprintf("Failed to determine OS codename: %v", err))
-			return fmt.Errorf("failed to determine OS codename: %w", err)
+		osCodename := VERSION_CODENAME
+		if osCodename == "" {
+			Error("failed to determine OS codename: OS codename is empty")
+			return fmt.Errorf("failed to determine OS codename: OS codename is empty")
 		}
 
 		switch osCodename {
@@ -211,6 +211,52 @@ func FlatpakUninstall(app string) error {
 	}
 
 	return nil
+}
+
+// FlatpakPackageInstalled checks if a specific flatpak package is installed
+func FlatpakPackageInstalled(pkg string) bool {
+	if _, err := exec.LookPath("flatpak"); err != nil {
+		return false
+	}
+
+	cmd := exec.Command("flatpak", "list", "--columns=application")
+	output, err := cmd.Output()
+	if err != nil {
+		return false
+	}
+
+	return strings.Contains(string(output), pkg)
+}
+
+// isFlatpakAppCompatibleWithArch checks if a flatpak app (given its ID) is compatible with the target architecture.
+// It parses the 'flatpak info --show-metadata' output to find supported architectures.
+func IsFlatpakAppCompatibleWithArch(flatpakID, targetArch string) bool {
+	if _, err := exec.LookPath("flatpak"); err != nil {
+		return false
+	}
+
+	cmd := exec.Command("flatpak", "info", "--show-metadata", flatpakID)
+	output, err := cmd.Output()
+	if err != nil {
+		// If command fails, assume not compatible or app not found
+		return false
+	}
+
+	lines := strings.Split(string(output), "\n")
+	for _, line := range lines {
+		if strings.HasPrefix(line, "Arch:") {
+			arches := strings.Fields(strings.TrimPrefix(line, "Arch:"))
+			for _, arch := range arches {
+				if arch == targetArch {
+					return true
+				}
+			}
+			return false // Arch line found, but targetArch not in list
+		}
+	}
+
+	// If no Arch line is found, assume compatible (default to true)
+	return true
 }
 
 // Helper function to check if a directory is empty

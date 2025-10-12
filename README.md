@@ -3,7 +3,7 @@
         <img src="https://github.com/pi-apps-go/pi-apps/blob/main/icons/proglogo.png?raw=true" alt="Pi-Apps logo">
     </a>
 </p>
-<p align="center">The most popular app store for Raspberry Pi computers. 100% free, open-source but rewritten in Go for faster performance and with in mind cross distro support.
+<p align="center">The most popular app store for Raspberry Pi computers. 100% free, open-source but rewritten in Go for faster performance and with in mind cross platform support.
 <p align="center">
   <a href="https://github.com/pi-apps-go/pi-apps/blob/main/CHANGELOG.md">
     View changelog</a>
@@ -43,10 +43,13 @@
 </p>
 
 ## Introduction
-Let's be honest: **Linux is harder to main than Windows.** Sometimes it's not user-friendly, and following an outdated tutorial may break your Raspberry Pi's operating system.  
-There is no centralized software repository, except for the `apt` repositories which lack many desktop applications.  
-Surely there is a better way! **There is.**  
-Introducing Pi-Apps Go, a Go based app store with a well-maintained collection of app installation-scripts that you can run with **one click** and **portable across supported distributions**.  
+Installing software on Linux is easy... until it isn't.  
+Many popular apps just don't appear in the `apt` repositories, and it's very easy for inexperienced users to mess up their OS trying to install such apps manually.  
+**We're trying to solve this problem no matter on what architecture they are running.**  
+Introducing Pi-Apps Go, a well-maintained collection of scripts that automatically install hard-to-install apps no matter if you are running a typical x86_64 laptop or a obscure RISC-V SBC. See the full list [here](https://pi-apps.io/wiki/getting-started/apps-list/).  
+
+Pi-Apps Go is not your average app store. Rather than require any standardized packaging format (but it can in the future pack in a distro specific package for caching purposes) or centralized hosting, our cross platform shell scripts download the app from *where it already is*.  
+Scripts offer tremendous flexibility. If you can manually install it, then Pi-Apps Go can automatically install it. [Please help us expand our list of apps.](https://pi-apps.io/wiki/development/Creating-an-app/) *You don't have to be the app developer to get it added to Pi-Apps!* (You just have to know a little bit of bash scripting)
 
 Original Pi-Apps serves **over 1,000,000 people** and hosts [over 200 apps](https://pi-apps.io/wiki/getting-started/apps-list/).
 
@@ -129,8 +132,8 @@ git clone https://github.com/pi-apps-go/pi-apps
 </details>
 
 <details>
-<summary><b>To uninstall Pi-Apps</b></summary>
-This will not uninstall any apps that you installed through Pi-Apps.
+<summary><b>To uninstall Pi-Apps Go</b></summary>
+This will not uninstall any apps that you installed through Pi-Apps Go.
 
 ```
 ~/pi-apps/uninstall
@@ -143,7 +146,7 @@ This will not uninstall any apps that you installed through Pi-Apps.
 - Run Pi-Apps from its directory: `~/pi-apps/gui`
 
 ## To update Pi-Apps Go
-- Pi-apps will automatically check for updates on boot and display a notification to update.
+- Pi-Apps Go will automatically check for updates on boot and display a notification to update.
 - To manually run the updater, use this command: `~/pi-apps/updater gui`
 - It also supports a CLI interface: `~/pi-apps/updater cli`
 
@@ -154,7 +157,7 @@ This will not uninstall any apps that you installed through Pi-Apps.
 
 > [Video by **leepspvideo**](https://www.youtube.com/watch?v=zxyWQ3FV98I): "Thanks so much to Botspot for creating this; it's a great program."
 
-> [Video by **Novaspirit Tech**](https://youtu.be/9dO448vYv18?t=164): "This is an awesome application for your Pi to install applications like WoR-flasher."
+> [Video by **Novaspirit Tech**](https://youtu.be/9dO448vYv18?t=164) (RIP): "This is an awesome application for your Pi."
 
 > Email from a **Raspberry Pi employee**: "I gave Pi-Apps a go a while back and have suggested it to others quite a few times.
 > We can't provide all the options people may want, so it helps a lot that there are people like you who can help bridge the gap. Thank you Botspot!"
@@ -249,10 +252,13 @@ go get github.com/pi-apps-go/pi-apps/pkg/api
 And then you can import the module with:
 
 ```go
+package main
+
 import "github.com/pi-apps-go/pi-apps/pkg/api"
 
-api.Init()
-api.Status("Hello, world!")
+func main() {
+    api.Status("Hello, world!")
+}
 ```
 
 Another example (installing a package):
@@ -265,4 +271,4 @@ Another example (uninstalling a package):
 api.UninstallApp("Ruffle")
 ```
 
-For the full API, see the [API documentation](https://pkg.go.dev/github.com/pi-apps-go/pi-apps/pkg/api).
+For the full API, see the ~~[API documentation](https://pkg.go.dev/github.com/pi-apps-go/pi-apps/pkg/api)~~ not yet available.

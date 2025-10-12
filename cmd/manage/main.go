@@ -4,10 +4,12 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -22,9 +24,42 @@ import (
 var (
 	BuildDate string
 	GitCommit string
+	logger    = log.New(os.Stderr, "pi-apps-manage: ", log.LstdFlags)
 )
 
 func main() {
+	// runtime crashes can happen (keep in mind Pi-Apps Go is ALPHA software)
+	// so add a handler to log those runtime errors to save them to a log file
+	// this option can be disabled by specifying DISABLE_ERROR_HANDLING to true
+	// Edit: nevermind, cgo crashes are not handled by this handler
+
+	errorHandling := os.Getenv("DISABLE_ERROR_HANDLING")
+	if errorHandling != "true" {
+		defer func() {
+			if r := recover(); r != nil {
+				// Capture stack trace as a string
+				buf := make([]byte, 1024*1024)
+				n := runtime.Stack(buf, false)
+				stackTrace := string(buf[:n])
+
+				logger.Printf("Panic recovered: %v", r)
+
+				// Format the full crash report
+				crashReport := fmt.Sprintf(
+					"Pi-Apps Go has encountered a error and had to shutdown.\n\nReason: %v\n\nStack trace:\n%s",
+					r,
+					stackTrace,
+				)
+
+				// Display the error to the user
+				api.ErrorNoExit(crashReport)
+
+				// later put a function to write it to the log file in the logs folder
+				os.Exit(1)
+			}
+		}()
+	}
+
 	// Define flags
 	installFlag := flag.Bool("install", false, "Install the specified apps")
 	uninstallFlag := flag.Bool("uninstall", false, "Uninstall the specified apps")
@@ -836,7 +871,7 @@ func runDaemonInCurrentShell(guiQueue []gui.QueueItem, statusFile string) error 
 			}
 
 			// Set terminal title
-			fmt.Printf("\033]0;%sing %s\007", strings.Title(guiQueue[currentIndex].Action), guiQueue[currentIndex].AppName)
+			fmt.Printf("\033]0;%sing %s\007", strings.ToUpper(guiQueue[currentIndex].Action[:1])+guiQueue[currentIndex].Action[1:], guiQueue[currentIndex].AppName)
 
 			// Execute the action - let API functions handle their own status messaging
 			var actionErr error
@@ -1283,7 +1318,7 @@ func daemonTerminal(queueStr, statusFile, queuePipe string) error {
 			}
 
 			// Set terminal title
-			fmt.Printf("\033]0;%sing %s\007", strings.Title(guiQueue[currentIndex].Action), guiQueue[currentIndex].AppName)
+			fmt.Printf("\033]0;%sing %s\007", strings.ToUpper(guiQueue[currentIndex].Action[:1])+guiQueue[currentIndex].Action[1:], guiQueue[currentIndex].AppName)
 
 			// Execute the action - let API functions handle their own status messaging
 			var actionErr error

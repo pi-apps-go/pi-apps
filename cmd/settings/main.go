@@ -20,13 +20,47 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
+	"runtime"
 
 	"github.com/botspot/pi-apps/pkg/api"
 	"github.com/botspot/pi-apps/pkg/settings"
 )
 
 func main() {
+	// runtime crashes can happen (keep in mind Pi-Apps Go is ALPHA software)
+	// so add a handler to log those runtime errors to save them to a log file
+	// this option can be disabled by specifying DISABLE_ERROR_HANDLING to true
+	// Edit: nevermind, cgo crashes are not handled by this handler
+
+	logger := log.New(os.Stderr, "pi-apps-settings: ", log.LstdFlags)
+	errorHandling := os.Getenv("DISABLE_ERROR_HANDLING")
+	if errorHandling != "true" {
+		defer func() {
+			if r := recover(); r != nil {
+				// Capture stack trace as a string
+				buf := make([]byte, 1024*1024)
+				n := runtime.Stack(buf, false)
+				stackTrace := string(buf[:n])
+
+				logger.Printf("Panic recovered: %v", r)
+
+				// Format the full crash report
+				crashReport := fmt.Sprintf(
+					"Pi-Apps Go has encountered a error and had to shutdown.\n\nReason: %v\n\nStack trace:\n%s",
+					r,
+					stackTrace,
+				)
+
+				// Display the error to the user
+				api.ErrorNoExit(crashReport)
+
+				// later put a function to write it to the log file in the logs folder
+				os.Exit(1)
+			}
+		}()
+	}
 	api.Init()
 	if err := settings.Main(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)

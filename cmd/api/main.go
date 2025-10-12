@@ -26,6 +26,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"runtime/debug"
 
 	"github.com/botspot/pi-apps/pkg/api"
 )
@@ -36,8 +37,36 @@ var (
 	GitCommit string
 )
 
-func main() {
+// Plugin functions are now handled by the build-time plugin system
+// No runtime plugin management needed
 
+func main() {	
+	// runtime crashes can happen (keep in mind Pi-Apps Go is ALPHA software)
+	// so add a handler to log those runtime errors to save them to a log file
+	// this option can be disabled by specifying DISABLE_ERROR_HANDLING to true
+	
+	errorHandling := os.Getenv("DISABLE_ERROR_HANDLING")
+	if errorHandling != "true" {
+	      	defer func() {
+		if r := recover(); r != nil {
+			// Capture stack trace as a string
+			stackTrace := string(debug.Stack())
+
+			// Format the full crash report
+			crashReport := fmt.Sprintf(
+				"Pi-Apps Go has encountered a error and had to shutdown.\n\nReason: %v\n\nStack trace:\n%s",
+				r,
+				stackTrace,
+			)
+
+			// Display the error to the user
+			api.ErrorNoExit(crashReport)
+
+                        // later put a function to write it to the log file in the logs folder
+			os.Exit(1)
+		}
+	}()
+        }
 	// initialize variables required for api to function
 	api.Init()
 
@@ -811,7 +840,7 @@ func main() {
 
 	case "read_category_files":
 		// Read category files and print in app|category format
-		entries, err := api.ReadCategoryFiles(getDirectory())
+		entries, err := api.ReadCategoryFiles(api.GetPiAppsDir())
 		if err != nil {
 			api.ErrorT(api.Tf("Error: %v", err))
 		}
@@ -827,7 +856,7 @@ func main() {
 			category = args[0]
 		}
 
-		result, err := api.AppPrefixCategory(getDirectory(), category)
+		result, err := api.AppPrefixCategory(api.GetPiAppsDir(), category)
 		if err != nil {
 			api.ErrorT(api.Tf("Error: %v", err))
 		}
@@ -1545,8 +1574,18 @@ func main() {
 			api.ErrorT(api.Tf("Error: %v", err))
 		}
 		fmt.Println(response)
+		
+	case "crash":
+		var a []int
+	        fmt.Println(a[1])
+
+	// Plugin system commands have been removed - plugins are now build-time only
+
+	// All plugin commands have been removed - plugins are now build-time only
+	// Runtime plugin management is no longer supported
 
 	default:
+		// Plugin command checking has been removed - plugins are now build-time only
 		api.ErrorNoExitT(api.Tf("Unknown command: %s", command))
 		printUsage()
 		os.Exit(1)
@@ -1669,19 +1708,12 @@ func printUsage() {
 	fmt.Println("  process_exists <pid>                         - " + api.T("Check if a process with the given PID exists"))
 	fmt.Println("  enable_module <module-name>                  - " + api.T("Ensure a kernel module is loaded and configured to load on startup"))
 	fmt.Println("")
+	fmt.Println(api.T("Plugin System:"))
+	fmt.Println("  " + api.T("Plugins are now build-time only. Use 'xpi-apps build --with <plugin>' to build pi-apps with plugins."))
+	fmt.Println("")
 	fmt.Println(api.T("General Options:"))
 	fmt.Println("  --help, -h                                   - " + api.T("Show this help message"))
 	fmt.Println("  --version                                    - " + api.T("Show version information"))
 	fmt.Println("  --logo                                       - " + api.T("Display Pi-Apps logo"))
 	fmt.Println("  --debug                                      - " + api.T("Enable debug mode"))
-}
-
-// Helper function to get the PI_APPS_DIR directory
-func getDirectory() string {
-	dir := os.Getenv("PI_APPS_DIR")
-	if dir == "" {
-		api.WarningT("PI_APPS_DIR environment variable not set, using current directory")
-		dir = "."
-	}
-	return dir
 }

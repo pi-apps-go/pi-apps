@@ -86,6 +86,11 @@ func AppType(app string) (string, error) {
 		return "package", nil
 	}
 
+	// Check if it's a flatpak app (has flatpak_packages file)
+	if FileExists(filepath.Join(appDir, "flatpak_packages")) {
+		return "flatpak_package", nil
+	}
+
 	// Check if it's a standard app (has install/uninstall scripts)
 	hasUninstall := FileExists(filepath.Join(appDir, "uninstall"))
 	hasInstall := FileExists(filepath.Join(appDir, "install"))

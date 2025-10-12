@@ -22,6 +22,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"runtime/debug"
 	"time"
 
 	"github.com/botspot/pi-apps/pkg/api"
@@ -43,6 +44,35 @@ var logger = log.NewWithOptions(os.Stderr, log.Options{
 })
 
 func main() {
+	// runtime crashes can happen (keep in mind Pi-Apps Go is ALPHA software)
+	// so add a handler to log those runtime errors to save them to a log file
+	// this option can be disabled by specifying DISABLE_ERROR_HANDLING to true
+	// Edit: nevermind, cgo crashes are not handled by this handler
+
+	errorHandling := os.Getenv("DISABLE_ERROR_HANDLING")
+	if errorHandling != "true" {
+		defer func() {
+			if r := recover(); r != nil {
+				// Capture stack trace as a string
+				stackTrace := string(debug.Stack())
+
+				logger.Error(r)
+
+				// Format the full crash report
+				crashReport := fmt.Sprintf(
+					"Pi-Apps Go has encountered a error and had to shutdown.\n\nReason: %v\n\nStack trace:\n%s",
+					r,
+					stackTrace,
+				)
+
+				// Display the error to the user
+				api.ErrorNoExit(crashReport)
+
+				// later put a function to write it to the log file in the logs folder
+				os.Exit(1)
+			}
+		}()
+	}
 	var (
 		directory      = flag.String("directory", "", "Pi-Apps directory (defaults to PI_APPS_DIR env var)")
 		mode           = flag.String("mode", "", "GUI mode: gtk, yad-default, xlunch-dark, etc.")
@@ -91,7 +121,7 @@ func main() {
 
 	if *help {
 		fmt.Println("Pi-Apps GUI")
-		fmt.Println("Usage: gui-demo [options]")
+		fmt.Println("Usage: gui [options]")
 		fmt.Println()
 		fmt.Println("Options:")
 		flag.PrintDefaults()

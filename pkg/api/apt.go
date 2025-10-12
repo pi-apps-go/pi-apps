@@ -1655,9 +1655,9 @@ func UbuntuPPAInstaller(ppaName string) error {
 	// On a distro upgrade, the .list filename is not updated and add-apt-repository can re-use the old filename
 
 	// Get the OS codename
-	osCodename, err := getOSCodename()
-	if err != nil {
-		return fmt.Errorf(T("failed to get OS codename: %w"), err)
+	osCodename := VERSION_CODENAME
+	if osCodename == "" {
+		return fmt.Errorf("failed to determine OS codename: OS codename is empty")
 	}
 
 	// Format the standard filename
@@ -1756,32 +1756,6 @@ func DebianPPAInstaller(ppaName, ppaDist, key string) error {
 	}
 
 	return nil
-}
-
-// Helper function to get the OS codename
-func getOSCodename() (string, error) {
-	// Try to get OS codename from lsb_release
-	cmd := exec.Command("lsb_release", "-cs")
-	cmd.Env = append(os.Environ(), "LANG=en_US.UTF-8", "LC_ALL=en_US.UTF-8")
-	output, err := cmd.Output()
-	if err == nil {
-		return strings.TrimSpace(string(output)), nil
-	}
-
-	// Fallback: Try to parse /etc/os-release
-	data, err := os.ReadFile("/etc/os-release")
-	if err != nil {
-		return "", fmt.Errorf("failed to read /etc/os-release: %w", err)
-	}
-
-	for _, line := range strings.Split(string(data), "\n") {
-		// Look for VERSION_CODENAME
-		if strings.HasPrefix(line, "VERSION_CODENAME=") {
-			return strings.Trim(strings.TrimPrefix(line, "VERSION_CODENAME="), "\"'"), nil
-		}
-	}
-
-	return "", fmt.Errorf("could not determine OS codename")
 }
 
 // AddExternalRepo adds an external apt repository and its gpg key
@@ -1988,10 +1962,11 @@ func RmExternalRepo(reponame string, force bool) error {
 // AdoptiumInstaller sets up the Adoptium repository based on the OS codename
 // This is a Go implementation of the original bash adoptium_installer function
 func AdoptiumInstaller() error {
+	var err error
 	// Get the OS codename
-	osCodename, err := getOSCodename()
-	if err != nil {
-		return fmt.Errorf("failed to determine OS codename: %w", err)
+	osCodename := VERSION_CODENAME
+	if osCodename == "" {
+		return fmt.Errorf("failed to determine OS codename: OS codename is empty")
 	}
 
 	// Determine if the OS is supported with a specific repository configuration

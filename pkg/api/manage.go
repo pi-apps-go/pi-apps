@@ -279,6 +279,11 @@ func ManageApp(action Action, appName string, isUpdate bool) error {
 		RefreshPackageAppStatus(appName)
 	}
 
+	// If flatpak_package-type app, refresh its status
+	if appType == "flatpak_package" {
+		RefreshFlatpakAppStatus(appName)
+	}
+
 	return nil
 }
 
@@ -306,6 +311,9 @@ func InstallApp(appName string) error {
 		return installPackageApp(appName)
 	case "standard":
 		err := installScriptApp(appName)
+		return err
+	case "flatpak_package":
+		err := installFlatpakApp(appName)
 		return err
 	default:
 		return fmt.Errorf("unsupported app type: %s", appType)
@@ -341,6 +349,8 @@ func UninstallApp(appName string) error {
 		return uninstallPackageApp(appName)
 	case "standard":
 		return uninstallScriptApp(appName)
+	case "flatpak_package":
+		return uninstallFlatpakApp(appName)
 	default:
 		return fmt.Errorf("unsupported app type: %s", appType)
 	}
@@ -452,6 +462,35 @@ func RefreshPackageAppStatus(appName string) error {
 	allInstalled := true
 	for _, pkg := range strings.Fields(packages) {
 		if !PackageInstalled(pkg) {
+			allInstalled = false
+			break
+		}
+	}
+
+	if allInstalled {
+		return SetAppStatus(appName, "installed")
+	} else {
+		return SetAppStatus(appName, "uninstalled")
+	}
+}
+
+// RefreshFlatpakAppStatus refreshes the status of a flatpak-based app
+func RefreshFlatpakAppStatus(appName string) error {
+	flatpakPackageListPath := filepath.Join(getPiAppsDir(), "apps", appName, "flatpak_packages")
+
+	// Read flatpak packages list
+	packageListBytes, err := os.ReadFile(flatpakPackageListPath)
+	if err != nil {
+		return fmt.Errorf("failed to read flatpak packages list: %v", err)
+	}
+
+	packageList := strings.TrimSpace(string(packageListBytes))
+	packages := strings.Fields(packageList)
+
+	// Check if all flatpak packages are installed
+	allInstalled := true
+	for _, pkg := range packages {
+		if !FlatpakPackageInstalled(pkg) {
 			allInstalled = false
 			break
 		}
@@ -654,6 +693,54 @@ func uninstallPackageApp(appName string) error {
 
 	// Mark app as uninstalled
 	return markAppAsUninstalled(appName)
+}
+
+// installFlatpakApp installs a flatpak app based on the flatpak_packages file
+func installFlatpakApp(appName string) error {
+	flatpakPackageListPath := filepath.Join(getPiAppsDir(), "apps", appName, "flatpak_packages")
+
+	// Read flatpak packages list
+	packageListBytes, err := os.ReadFile(flatpakPackageListPath)
+	if err != nil {
+		return fmt.Errorf("failed to read flatpak packages list: %v", err)
+	}
+
+	packageList := strings.TrimSpace(string(packageListBytes))
+	packages := strings.Fields(packageList)
+
+	// Install each flatpak package
+	for _, pkg := range packages {
+		if err := FlatpakInstall(pkg); err != nil {
+			return fmt.Errorf("failed to install flatpak package %s: %v", pkg, err)
+		}
+	}
+
+	// Refresh status after installation
+	return RefreshFlatpakAppStatus(appName)
+}
+
+// uninstallFlatpakApp uninstalls a flatpak app based on the flatpak_packages file
+func uninstallFlatpakApp(appName string) error {
+	flatpakPackageListPath := filepath.Join(getPiAppsDir(), "apps", appName, "flatpak_packages")
+
+	// Read flatpak packages list
+	packageListBytes, err := os.ReadFile(flatpakPackageListPath)
+	if err != nil {
+		return fmt.Errorf("failed to read flatpak packages list: %v", err)
+	}
+
+	packageList := strings.TrimSpace(string(packageListBytes))
+	packages := strings.Fields(packageList)
+
+	// Uninstall each flatpak package
+	for _, pkg := range packages {
+		if err := FlatpakUninstall(pkg); err != nil {
+			return fmt.Errorf("failed to uninstall flatpak package %s: %v", pkg, err)
+		}
+	}
+
+	// Refresh status after uninstallation
+	return RefreshFlatpakAppStatus(appName)
 }
 
 // installScriptApp installs a script-based app
@@ -946,6 +1033,12 @@ func GetAppType(appName string) (string, error) {
 	// Check if it has a packages file
 	if _, err := os.Stat(packageListPath); err == nil {
 		return "package", nil
+	}
+
+	// Check if it has a flatpak_packages file
+	flatpakPackageListPath := filepath.Join(getPiAppsDir(), "apps", appName, "flatpak_packages")
+	if _, err := os.Stat(flatpakPackageListPath); err == nil {
+		return "flatpak_package", nil
 	}
 
 	// Check if it has any install script

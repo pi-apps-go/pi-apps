@@ -36,6 +36,8 @@ var (
 	IsArm32        bool
 	IsX86_64       bool
 	IsX86_32       bool
+	IsRiscV64      bool
+	IsRiscV32      bool
 	HostSystemArch string
 	HostSystemID   string
 	HostSystemDesc string
@@ -50,6 +52,12 @@ var (
 	CPUOpMode64    bool
 	GTKTheme       string
 	GDKBackend     string
+	// lsb_release variables
+	ID               string
+	NAME             string
+	PRETTY_NAME      string
+	VERSION_ID       string
+	VERSION_CODENAME string
 )
 
 // Init intializes enviroment variables required for Pi-Apps Go to function.
@@ -80,8 +88,26 @@ func Init() {
 	if err := InitializeApiI18n(); err != nil {
 		// Log error but continue - translations will fall back to English
 		// Don't use translated error messages here as i18n init failed
-		fmt.Printf("Warning: failed to initialize API i18n: %v\n", err)
+		WarningT("failed to initialize API i18n: %v\n", err)
 	}
+
+	// Initialize lsb_release variables
+
+	lsb := LoadLSBOSRelease()
+
+	lsb.CapitalizeID()
+	lsb.AdjustIDFromName()
+	ID = lsb.ID
+	NAME = lsb.NAME
+	PRETTY_NAME = lsb.PRETTY_NAME
+	VERSION_ID = lsb.VERSION_ID
+	VERSION_CODENAME = lsb.VERSION_CODENAME
+	        
+}
+
+// symlink Init to init to let Go automatically run this function
+func init() {
+	Init()
 }
 
 // initPiAppsDir determines and sets the Pi-Apps directory location
@@ -100,6 +126,7 @@ func initPiAppsDir() {
 		exeDir := filepath.Dir(exePath)
 		// If this is being run from the pi-apps/go-rewrite directory,
 		// go up one level to get the pi-apps directory
+		// this is for development purposes only
 		if strings.HasSuffix(exeDir, "/pi-apps-go/bin") {
 			PIAppsDir = filepath.Dir(filepath.Dir(exeDir))
 		} else {
@@ -187,6 +214,12 @@ func initSystemArch() {
 		} else if strings.Contains(strings.ToLower(arch), "i386") || strings.Contains(strings.ToLower(arch), "i686") {
 			IsX86_32 = true
 			HostSystemArch = "i386"
+		} else if strings.Contains(strings.ToLower(arch), "riscv64") {
+			IsRiscV64 = true
+			HostSystemArch = "riscv64"
+		} else if strings.Contains(strings.ToLower(arch), "riscv32") {
+			IsRiscV32 = true
+			HostSystemArch = "riscv32" // Go does not officially support riscv32
 		} else if strings.Contains(strings.ToLower(arch), "arm") {
 			// Generic ARM detection as fallback
 			IsArm32 = true

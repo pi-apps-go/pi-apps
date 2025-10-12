@@ -152,10 +152,11 @@ func (g *GUI) Initialize() error {
 func (g *GUI) Run() error {
 	logger.Info(fmt.Sprintf("GUI Run() called with mode: %s", g.guiMode))
 
-	// Check for xlunch modes first
-	if strings.HasPrefix(g.guiMode, "xlunch") {
-		logger.Info("Using native XLunch mode")
-		return g.runXlunchNativeMode()
+	// Check for imgui modes first
+	if strings.HasPrefix(g.guiMode, "imgui") || strings.HasPrefix(g.guiMode, "xlunch") {
+		logger.Info("Using ImGui mode")
+		logger.Warn("ImGui mode is experimental and may not work properly/as expected. Please report any issues you encounter while running Pi-Apps Go in ImGui mode by reporting an issue on the Pi-Apps Go GitHub repository/Discord server.")
+		return g.runImGuiMode()
 	}
 
 	// Check if GTK can be used for native mode
@@ -302,6 +303,34 @@ func (g *GUI) startBackgroundTasks() {
 		// api.ShlinkLink("usage", "active")
 		// TODO: this will be uncommented once our shlink server is ready
 	}()
+}
+
+// runImGuiMode runs the ImGui-based GUI implementation
+func (g *GUI) runImGuiMode() error {
+	logger.Info("Starting ImGui mode")
+
+	// Get theme from settings
+	theme := "dark" // default
+	if themeFile := filepath.Join(g.directory, "data", "settings", "App List Style"); api.FileExists(themeFile) {
+		if content, err := os.ReadFile(themeFile); err == nil {
+			style := strings.TrimSpace(string(content))
+			if strings.HasPrefix(style, "xlunch-") || strings.HasPrefix(style, "imgui-") {
+				theme = strings.TrimPrefix(strings.TrimPrefix(style, "xlunch-"), "imgui-")
+			}
+		}
+	}
+
+	// Create ImGui GUI instance
+	config := DefaultImGuiConfig()
+	config.Theme = theme
+	config.Width = 800
+	config.Height = 700
+
+	imguiGUI := NewImGuiGUI(g.directory, config)
+	defer imguiGUI.Close()
+
+	// Run the ImGui GUI
+	return imguiGUI.Run()
 }
 
 // runNativeMode runs the GUI in native GTK3 mode
@@ -1080,9 +1109,9 @@ func (g *GUI) showAppDetails(appPath string) {
 
 	logger.Info(fmt.Sprintf("Showing details for app: %s\n", appName))
 
-	// For xlunch mode, spawn a separate GTK process to avoid event loop conflicts
-	if strings.Contains(g.guiMode, "xlunch") {
-		logger.Info("Spawning app details dialog in separate process for xlunch mode...")
+	// For imgui mode, spawn a separate GTK process to avoid event loop conflicts
+	if strings.Contains(g.guiMode, "imgui") || strings.Contains(g.guiMode, "xlunch") {
+		logger.Info("Spawning app details dialog in separate process for imgui mode...")
 
 		// Use Go itself to run the app details dialog in a separate process
 		// This is a hack to prevent the event loop from being blocked by the dialog
@@ -1097,7 +1126,7 @@ func (g *GUI) showAppDetails(appPath string) {
 		return
 	}
 
-	// Create details window (for non-xlunch modes)
+	// Create details window (for non-imgui modes)
 	window, err := gtk.WindowNew(gtk.WINDOW_TOPLEVEL)
 	if err != nil {
 		logger.Error(fmt.Sprintf("Error creating details window: %v\n", err))
@@ -1109,12 +1138,12 @@ func (g *GUI) showAppDetails(appPath string) {
 	window.SetTitle(fmt.Sprintf("Details of %s", appName))
 	window.SetDefaultSize(500, 400)
 
-	// Only set parent window if we're not in xlunch mode
-	if g.window != nil && !strings.Contains(g.guiMode, "xlunch") {
+	// Only set parent window if we're not in imgui mode
+	if g.window != nil && !strings.Contains(g.guiMode, "imgui") && !strings.Contains(g.guiMode, "xlunch") {
 		window.SetTransientFor(g.window)
 		window.SetPosition(gtk.WIN_POS_CENTER_ON_PARENT)
 	} else {
-		// In xlunch mode or when no parent window, center on screen
+		// In imgui mode or when no parent window, center on screen
 		window.SetPosition(gtk.WIN_POS_CENTER)
 	}
 
@@ -1180,32 +1209,80 @@ func (g *GUI) showAppDetails(appPath string) {
 
 			// Package info if it's a package app (detailed implementation)
 			if g.isPackageApp(appName) {
-				packagesStr, err := api.PkgAppPackagesRequired(appName)
-				if err != nil || packagesStr == "" {
-					// Package app but no compatible packages available
-					packageLabel, err := gtk.LabelNew("")
-					if err == nil {
-						packageLabel.SetMarkup(fmt.Sprintf("- <b>%s</b> is not compatible with your system", appName))
-						packageLabel.SetHAlign(gtk.ALIGN_START)
-						infoBox.PackStart(packageLabel, false, false, 0)
-					}
-				} else {
-					// Parse packages from space-separated string
-					packages := strings.Fields(packagesStr)
-					if len(packages) == 1 {
-						// Single package
+				appType, err := api.GetAppType(appName)
+				if err != nil {
+					logger.Error(fmt.Sprintf("Failed to get app type for %s: %v", appName, err))
+				}
+
+				switch appType {
+				case "package":
+					packagesStr, err := api.PkgAppPackagesRequired(appName)
+					if err != nil || packagesStr == "" {
+						// Package app but no compatible packages available
 						packageLabel, err := gtk.LabelNew("")
 						if err == nil {
-							packageLabel.SetMarkup(fmt.Sprintf("- This app installs the <b>%s</b> package.", packages[0]))
+							packageLabel.SetMarkup(fmt.Sprintf("- <b>%s</b> is not compatible with your system", appName))
 							packageLabel.SetHAlign(gtk.ALIGN_START)
 							infoBox.PackStart(packageLabel, false, false, 0)
 						}
 					} else {
-						// Multiple packages
+						// Parse packages from space-separated string
+						packages := strings.Fields(packagesStr)
+						if len(packages) == 1 {
+							// Single package
+							packageLabel, err := gtk.LabelNew("")
+							if err == nil {
+								packageLabel.SetMarkup(fmt.Sprintf("- This app installs the <b>%s</b> package.", packages[0]))
+								packageLabel.SetHAlign(gtk.ALIGN_START)
+								infoBox.PackStart(packageLabel, false, false, 0)
+							}
+						} else {
+							// Multiple packages
+							packageLabel, err := gtk.LabelNew("")
+							if err == nil {
+								packageNames := strings.Join(packages, ", ")
+								packageLabel.SetMarkup(fmt.Sprintf("- This app installs these packages: <b>%s</b>", packageNames))
+								packageLabel.SetHAlign(gtk.ALIGN_START)
+								packageLabel.SetLineWrap(true)
+								infoBox.PackStart(packageLabel, false, false, 0)
+							}
+						}
+					}
+				case "flatpak_package":
+					flatpakPackagesFile := filepath.Join(g.directory, "apps", appName, "flatpak_packages")
+					flatpakPackageContent, readErr := os.ReadFile(flatpakPackagesFile)
+					currentArch, archErr := api.GetSystemArchitecture()
+					if archErr != nil {
+						logger.Error(fmt.Sprintf("Failed to get system architecture: %v", archErr))
+						return // Exit if architecture can't be determined
+					}
+
+					// Check for read errors or empty content for flatpak_packages
+					if readErr != nil || len(strings.Fields(string(flatpakPackageContent))) == 0 {
+						// Flatpak app but no packages listed or file read failed
 						packageLabel, err := gtk.LabelNew("")
 						if err == nil {
-							packageNames := strings.Join(packages, ", ")
-							packageLabel.SetMarkup(fmt.Sprintf("- This app installs these packages: <b>%s</b>", packageNames))
+							packageLabel.SetMarkup(fmt.Sprintf("- <b>%s</b> has no Flatpak packages listed or file is unreadable.", appName))
+							packageLabel.SetHAlign(gtk.ALIGN_START)
+							infoBox.PackStart(packageLabel, false, false, 0)
+						}
+					} else {
+						flatpakIDs := strings.Fields(string(flatpakPackageContent))
+						allCompatible := true
+						for _, id := range flatpakIDs {
+							if !api.IsFlatpakAppCompatibleWithArch(id, currentArch) {
+								allCompatible = false
+								break
+							}
+						}
+
+						packageLabel, err := gtk.LabelNew("")
+						if err == nil {
+							if allCompatible {
+								packageLabel.SetMarkup(fmt.Sprintf("- This Flatpak app installs: <b>%s</b>.", strings.Join(flatpakIDs, ", ")))
+							} else {
+								packageLabel.SetMarkup(fmt.Sprintf("- <b>%s</b> is not compatible with your system (Flatpak architecture mismatch).", appName))
+							}
 							packageLabel.SetHAlign(gtk.ALIGN_START)
 							packageLabel.SetLineWrap(true)
 							infoBox.PackStart(packageLabel, false, false, 0)
@@ -1352,9 +1429,15 @@ func (g *GUI) showAppDetails(appPath string) {
 					}
 				}
 				uninstallBtn.Connect("clicked", func() {
-					g.performAppAction(appName, "uninstall")
-					window.Destroy()
+					window.Destroy() // Close details window immediately
 					g.detailsWindow = nil
+					go func() {
+						g.performAppAction(appName, "uninstall")
+						// After action completes, refresh main view
+						glib.IdleAdd(func() {
+							g.refreshCurrentView() // Refresh main app list to show updated status
+						})
+					}()
 				})
 				buttonBox.PackStart(uninstallBtn, false, false, 0)
 			}
@@ -1371,9 +1454,15 @@ func (g *GUI) showAppDetails(appPath string) {
 					}
 				}
 				installBtn.Connect("clicked", func() {
-					g.performAppAction(appName, "install")
-					window.Destroy()
+					window.Destroy() // Close details window immediately
 					g.detailsWindow = nil
+					go func() {
+						g.performAppAction(appName, "install")
+						// After action completes, refresh main view
+						glib.IdleAdd(func() {
+							g.refreshCurrentView() // Refresh main app list to show updated status
+						})
+					}()
 				})
 				buttonBox.PackStart(installBtn, false, false, 0)
 			}
@@ -1382,9 +1471,15 @@ func (g *GUI) showAppDetails(appPath string) {
 			enableBtn, err := gtk.ButtonNewWithLabel("Enable")
 			if err == nil {
 				enableBtn.Connect("clicked", func() {
-					g.enableApp(appName)
-					window.Destroy()
+					window.Destroy() // Close details window immediately
 					g.detailsWindow = nil
+					go func() {
+						g.enableApp(appName)
+						// After action completes, refresh main view
+						glib.IdleAdd(func() {
+							g.refreshCurrentView() // Refresh main app list to show updated status
+						})
+					}()
 				})
 				buttonBox.PackStart(enableBtn, false, false, 0)
 			}
@@ -1421,9 +1516,15 @@ func (g *GUI) showAppDetails(appPath string) {
 					}
 				}
 				uninstallBtn.Connect("clicked", func() {
-					g.performAppAction(appName, "uninstall")
-					window.Destroy()
+					window.Destroy() // Close details window immediately
 					g.detailsWindow = nil
+					go func() {
+						g.performAppAction(appName, "uninstall")
+						// After action completes, refresh main view
+						glib.IdleAdd(func() {
+							g.refreshCurrentView() // Refresh main app list to show updated status
+						})
+					}()
 				})
 				buttonBox.PackStart(uninstallBtn, false, false, 0)
 			}
@@ -1440,9 +1541,15 @@ func (g *GUI) showAppDetails(appPath string) {
 					}
 				}
 				installBtn.Connect("clicked", func() {
-					g.performAppAction(appName, "install")
-					window.Destroy()
+					window.Destroy() // Close details window immediately
 					g.detailsWindow = nil
+					go func() {
+						g.performAppAction(appName, "install")
+						// After action completes, refresh main view
+						glib.IdleAdd(func() {
+							g.refreshCurrentView() // Refresh main app list to show updated status
+						})
+					}()
 				})
 				buttonBox.PackStart(installBtn, false, false, 0)
 			}
@@ -1460,9 +1567,9 @@ func (g *GUI) showAppDetails(appPath string) {
 	window.Present()
 	logger.Info("GTK details window Present() called")
 
-	// For xlunch mode, just ensure the window stays on top
-	if strings.Contains(g.guiMode, "xlunch") {
-		logger.Info("Setting up xlunch mode window focus handling...")
+	// For imgui mode, just ensure the window stays on top
+	if strings.Contains(g.guiMode, "imgui") || strings.Contains(g.guiMode, "xlunch") {
+		logger.Info("Setting up imgui mode window focus handling...")
 
 		// Set window to stay on top
 		window.SetKeepAbove(true)
@@ -1560,8 +1667,8 @@ func (g *GUI) performAppAction(appName, action string) {
 		cmd.Env = append(cmd.Env, "PI_APPS_MULTI_CALL_BINARY="+multiCallBinary)
 	}
 
-	if err := cmd.Start(); err != nil {
-		fmt.Fprintf(os.Stderr, "Error starting %s for %s: %v\n", action, appName, err)
+	if err := cmd.Run(); err != nil {
+		fmt.Fprintf(os.Stderr, "Error running %s for %s: %v\n", action, appName, err)
 
 		// Show error dialog
 		dialog := gtk.MessageDialogNew(
@@ -1575,7 +1682,7 @@ func (g *GUI) performAppAction(appName, action string) {
 		defer dialog.Destroy()
 		dialog.Run()
 	} else {
-		fmt.Printf("Started %s process for %s using API terminal_manage\n", action, appName)
+		fmt.Printf("Successfully ran %s process for %s using API terminal_manage\n", action, appName)
 	}
 }
 
@@ -1930,21 +2037,24 @@ func (g *GUI) getAppWebsite(appName string) string {
 	return ""
 }
 
-// hasInstallScript checks if an app has install scripts
+// hasInstallScript checks if an app has install scripts (only for standard script-based apps)
 func (g *GUI) hasInstallScript(appName string) bool {
+	// Don't show scripts button for package-based or flatpak-based apps
+	if g.isPackageApp(appName) {
+		return false
+	}
+
 	installScript := filepath.Join(g.directory, "apps", appName, "install")
 	install32Script := filepath.Join(g.directory, "apps", appName, "install-32")
 	install64Script := filepath.Join(g.directory, "apps", appName, "install-64")
 	uninstallScript := filepath.Join(g.directory, "apps", appName, "uninstall")
-	packagesFile := filepath.Join(g.directory, "apps", appName, "packages")
 
 	_, installExists := os.Stat(installScript)
 	_, install32Exists := os.Stat(install32Script)
 	_, install64Exists := os.Stat(install64Script)
 	_, uninstallExists := os.Stat(uninstallScript)
-	_, packagesExists := os.Stat(packagesFile)
 
-	return installExists == nil || install32Exists == nil || install64Exists == nil || uninstallExists == nil || packagesExists == nil
+	return installExists == nil || install32Exists == nil || install64Exists == nil || uninstallExists == nil
 }
 
 // getSubcategories retrieves the subcategories for a given category
@@ -1989,6 +2099,17 @@ func (g *GUI) populateSubcategories(listBox *gtk.ListBox, category string, subca
 	}
 
 	logger.Info(fmt.Sprintf("Total subcategory rows in map: %d\n", len(g.currentApps)))
+}
+
+// refreshCurrentView refreshes the current category view to show updated app statuses
+func (g *GUI) refreshCurrentView() {
+	if g.currentPrefix == "" {
+		// We're on the main category list, refresh it
+		g.showCategoryListView()
+	} else {
+		// We're viewing a specific category, refresh it
+		g.showCategoryAppsView(g.currentPrefix)
+	}
 }
 
 // showSubcategoryAppsView displays apps for a specific subcategory
@@ -2174,11 +2295,15 @@ func (g *GUI) createSubcategoryRow(subcategory, description string) (*gtk.ListBo
 	return row, nil
 }
 
-// isPackageApp checks if an app is a package app
+// isPackageApp checks if an app is a package app (either debian packages or flatpak packages)
 func (g *GUI) isPackageApp(appName string) bool {
 	packagesFile := filepath.Join(g.directory, "apps", appName, "packages")
-	_, err := os.Stat(packagesFile)
-	return err == nil
+	flatpakPackagesFile := filepath.Join(g.directory, "apps", appName, "flatpak_packages")
+
+	_, packagesExists := os.Stat(packagesFile)
+	_, flatpakPackagesExists := os.Stat(flatpakPackagesFile)
+
+	return packagesExists == nil || flatpakPackagesExists == nil
 }
 
 // openAppScripts opens the app scripts in a text editor

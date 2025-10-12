@@ -21,7 +21,6 @@ package api
 
 import (
 	"bufio"
-	"bytes"
 	"fmt"
 	"os"
 	"os/exec"
@@ -258,20 +257,18 @@ func RefreshPkgAppStatus(appName string, packageName string) error {
 	return nil
 }
 
-// RunCategoryEdit runs the categoryedit script to set the category for an app
+// RunCategoryEdit sets the category for an app
 func RunCategoryEdit(appName, category string) error {
 	directory := os.Getenv("PI_APPS_DIR")
 	if directory == "" {
 		return fmt.Errorf("PI_APPS_DIR environment variable not set")
 	}
 
-	// Run the categoryedit script
-	cmd := exec.Command(filepath.Join(directory, "etc", "categoryedit"), appName, category)
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
+	// Edit the category
+	err := EditAppCategory(appName, category)
 
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("error running categoryedit: %s - %w", stderr.String(), err)
+	if err != nil {
+		return fmt.Errorf("error running categoryedit: %w", err)
 	}
 
 	return nil

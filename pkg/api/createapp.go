@@ -20,6 +20,7 @@
 package api
 
 import (
+	"bufio"
 	"fmt"
 	"io"
 	"os"
@@ -102,6 +103,12 @@ func CreateApp(appName string) error {
 			if err1 == nil || err2 == nil {
 				appType = "standard"
 			}
+		}
+
+		// Add support for flatpak_package type
+		flatpakPkgFile := filepath.Join(dir, "flatpak_packages")
+		if _, err := os.Stat(flatpakPkgFile); err == nil {
+			appType = "flatpak_package"
 		}
 	}
 
@@ -207,25 +214,51 @@ func CreateApp(appName string) error {
 					if err := os.WriteFile(pkgFile, []byte(appDetails.Packages), 0644); err != nil {
 						Warning(fmt.Sprintf("Failed to save packages: %v\n", err))
 					}
+				}
 
-					// For package apps, we're done - skip to the final step
-					step4Dialog := createAppPreviewDialog(appName, piAppsDir)
-					previewResponse := step4Dialog.Run()
-					step4Dialog.Destroy()
-
-					if previewResponse == gtk.RESPONSE_OK {
-						// Show final success dialog
-						showSuccessDialog(appName, piAppsDir)
-					} else if previewResponse == gtk.RESPONSE_CANCEL {
-						// Go back to test dialog
-						continue
-					} else {
-						// If user closes dialog with X button, exit
-						return nil
+				// For flatpak_package apps, save flatpak_packages
+				if appType == "flatpak_package" && appDetails.FlatpakPackages != "" {
+					flatpakPkgFile := filepath.Join(piAppsDir, "apps", appName, "flatpak_packages")
+					if err := os.WriteFile(flatpakPkgFile, []byte(appDetails.FlatpakPackages), 0644); err != nil {
+						Warning(fmt.Sprintf("Failed to save flatpak packages: %v\n", err))
 					}
 				}
 
-				step++
+				// Now handle the flow based on app type
+				if appType == "standard" {
+					step++ // Proceed to step 3 for standard apps (script creation)
+				} else if appType == "package" || appType == "flatpak_package" {
+					// For package and flatpak_package apps, proceed directly to preview and success dialogs
+					appPreviewDialog := createAppPreviewDialog(appName, piAppsDir)
+					appPreviewResponse := appPreviewDialog.Run()
+					appPreviewDialog.Destroy()
+
+					if appPreviewResponse == gtk.RESPONSE_OK {
+						detailsPreviewDialog := createDetailsPreviewDialog(appName, piAppsDir)
+						detailsPreviewResponse := detailsPreviewDialog.Run()
+						detailsPreviewDialog.Destroy()
+
+						if detailsPreviewResponse == gtk.RESPONSE_OK {
+							showSuccessDialog(appName, piAppsDir)
+							return nil // Exit after success
+						} else if detailsPreviewResponse == gtk.RESPONSE_CANCEL {
+							// If previous from details preview, go back to app preview (stay in case 2 loop)
+							// This will implicitly go back to the app preview, then back to app details in the main loop if continue
+							continue
+						} else {
+							return nil // User closed dialog
+						}
+					} else if appPreviewResponse == gtk.RESPONSE_CANCEL {
+						// If previous from app preview, go back to app details (stay in case 2 loop)
+						continue
+					} else {
+						return nil // User closed dialog
+					}
+				} else {
+					// Should not happen, but a fallback to exit if appType is unexpected
+					return fmt.Errorf("unexpected app type %s after app details step", appType)
+				}
+
 			case "Previous":
 				step--
 			case "Save":
@@ -1045,6 +1078,7 @@ func showBasicsDialog(currentName, currentType string) (string, string, string, 
 		}
 		typeCombo.AppendText("standard - Use scripts to install the app")
 		typeCombo.AppendText("package - Will install apt package(s)")
+		typeCombo.AppendText("flatpak_package - Will install flatpak package(s)")
 		typeCombo.SetActive(0) // Default to standard
 		grid.Attach(typeCombo, 1, 1, 1, 1)
 
@@ -1056,6 +1090,8 @@ func showBasicsDialog(currentName, currentType string) (string, string, string, 
 				appType = "standard"
 			case strings.HasPrefix(text, "package"):
 				appType = "package"
+			case strings.HasPrefix(text, "flatpak_package"):
+				appType = "flatpak_package"
 			}
 		})
 		// Set initial value
@@ -1130,12 +1166,13 @@ func showBasicsDialog(currentName, currentType string) (string, string, string, 
 
 // AppDetails holds the information collected in the app details dialog
 type AppDetails struct {
-	Icon          string
-	Website       string
-	Packages      string
-	Description   string
-	Credits       string
-	Compatibility string
+	Icon            string
+	Website         string
+	Packages        string
+	FlatpakPackages string
+	Description     string
+	Credits         string
+	Compatibility   string
 }
 
 // showAppDetailsDialog displays the dialog for step 2 - collecting app details
@@ -1518,6 +1555,152 @@ func showAppDetailsDialog(appName, appType string) (string, *AppDetails, error) 
 			})
 
 			row++
+		case "flatpak_package":
+			// Flatpak Packages field for flatpak package apps
+			flatpakPackagesLabel, err := gtk.LabelNew("Flatpak Package(s) to install:")
+			if err != nil {
+				return "", nil, fmt.Errorf("failed to create flatpak packages label: %v", err)
+			}
+			flatpakPackagesLabel.SetHAlign(gtk.ALIGN_START)
+			grid.Attach(flatpakPackagesLabel, 0, row, 1, 1)
+
+			// Create entry for flatpak packages
+			flatpakPackagesEntry, err := gtk.EntryNew()
+			if err != nil {
+				return "", nil, fmt.Errorf("failed to create flatpak packages entry: %v", err)
+			}
+
+			// Read existing flatpak packages if available
+			flatpakPackagesFile := filepath.Join(piAppsDir, "apps", appName, "flatpak_packages")
+			if _, err := os.Stat(flatpakPackagesFile); err == nil {
+				flatpakPackagesContent, err := os.ReadFile(flatpakPackagesFile)
+				if err == nil {
+					flatpakPackagesEntry.SetText(string(flatpakPackagesContent))
+					details.FlatpakPackages = string(flatpakPackagesContent)
+				}
+			}
+
+			grid.Attach(flatpakPackagesEntry, 1, row, 1, 1)
+
+			// Connect to the changed signal
+			flatpakPackagesEntry.Connect("changed", func() {
+				text, _ := flatpakPackagesEntry.GetText()
+				details.FlatpakPackages = text
+			})
+
+			row++
+
+			// Add icon selection for flatpak package apps
+			iconLabel, err := gtk.LabelNew("Icon:")
+			if err != nil {
+				return "", nil, fmt.Errorf("failed to create icon label: %v", err)
+			}
+			iconLabel.SetHAlign(gtk.ALIGN_START)
+			grid.Attach(iconLabel, 0, row, 1, 1)
+
+			// Create icon file chooser or auto-find button
+			iconBox, _ := gtk.BoxNew(gtk.ORIENTATION_HORIZONTAL, 5)
+
+			// Create file chooser for icon
+			iconChooser, err := gtk.FileChooserButtonNew("Select Icon", gtk.FILE_CHOOSER_ACTION_OPEN)
+			if err != nil {
+				return "", nil, fmt.Errorf("failed to create file chooser: %v", err)
+			}
+
+			// Set file filter for images
+			filter, err := gtk.FileFilterNew()
+			if err != nil {
+				return "", nil, fmt.Errorf("failed to create file filter: %v", err)
+			}
+			filter.SetName("Image files")
+			filter.AddPattern("*.png")
+			filter.AddPattern("*.jpg")
+			filter.AddPattern("*.jpeg")
+			filter.AddPattern("*.svg")
+			iconChooser.AddFilter(filter)
+			iconBox.PackStart(iconChooser, true, true, 0)
+
+			// Add auto-find icon button
+			autoFindBtn, _ := gtk.ButtonNewWithLabel("Auto-find")
+			iconBox.PackStart(autoFindBtn, false, false, 0)
+
+			// Connect to auto-find button click
+			autoFindBtn.Connect("clicked", func() {
+				// Get the package name
+				pkgText, _ := flatpakPackagesEntry.GetText()
+				if pkgText == "" {
+					// If package field is empty, show an error
+					dialog := gtk.MessageDialogNew(nil, gtk.DIALOG_MODAL, gtk.MESSAGE_ERROR, gtk.BUTTONS_OK,
+						"Please enter a package name first")
+					dialog.Run()
+					dialog.Destroy()
+					return
+				}
+
+				// Get the first package from the list
+				pkgName := strings.Split(pkgText, " ")[0]
+
+				// Try to find the icon from the package
+				iconPath := getFlatpakIconFromPackage(pkgName, piAppsDir)
+				if iconPath != "" {
+					details.Icon = iconPath
+
+					// Show a success message
+					dialog := gtk.MessageDialogNew(nil, gtk.DIALOG_MODAL, gtk.MESSAGE_INFO, gtk.BUTTONS_OK,
+						"Found icon for package: %s", pkgName)
+					dialog.Run()
+					dialog.Destroy()
+				} else {
+					// If icon not found, prompt to select one
+					dialog := gtk.MessageDialogNew(nil, gtk.DIALOG_MODAL, gtk.MESSAGE_WARNING, gtk.BUTTONS_OK,
+						"No icon found for package: %s\nPlease select one manually.", pkgName)
+					dialog.Run()
+					dialog.Destroy()
+				}
+			})
+
+			grid.Attach(iconBox, 1, row, 1, 1)
+
+			// Connect to the file-set signal for the icon chooser
+			iconChooser.Connect("file-set", func() {
+				details.Icon = iconChooser.GetFilename()
+			})
+
+			row++
+
+			// Website field for flatpak package apps too
+			websiteLabel, err := gtk.LabelNew("Website:")
+			if err != nil {
+				return "", nil, fmt.Errorf("failed to create website label: %v", err)
+			}
+			websiteLabel.SetHAlign(gtk.ALIGN_START)
+			grid.Attach(websiteLabel, 0, row, 1, 1)
+
+			// Create entry for website
+			websiteEntry, err := gtk.EntryNew()
+			if err != nil {
+				return "", nil, fmt.Errorf("failed to create website entry: %v", err)
+			}
+
+			// Read existing website if available
+			websiteFile := filepath.Join(piAppsDir, "apps", appName, "website")
+			if _, err := os.Stat(websiteFile); err == nil {
+				websiteContent, err := os.ReadFile(websiteFile)
+				if err == nil {
+					websiteEntry.SetText(string(websiteContent))
+					details.Website = string(websiteContent)
+				}
+			}
+
+			grid.Attach(websiteEntry, 1, row, 1, 1)
+
+			// Connect to the changed signal
+			websiteEntry.Connect("changed", func() {
+				text, _ := websiteEntry.GetText()
+				details.Website = text
+			})
+
+			row++
 		}
 	}
 
@@ -1732,6 +1915,47 @@ func getIconFromPackage(packageName, piAppsDir string) string {
 	return ""
 }
 
+// getFlatpakIconFromPackage tries to find an icon for the given flatpak package
+func getFlatpakIconFromPackage(packageName, piAppsDir string) string {
+	// ensure piAppsDir is set
+	if piAppsDir == "" {
+		piAppsDir = GetPiAppsDir()
+		os.Setenv("PI_APPS_DIR", piAppsDir)
+	}
+
+	// Try running flatpak info command to get information about the package
+	cmd := exec.Command("flatpak", "info", "--show-metadata", packageName)
+	output, err := cmd.Output()
+	if err != nil {
+		return ""
+	}
+
+	// Look for the "Icon=" line in the output
+	scanner := bufio.NewScanner(strings.NewReader(string(output)))
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.HasPrefix(line, "Icon=") {
+			iconName := strings.TrimPrefix(line, "Icon=")
+			// Try to find the icon file in standard icon themes (e.g., hicolor)
+			// This is a simplified approach, a full implementation would involve XDG_DATA_DIRS and icon theme parsing
+			sizes := []string{"24x24", "48x48", "64x64", "128x128", "256x256"} // Common icon sizes
+			for _, size := range sizes {
+				iconPath := filepath.Join("/usr/share/icons/hicolor/"+size+"/apps", iconName+".png")
+				if _, err := os.Stat(iconPath); err == nil {
+					return iconPath
+				}
+				iconPath = filepath.Join("/usr/share/icons/hicolor/"+size+"/apps", iconName+".svg")
+				if _, err := os.Stat(iconPath); err == nil {
+					return iconPath
+				}
+			}
+		}
+	}
+
+	// If we couldn't find an icon, return empty string
+	return ""
+}
+
 // createAppDirectory creates the directory structure for a new app
 // TODO: this is not used anywhere and giving warnings in gopls, either remove or use it
 func createAppDirectory(appName, appType string) error {
@@ -1786,6 +2010,14 @@ func createAppDirectory(appName, appType string) error {
 		if _, err := os.Stat(packagesFile); os.IsNotExist(err) {
 			if err := os.WriteFile(packagesFile, []byte(""), 0644); err != nil {
 				return fmt.Errorf("failed to create packages file: %v", err)
+			}
+		}
+	case "flatpak_package":
+		// Create empty flatpak_packages file
+		flatpakPackagesFile := filepath.Join(appDir, "flatpak_packages")
+		if _, err := os.Stat(flatpakPackagesFile); os.IsNotExist(err) {
+			if err := os.WriteFile(flatpakPackagesFile, []byte(""), 0644); err != nil {
+				return fmt.Errorf("failed to create flatpak packages file: %v", err)
 			}
 		}
 	}

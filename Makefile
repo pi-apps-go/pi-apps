@@ -7,10 +7,10 @@ LDFLAGS=-X main.BuildDate="$(BUILD_DATE)" -X main.GitCommit="$(GIT_COMMIT_HASH)"
 
 all: build
 
-build: build-api build-pi-apps build-manage build-settings build-updater build-gui
-build-debug: build-api-debug build-pi-apps-debug build-manage-debug build-settings-debug build-updater-debug build-gui-debug
-build-with-xlunch: build-api build-pi-apps build-manage build-settings build-updater build-gui-with-xlunch
-build-with-xlunch-debug: build-api-debug build-pi-apps-debug build-manage-debug build-settings-debug build-updater-debug build-gui-with-xlunch-debug
+build: build-api build-pi-apps build-manage build-settings build-updater build-gui build-xpi-apps
+build-debug: build-api-debug build-pi-apps-debug build-manage-debug build-settings-debug build-updater-debug build-gui-debug build-xpi-apps-debug
+build-with-xlunch: build-api build-pi-apps build-manage build-settings build-updater build-gui-with-xlunch build-xpi-apps
+build-with-xlunch-debug: build-api-debug build-pi-apps-debug build-manage-debug build-settings-debug build-updater-debug build-gui-with-xlunch-debug build-xpi-apps-debug
 build-with-multi-call: build-multi-call-pi-apps
 build-with-multi-call-debug: build-multi-call-pi-apps-debug
 
@@ -56,6 +56,12 @@ build-updater:
 build-updater-debug:
 	go build -o bin/updater -ldflags "$(LDFLAGS)" ./cmd/updater
 
+build-xpi-apps:
+	go build -o bin/xpi-apps -ldflags "$(LDFLAGS) -w -s" -trimpath ./cmd/xpi-apps
+
+build-xpi-apps-debug:
+	go build -o bin/xpi-apps -ldflags "$(LDFLAGS)" ./cmd/xpi-apps
+
 # Note: error-report-server is not meant to be compiled by a user and is not included during compiling unless you are hosting the error report server yourself.
 build-error-report-server:
 	go build -o bin/error-report-server -ldflags "-w -s" -trimpath ./cmd/error-report-server/main.go
@@ -71,7 +77,7 @@ build-multi-call-pi-apps-debug:
 	go build -o bin/multi-call-pi-apps -ldflags "$(LDFLAGS)" ./cmd/multi-call-pi-apps
 
 clean:
-	rm -rf bin/ api-go manage pi-apps settings updater gui error-report-server multi-call-pi-apps
+	rm -rf bin/ api-go manage pi-apps settings updater gui error-report-server multi-call-pi-apps xpi-apps
 
 install: build
 	install -m 755 bin/api api-go
@@ -79,7 +85,9 @@ install: build
 	install -m 755 bin/settings settings
 	install -m 755 bin/updater updater
 	install -m 755 bin/gui gui
+	install -m 755 bin/xpi-apps xpi-apps
 	sudo install -m 755 bin/pi-apps $(BINDIR)/pi-apps
+	sudo install -m 755 bin/xpi-apps $(BINDIR)/xpi-apps
 	#install -m 755 bash-go-api $(BINDIR)/api
 	
 install-debug: build-debug
@@ -88,7 +96,9 @@ install-debug: build-debug
 	install -m 755 bin/settings settings
 	install -m 755 bin/updater updater
 	install -m 755 bin/gui gui
+	install -m 755 bin/xpi-apps xpi-apps
 	sudo install -m 755 bin/pi-apps $(BINDIR)/pi-apps
+	sudo install -m 755 bin/xpi-apps $(BINDIR)/xpi-apps
 	#install -m 755 bash-go-api $(BINDIR)/api
 
 install-with-multi-call: clean build-with-multi-call build-pi-apps

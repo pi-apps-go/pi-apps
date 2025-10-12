@@ -351,7 +351,7 @@ func checkOSVersion(osInfo *SystemOSInfo) string {
 
 	// Check for Pi OS Buster (Debian 10)
 	if (osInfo.ID == "Debian" || osInfo.ID == "Raspbian") && osInfo.Release == "10" && FileExists("/etc/rpi-issue") {
-		return "Pi-Apps is no longer supported on your Pi OS Buster operating system. Consider installing Pi OS Bookworm. https://www.raspberrypi.com/news/bookworm-the-new-version-of-raspberry-pi-os/"
+		return "Pi-Apps is no longer supported on your Pi OS Buster operating system. Consider installing Pi OS Trixie. https://www.raspberrypi.com/news/trixie-the-new-version-of-raspberry-pi-os/"
 	}
 
 	// Check for Debian/Raspbian EOL status

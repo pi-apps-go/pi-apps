@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"time"
+	"runtime/debug"
 
 	"github.com/botspot/pi-apps/pkg/api"
 	"github.com/botspot/pi-apps/pkg/gui"
@@ -29,6 +30,36 @@ func runGUI() {
 	// Reset flag.CommandLine to avoid conflicts
 	flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 
+	// runtime crashes can happen (keep in mind Pi-Apps Go is ALPHA software)
+	// so add a handler to log those runtime errors to save them to a log file
+	// this option can be disabled by specifying DISABLE_ERROR_HANDLING to true
+	// Edit: nevermind, cgo crashes are not handled by this handler
+
+	errorHandling := os.Getenv("DISABLE_ERROR_HANDLING")
+	if errorHandling != "true" {
+		defer func() {
+			if r := recover(); r != nil {
+				// Capture stack trace as a string
+				stackTrace := string(debug.Stack())
+
+				logger.Error(r)
+
+				// Format the full crash report
+				crashReport := fmt.Sprintf(
+					"Pi-Apps Go has encountered a error and had to shutdown.\n\nReason: %v\n\nStack trace:\n%s",
+					r,
+					stackTrace,
+				)
+
+				// Display the error to the user
+				api.ErrorNoExit(crashReport)
+
+				// later put a function to write it to the log file in the logs folder
+				os.Exit(1)
+			}
+		}()
+	}
+	
 	var (
 		directory      = flag.String("directory", "", "Pi-Apps directory (defaults to PI_APPS_DIR env var)")
 		mode           = flag.String("mode", "", "GUI mode: gtk, yad-default, xlunch-dark, etc.")
@@ -36,6 +67,7 @@ func runGUI() {
 		version        = flag.Bool("version", false, "Show version information")
 		showAppDetails = flag.Bool("show-app-details", false, "Show app details dialog (internal use)")
 	)
+	api.Init()
 	flag.Parse()
 
 	// Handle special case for showing app details dialog
@@ -75,7 +107,22 @@ func runGUI() {
 	}
 
 	if *help {
-		printGUIUsage()
+		fmt.Println("Pi-Apps GUI")
+		fmt.Println("Usage: gui [options]")
+		fmt.Println()
+		fmt.Println("Options:")
+		flag.PrintDefaults()
+		fmt.Println()
+		fmt.Println("Environment Variables:")
+		fmt.Println("  PI_APPS_DIR  Path to Pi-Apps directory")
+		fmt.Println()
+		fmt.Println("GUI Modes:")
+		fmt.Println("  default      Auto-detect best interface (GTK3 if available, fallback to bash)")
+		fmt.Println("  gtk          Native GTK3 interface")
+		fmt.Println("  native       Same as gtk")
+		fmt.Println("  yad-default  YAD-based interface (compatibility, deprecated)")
+		fmt.Println("  xlunch-dark  XLunch dark theme")
+		fmt.Println()
 		return
 	}
 
@@ -139,26 +186,4 @@ func runGUI() {
 	if err := app.Run(); err != nil {
 		logger.Fatal("Failed to run GUI: %v", err)
 	}
-}
-
-func printGUIUsage() {
-	fmt.Println("Pi-Apps GUI")
-	fmt.Println("Usage: gui [options]")
-	fmt.Println()
-	fmt.Println("Options:")
-	fmt.Println("  --directory <path>    Pi-Apps directory (defaults to PI_APPS_DIR env var)")
-	fmt.Println("  --mode <mode>         GUI mode: gtk, yad-default, xlunch-dark, etc.")
-	fmt.Println("  --help               Show this help message")
-	fmt.Println("  --version            Show version information")
-	fmt.Println("  --show-app-details   Show app details dialog (internal use)")
-	fmt.Println()
-	fmt.Println("Environment Variables:")
-	fmt.Println("  PI_APPS_DIR  Path to Pi-Apps directory")
-	fmt.Println()
-	fmt.Println("GUI Modes:")
-	fmt.Println("  default      Auto-detect best interface (GTK3 if available, fallback to bash)")
-	fmt.Println("  gtk          Native GTK3 interface")
-	fmt.Println("  native       Same as gtk")
-	fmt.Println("  yad-default  YAD-based interface (compatibility, deprecated)")
-	fmt.Println("  xlunch-dark  XLunch dark theme")
 }

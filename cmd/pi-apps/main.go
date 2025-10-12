@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/botspot/pi-apps/pkg/api"
+	"github.com/botspot/pi-apps/pkg/builder"
 )
 
 func main() {
@@ -21,6 +22,12 @@ func main() {
 	// Set debug mode if specified
 	if *debugFlag {
 		api.SetDebugMode(true)
+	}
+
+	// Initialize plugins
+	if err := builder.InitializePlugins(); err != nil {
+		fmt.Printf("Error initializing plugins: %v\n", err)
+		os.Exit(1)
 	}
 
 	// Handle help flag
