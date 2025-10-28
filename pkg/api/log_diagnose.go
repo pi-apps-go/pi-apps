@@ -111,19 +111,16 @@ func LogDiagnose(logfilePath string, allowWrite bool) (*ErrorDiagnosis, error) {
 		diagnosis.ErrorType = "system"
 	}
 
-	// Check for 'Could not resolve' or 'Failed to fetch'
-	// This message can happen not just in APT, but in other programs as well.
-	// For example, when installing a package from a remote repository, if the repository/package is down,
-	// the program will report an unresolvable repository/package..
-	// This is why we check for this message in other programs as well.
-	if containsAny(errors, []string{
-		"Could not resolve",
-		"Failed to fetch",
-		"Temporary failure resolving",
-		"Internal Server Error",
-		"404 .*Not Found"}) {
+	// Check for 'Could not resolve' or 'Failed to fetch' if it was caused by APT
+	if strings.Contains(errors, "'APT reported these errors:") &&
+		containsAny(errors, []string{
+			"Could not resolve",
+			"Failed to fetch",
+			"Temporary failure resolving",
+			"Internal Server Error",
+			"404 .*Not Found"}) {
 		diagnosis.Captions = append(diagnosis.Captions,
-			"APT reported an unresolvable repository or another program is having an unresolvable URL to download remote resources.\n\n"+
+			"APT reported an unresolvable repository.\n\n"+
 				"Check your Internet connection and try again.")
 		diagnosis.ErrorType = "internet"
 	}
@@ -347,7 +344,8 @@ func LogDiagnose(logfilePath string, allowWrite bool) (*ErrorDiagnosis, error) {
 	regexDkms := regexp.MustCompile(`dpkg: error processing package .*-dkms`)
 	if regexDkms.MatchString(errors) {
 		diagnosis.Captions = append(diagnosis.Captions,
-			"A DKMS (Dynamic Kernel Module Support) package failed to install and has prevented apt from working correctly. This is likely an issue with your distribution and you should report it wherever applicable.")
+			"A DKMS (Dynamic Kernel Module Support) package failed to install and has prevented apt from working correctly. This is likely an issue with your distribution and you should report it wherever applicable. \n\n"+
+				"Pi-Apps Go cannot work until you solve this issue. If you do not need the problematic package, you can remove it with apt to solve the issue.")
 		diagnosis.ErrorType = "system"
 	}
 
@@ -414,7 +412,7 @@ func LogDiagnose(logfilePath string, allowWrite bool) (*ErrorDiagnosis, error) {
 
 					// Run apt list -a
 					if len(packagesCase1) > 0 {
-						listOutput1, _ := runCommand("apt", append([]string{"list", "-a"}, packagesCase1...)...)
+						listOutput1, _ := runCommand("apt-get", append([]string{"list", "-a"}, packagesCase1...)...)
 						logFile.WriteString(listOutput1 + "\n")
 					}
 
@@ -496,7 +494,7 @@ func LogDiagnose(logfilePath string, allowWrite bool) (*ErrorDiagnosis, error) {
 
 					// Run apt list -a
 					if len(packagesCase2) > 0 {
-						listOutput2, _ := runCommand("apt", append([]string{"list", "-a"}, packagesCase2...)...)
+						listOutput2, _ := runCommand("apt-get", append([]string{"list", "-a"}, packagesCase2...)...)
 						logFile.WriteString(listOutput2 + "\n")
 					}
 
@@ -602,7 +600,7 @@ func LogDiagnose(logfilePath string, allowWrite bool) (*ErrorDiagnosis, error) {
 
 					// Run apt list -a
 					if len(cleanPackages) > 0 {
-						listOutput3, _ := runCommand("apt", append([]string{"list", "-a"}, cleanPackages...)...)
+						listOutput3, _ := runCommand("apt-get", append([]string{"list", "-a"}, cleanPackages...)...)
 						logFile.WriteString(listOutput3 + "\n")
 					}
 
@@ -802,7 +800,7 @@ func LogDiagnose(logfilePath string, allowWrite bool) (*ErrorDiagnosis, error) {
 
 				// Run apt list -a on clean package names
 				if len(cleanPackages) > 0 {
-					listOutput, _ := runCommand("apt", append([]string{"list", "-a"}, cleanPackages...)...)
+					listOutput, _ := runCommand("apt-get", append([]string{"list", "-a"}, cleanPackages...)...)
 					logFile.WriteString(listOutput + "\n")
 				}
 
@@ -864,9 +862,10 @@ func LogDiagnose(logfilePath string, allowWrite bool) (*ErrorDiagnosis, error) {
 		diagnosis.ErrorType = "system"
 	}
 
-	// Check for Raspberry Pi OS with missing or altered raspi.list
+	// Check for Raspberry Pi OS with missing or altered raspi.list/raspi.sources
 	rpiIssueExists := fileExists("/etc/rpi-issue")
 	raspiListExists := fileExists("/etc/apt/sources.list.d/raspi.list")
+	raspiSourcesExists := fileExists("/etc/apt/sources.list.d/raspi.sources")
 
 	if rpiIssueExists && (!raspiListExists || !containsRaspiRepo("/etc/apt/sources.list.d/raspi.list")) {
 		diagnosis.Captions = append(diagnosis.Captions,
@@ -879,13 +878,37 @@ func LogDiagnose(logfilePath string, allowWrite bool) (*ErrorDiagnosis, error) {
 		diagnosis.ErrorType = "system"
 	}
 
-	// Check for missing sources.list and ubuntu.sources
-	sourcesListExists := fileExists("/etc/apt/sources.list")
-	ubuntuSourcesExists := fileExists("/etc/apt/sources.list.d/ubuntu.sources")
+	if rpiIssueExists && (!raspiListExists || VERSION_ID >= "13") {
+		diagnosis.Captions = append(diagnosis.Captions,
+			"Packages failed to install because you seem to have deleted or altered an important repository file in /etc/apt/sources.list.d\n\n"+
+				"This error-dialog appeared because /etc/apt/sources.list.d/raspi.list is missing or altered, but you may have deleted other files as well.\n"+
+				"The raspi.list file should contain this:\n\n"+
+				"deb http://archive.raspberrypi.com/debian/ "+getCodename()+" main\n"+
+				"# Uncomment line below then 'apt-get update' to enable 'apt-get source'\n"+
+				"#deb-src http://archive.raspberrypi.com/debian/ "+getCodename()+" main")
+		diagnosis.ErrorType = "system"
+	}
+	
+	if rpiIssueExists && (!raspiSourcesExists || !containsRaspiRepo("/etc/apt/sources.list.d/raspi.sources")) {
+		diagnosis.Captions = append(diagnosis.Captions,
+			"Packages failed to install because you seem to have deleted or altered an important repository file in /etc/apt/sources.list.d\n\n"+
+				"This error-dialog appeared because /etc/apt/sources.list.d/raspi.sources is missing or altered, but you may have deleted other files as well.\n"+
+				"The raspi.sources file should contain this:\n\n"+
+				"Types: deb\n"+
+				"URIs: http://archive.raspberrypi.com/debian/\n"+
+				"Suites: "+getCodename()+"\n"+
+				"Components: main\n"+
+				"Signed-By: /usr/share/keyrings/raspberrypi-archive-keyring.pgp\n")
+		diagnosis.ErrorType = "system"
+	}
 
-	if !sourcesListExists && !ubuntuSourcesExists {
+	// Check for missing sources.list if /etc/rpi-issue exists and release is earlier than Trixie
+	sourcesListExists := fileExists("/etc/apt/sources.list")
+	debianSourcesExists := fileExists("/etc/apt/sources.list.d/debian.sources")
+
+	if !sourcesListExists && rpiIssueExists && VERSION_ID < "13" {
 		switch {
-		case rpiIssueExists && getArchitecture() == "32":
+		case getArchitecture() == "32":
 			diagnosis.Captions = append(diagnosis.Captions,
 				"Packages failed to install because you deleted an important repository file: /etc/apt/sources.list\n\n"+
 					"You appear to be using Raspberry Pi OS 32-bit, so the sources.list file should contain this:\n"+
@@ -893,7 +916,7 @@ func LogDiagnose(logfilePath string, allowWrite bool) (*ErrorDiagnosis, error) {
 					"# Uncomment line below then 'apt-get update' to enable 'apt-get source'\n"+
 					"deb-src http://raspbian.raspberrypi.org/raspbian/ "+getCodename()+" main contrib non-free rpi")
 			diagnosis.ErrorType = "system"
-		case rpiIssueExists && getArchitecture() == "64":
+		case getArchitecture() == "64":
 			diagnosis.Captions = append(diagnosis.Captions,
 				"Packages failed to install because you deleted an important repository file: /etc/apt/sources.list\n\n"+
 					"You appear to be using Raspberry Pi OS 64-bit, so the sources.list file should contain this:\n"+
@@ -914,6 +937,47 @@ func LogDiagnose(logfilePath string, allowWrite bool) (*ErrorDiagnosis, error) {
 		}
 	}
 
+	if !debianSourcesExists && rpiIssueExists && VERSION_ID >= "13" {
+		switch {
+		case getArchitecture() == "32":
+			diagnosis.Captions = append(diagnosis.Captions,
+				"Packages failed to install because you deleted an important repository file: /etc/apt/sources.list.d/debian.sources\n\n"+
+					"You appear to be using Raspberry Pi OS 32-bit, so the debian.sources file should contain this:\n"+
+					"Types: deb\n"+
+					"URIs: http://deb.debian.org/debian/\n"+
+					"Suites: "+getCodename()+" "+getCodename()+"-updates\n"+
+					"Components: main contrib non-free non-free-firmware\n"+
+					"Signed-By: /usr/share/keyrings/debian-archive-keyring.pgp\n\n"+
+					"Types: deb\n"+
+					"URIs: http://deb.debian.org/debian-security/\n"+
+					"Suites: "+getCodename()+"-security\n"+
+					"Components: main contrib non-free non-free-firmware\n"+
+					"Signed-By: /usr/share/keyrings/debian-archive-keyring.pgp")
+			diagnosis.ErrorType = "system"
+		case getArchitecture() == "64":
+			diagnosis.Captions = append(diagnosis.Captions,
+				"Packages failed to install because you deleted an important repository file: /etc/apt/sources.list.d/debian.sources\n\n"+
+					"You appear to be using Raspberry Pi OS 64-bit, so the debian.sources file should contain this:\n"+
+					"Types: deb\n"+
+					"URIs: http://deb.debian.org/debian/\n"+
+					"Suites: "+getCodename()+" "+getCodename()+"-updates\n"+
+					"Components: main contrib non-free non-free-firmware\n"+
+					"Signed-By: /usr/share/keyrings/debian-archive-keyring.pgp\n\n"+
+					"Types: deb\n"+
+					"URIs: http://deb.debian.org/debian-security/\n"+
+					"Suites: "+getCodename()+"-security\n"+
+					"Components: main contrib non-free non-free-firmware\n"+
+					"Signed-By: /usr/share/keyrings/debian-archive-keyring.pgp")
+			diagnosis.ErrorType = "system"
+		default:
+			diagnosis.Captions = append(diagnosis.Captions,
+				"Packages failed to install because you deleted an important repository file: /etc/apt/sources.list.d/debian.sources\n\n"+
+					"Refer to your Linux distro's documentation for how to restore this file.\n"+
+					"You may have a backup of it in /etc/apt/sources.list.d/debian.sources.save if you have not deleted that as well.")
+			diagnosis.ErrorType = "system"
+		}
+	}
+	
 	// check for "unable to securely remove '.*': Bad message"
 	regexBadMessage := regexp.MustCompile(`unable to securely remove '.*': Bad message`)
 	if regexBadMessage.MatchString(errors) {
@@ -936,6 +1000,16 @@ func LogDiagnose(logfilePath string, allowWrite bool) (*ErrorDiagnosis, error) {
 			"Anbox kernel modules no longer compile on the latest kernel. You need to remove it for the kernel to fully install and for APT to work.\n"+
 				"Run this command to remove anbox kernel modules, then retry the operation.\n\n"+
 				"sudo rm -rf /etc/modules-load.d/anbox.conf /lib/udev/rules.d/99-anbox.rules /usr/src/anbox-ashmem-1/ /usr/src/anbox-binder-1/ /var/lib/dkms/anbox-*")
+		diagnosis.ErrorType = "package"
+	}
+	
+	// check for "M=/var/lib/dkms/xone.*bad exit status"
+	regexXoneCompileFailure := regexp.MustCompile(`M=/var/lib/dkms/xone.*bad exit status`)
+	if regexXoneCompileFailure.MatchString(errors) {
+		diagnosis.Captions = append(diagnosis.Captions,
+			"The Xone kernel module no longer compile on the latest kernel. You need to remove it for the kernel to fully install and for APT to work.\n"+
+				"Run this command to remove the xone kernel module, then retry the operation:\n\n"+
+				"sudo rm -rf /etc/modules-load.d/xone.conf /etc/udev/rules.d/50-xone.rules /usr/src/xone-*/ /var/lib/dkms/xone-*")
 		diagnosis.ErrorType = "package"
 	}
 
@@ -1224,9 +1298,9 @@ func LogDiagnose(logfilePath string, allowWrite bool) (*ErrorDiagnosis, error) {
 	regexSdl2Image := regexp.MustCompile(`trying to overwrite .*, which is also in package sdl2-image`)
 	if regexSdl2Image.MatchString(errors) {
 		// Try to automatically remove the problematic packages
-		_, err1 := runCommand("sudo", "apt", "-y", "purge", "sdl2-image")
-		_, err2 := runCommand("sudo", "apt", "-y", "purge", "sdl2-mixer")
-		_, err3 := runCommand("sudo", "apt", "-y", "purge", "sdl2-ttf")
+		_, err1 := runCommand("sudo", "apt-get", "-y", "purge", "sdl2-image")
+		_, err2 := runCommand("sudo", "apt-get", "-y", "purge", "sdl2-mixer")
+		_, err3 := runCommand("sudo", "apt-get", "-y", "purge", "sdl2-ttf")
 
 		// Check if any of the commands succeeded
 		packagesRemoved := err1 == nil || err2 == nil || err3 == nil
@@ -1250,7 +1324,7 @@ func LogDiagnose(logfilePath string, allowWrite bool) (*ErrorDiagnosis, error) {
 	regexLibpagemaker := regexp.MustCompile(`files list file for package 'libpagemaker-0.0-0:arm64' contains empty filename`)
 	if regexLibpagemaker.MatchString(errors) {
 		// Try to remove the problematic package
-		cmd := exec.Command("sudo", "apt", "purge", "libpagemaker-0.0-")
+		cmd := exec.Command("sudo", "apt-get", "purge", "libpagemaker-0.0-")
 		err := cmd.Run()
 
 		if err == nil {
@@ -1284,7 +1358,7 @@ func LogDiagnose(logfilePath string, allowWrite bool) (*ErrorDiagnosis, error) {
 		_, err := os.Stat("/etc/rpi-issue")
 		if err == nil {
 			// Try to automatically purge the problematic packages
-			cmd := exec.Command("sudo", "apt", "purge", "--autoremove", "linux-image-*-arm64")
+			cmd := exec.Command("sudo", "apt-get", "purge", "--autoremove", "linux-image-*-arm64")
 			purgeErr := cmd.Run()
 
 			if purgeErr == nil {
@@ -1361,7 +1435,8 @@ func LogDiagnose(logfilePath string, allowWrite bool) (*ErrorDiagnosis, error) {
 	regexFetchPack := regexp.MustCompile(`fetch-pack: unexpected disconnect while reading sideband packet`)
 	if regexFetchPack.MatchString(errors) {
 		diagnosis.Captions = append(diagnosis.Captions,
-			"The git command encountered this error: \"fetch-pack: unexpected disconnect while reading sideband packet\" Check the stability of your Internet connection and try again.")
+			"The git command encountered this error: \"fetch-pack: unexpected disconnect while reading sideband packet\" Check the stability of your Internet connection and try again. \n\n"+
+				"If this keeps happening, see: https://stackoverflow.com/questions/66366582")
 		diagnosis.ErrorType = "internet"
 	}
 
@@ -1369,7 +1444,8 @@ func LogDiagnose(logfilePath string, allowWrite bool) (*ErrorDiagnosis, error) {
 	regexFatalObject := regexp.MustCompile(`fatal: did not receive expected object`)
 	if regexFatalObject.MatchString(errors) {
 		diagnosis.Captions = append(diagnosis.Captions,
-			"The git command encountered this error: \"fatal: did not receive expected object\" Check the stability of your Internet connection and try again.")
+			"The git command encountered this error: \"fatal: did not receive expected object\" Check the stability of your Internet connection and try again.\n\n"+
+				"If this keeps happening, see: https://stackoverflow.com/questions/66366582")
 		diagnosis.ErrorType = "internet"
 	}
 
@@ -1377,7 +1453,8 @@ func LogDiagnose(logfilePath string, allowWrite bool) (*ErrorDiagnosis, error) {
 	regexRemoteEndHungUp := regexp.MustCompile(`fatal: the remote end hung up unexpectedly`)
 	if regexRemoteEndHungUp.MatchString(errors) {
 		diagnosis.Captions = append(diagnosis.Captions,
-			"The git command encountered this error: \"fatal: the remote end hung up unexpectedly\" Check the stability of your Internet connection and try again.")
+			"The git command encountered this error: \"fatal: the remote end hung up unexpectedly\" Check the stability of your Internet connection and try again.\n\n"+
+				"If this keeps happening, see: https://stackoverflow.com/questions/66366582")
 		diagnosis.ErrorType = "internet"
 	}
 
@@ -1393,7 +1470,8 @@ func LogDiagnose(logfilePath string, allowWrite bool) (*ErrorDiagnosis, error) {
 	regexCurlError := regexp.MustCompile(`curl: (.*) HTTP/2 stream .* was not closed cleanly: INTERNAL_ERROR (err .*)`)
 	if regexCurlError.MatchString(errors) {
 		diagnosis.Captions = append(diagnosis.Captions,
-			"The curl command encountered this error: \"curl: (.*) HTTP/2 stream .* was not closed cleanly: INTERNAL_ERROR (err .*)\" Check the stability of your Internet connection and try again.")
+			"Download failed due to an internal curl error. This could be an internet issue or hardware problem. \n"+
+				"If you are overclocking, try reverting to stock clocks. Additionally, check your internet connection and firewall, then try again.")
 		diagnosis.ErrorType = "internet"
 	}
 
@@ -1460,6 +1538,15 @@ func LogDiagnose(logfilePath string, allowWrite bool) (*ErrorDiagnosis, error) {
 				"Please check your internet connection and try again. If you're behind a proxy, make sure it's configured correctly for Cargo.")
 		diagnosis.ErrorType = "internet"
 	}
+	
+	// Check for ERROR: Downloaded system image hash doesn't match, expected <hash> from Waydroid
+	regexHashDoesNotMatch := regexp.MustCompile(`ERROR: Downloaded system image hash doesn't match, expected`)
+	if regexHashDoesNotMatch.MatchString(errors) {
+		diagnosis.Captions = append(diagnosis.Captions,
+			"Waydroid OS image download failed. Check your internet connection and firewall, then try again.")
+		diagnosis.ErrorType = "internet"
+	}
+	
 	// other system errors below
 
 	// check for modprobe: FATAL: Module .* not found in directory
@@ -1653,7 +1740,7 @@ func LogDiagnose(logfilePath string, allowWrite bool) (*ErrorDiagnosis, error) {
 	}
 
 	// check for "No space left on device"
-	regexSpace := regexp.MustCompile(`No space left on device|Not enough disk space to complete this operation|You don't have enough free space in`)
+	regexSpace := regexp.MustCompile(`No space left on device\|Not enough disk space to complete this operation\|You don't have enough free space in\|Cannot write to .* (Success)\.`)
 	if regexSpace.MatchString(errors) {
 		diagnosis.Captions = append(diagnosis.Captions,
 			"Your system has insufficient disk space.\n\n"+
@@ -1827,6 +1914,21 @@ func LogDiagnose(logfilePath string, allowWrite bool) (*ErrorDiagnosis, error) {
 				"2. The project doesn't support your hardware architecture\n\n"+
 				"Try installing the required rustc target with: rustup target add <target>")
 		diagnosis.ErrorType = "system"
+	}
+	
+	// temporary debian trixie error diagnosis (doesn't block sending error reports but does show info to users if there is no other automatic diagnosis)
+	
+	if NAME == "Debian" || NAME == "Raspbian" && VERSION_ID == "13" {
+		diagnosis.Captions = append(diagnosis.Captions,
+			"All the Pi-Apps Go apps are not yet supported in Trixie.\n\n"+
+			"We are tracking all apps that fail to install on PiOS Trixie from upstream issue https://github.com/Botspot/pi-apps/issues/2829\n"+
+			"Each comment contains a link to the offending actions run showing the install failure. Please check your app that you tried to install that failed to see if it is already reported.\n\n"+
+			"Now would be a great time for Beta Testers to get involved with debugging and triaging these issues.\n"+
+			"In a lot of cases these are issues with the upstream projects (not pi-apps).\n"+
+			"Please open a bug report at the upstream project for the failure and link back to the pi-apps issue if this is the case.\n\n"+
+			"We will make an announcement via our Sharkey server/Github issue when most of these compatibility issues have been resolved.\n"+
+			"Most users should please continue to use PiOS Bookworm for the best Pi-Apps Go compatibility for the time being.")
+		diagnosis.ErrorType = "Operating_System_Release"
 	}
 
 	// Check for user errors - these are errors that scripts deliberately output to diagnose issues
@@ -2132,8 +2234,21 @@ func GetDeviceInfo() (string, error) {
 		}
 	}
 
-	// Get Go runtime information
-	info.WriteString("Go runtime used: " + runtime.Version() + "\n")
+	// Get Go runtime information, including experiments if present
+	goVersion := runtime.Version()
+	info.WriteString("Go runtime used: " + goVersion + "\n")
+	// Look for experiments of the form "X:<experiment1>,<experiment2>" in runtime.Version() output
+	parts := strings.Fields(goVersion)
+	for _, part := range parts {
+		if strings.HasPrefix(part, "X:") {
+			expNames := strings.TrimPrefix(part, "X:")
+			if expNames != "" {
+				expList := strings.Split(expNames, ",")
+				info.WriteString("Go experiments enabled in this build: " + strings.Join(expList, ", ") + "\n")
+				WarningT("Go experiments may be unstable and may cause issues with Pi-Apps Go. If you encounter any issues, please report them to the Pi-Apps Go team or disable them.")
+			}
+		}
+	}
 
 	return info.String(), nil
 }
@@ -2189,12 +2304,6 @@ func SendErrorReport(logfilePath string) (string, error) {
 	// Check if file exists
 	if !FileExists(logfilePath) {
 		return "", fmt.Errorf("send_error_report(): '%s' is not a valid file", logfilePath)
-	}
-
-	// Check if curl is available
-	_, err := exec.LookPath("curl")
-	if err != nil {
-		return "", fmt.Errorf("send_error_report(): Cannot send report: curl command not found")
 	}
 
 	// Format the log file before sending to ensure it's readable
@@ -2528,7 +2637,7 @@ func findBackportsConflicts(errors string) ([]string, error) {
 
 	// For each candidate, check if it's installed from backports
 	for _, pkg := range cleanCandidates {
-		output, err := runCommand("apt", "list", "--installed", pkg)
+		output, err := runCommand("apt-get", "list", "--installed", pkg)
 		if err == nil && strings.Contains(output, "-backports,now") {
 			conflicts = append(conflicts, pkg)
 		}

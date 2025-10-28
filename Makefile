@@ -1,5 +1,8 @@
 .PHONY: all build clean install
 
+# Enable Go experiments via enviroment variable
+export GOEXPERIMENT=greenteagc,heapminimum512kib,newinliner
+
 BINDIR := $(DESTDIR)/usr/local/bin
 BUILD_DATE=$(shell date -u +%Y-%m-%dT%H:%M:%SZ || echo "Warning: unable to get current date")
 GIT_COMMIT_HASH=$(shell git rev-parse HEAD || echo "Warning: unable to get Git commit hash")

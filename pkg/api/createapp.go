@@ -2054,7 +2054,7 @@ func checkShellcheck() error {
 		dialog.Destroy()
 
 		if response == gtk.RESPONSE_YES {
-			cmd := exec.Command("sudo", "apt", "install", "-y", "shellcheck")
+			cmd := exec.Command("sudo", "apt-get", "install", "-y", "shellcheck")
 			cmd.Stdout = os.Stdout
 			cmd.Stderr = os.Stderr
 			if err := cmd.Run(); err != nil {

@@ -26,6 +26,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -33,6 +34,9 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/ProtonMail/gopenpgp/v3/armor"
+	"github.com/ProtonMail/gopenpgp/v3/crypto"
 )
 
 // getOriginalLang returns the original LANG environment variable set by the user
@@ -227,7 +231,7 @@ func AptLockWait() error {
 	// NOTE: This check needs to be resilient to APT 3.0's UI changes, which may affect the error message format
 	// APT 3.0 is on Debian 13+/Ubuntu 25.04+ which uses colors extensively for the UI and as a result partially changed the output format
 	for {
-		cmd := exec.Command("sudo", "-E", "apt", "install", "lkqecjhxwqekc")
+		cmd := exec.Command("sudo", "-E", "apt", "-o", "DPkg::Lock::Timeout=-1", "install", "lkqecjhxwqekc")
 		output, _ := cmd.CombinedOutput()
 		outputStr := string(output)
 
@@ -345,6 +349,85 @@ func stripAnsiCodes(s string) string {
 	return re.ReplaceAllString(s, "")
 }
 
+// fetchGPGKeyFromKeyserver retrieves a GPG key from a keyserver using HTTP
+// This replaces the exec.Command("gpg", "--recv-key", key) call
+func fetchGPGKeyFromKeyserver(keyID, keyserver string) ([]byte, error) {
+	// Construct the URL to fetch the key from the keyserver
+	// Most keyservers support HTTP-based key retrieval
+	url := fmt.Sprintf("https://%s/pks/lookup?op=get&search=0x%s", keyserver, keyID)
+
+	resp, err := http.Get(url)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch key from keyserver: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("keyserver returned status %d", resp.StatusCode)
+	}
+
+	keyData, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read key data: %w", err)
+	}
+
+	// The response might be armored, so we need to unarmor it
+	_, isArmored := armor.IsPGPArmored(bytes.NewReader(keyData))
+	if isArmored {
+		// Try to unarmor the key data
+		unarmoredData, err := armor.Unarmor(string(keyData))
+		if err != nil {
+			// If unarmoring fails, return the original data (might be binary)
+			return keyData, nil
+		}
+		return unarmoredData, nil
+	}
+
+	return keyData, nil
+}
+
+// exportGPGKey exports a GPG key to binary format
+// This replaces the exec.Command("gpg", "--export", key) call
+func exportGPGKey(keyData []byte) ([]byte, error) {
+	// Create a key from the provided data
+	key, err := crypto.NewKey(keyData)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse key: %w", err)
+	}
+
+	// Export the key in binary format
+	exportedData, err := key.GetArmoredPublicKey()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get armored public key: %w", err)
+	}
+
+	// Convert armored data back to binary for keyring storage
+	unarmoredData, err := armor.Unarmor(exportedData)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unarmor exported key: %w", err)
+	}
+
+	return unarmoredData, nil
+}
+
+// dearmorGPGKey converts armored GPG data to binary format
+// This replaces the exec.Command("gpg", "--dearmor") call
+func dearmorGPGKey(armoredData []byte) ([]byte, error) {
+	// Check if the data is already unarmored (binary)
+	_, isArmored := armor.IsPGPArmored(bytes.NewReader(armoredData))
+	if !isArmored {
+		return armoredData, nil
+	}
+
+	// Unarmor the data
+	unarmoredData, err := armor.Unarmor(string(armoredData))
+	if err != nil {
+		return nil, fmt.Errorf("failed to dearmor GPG data: %w", err)
+	}
+
+	return unarmoredData, nil
+}
+
 // AptUpdate runs an apt update with error-checking and minimal output
 func AptUpdate(args ...string) error {
 	// Wait for APT locks to be released first
@@ -364,9 +447,9 @@ func AptUpdate(args ...string) error {
 
 	if lang != "" {
 		// Set locale variables before sudo for proper APT localization
-		aptArgs = append([]string{"-E", "LANG=" + lang, "LC_ALL=" + lang, "LC_MESSAGES=" + lang, "apt", "update", "--allow-releaseinfo-change"}, args...)
+		aptArgs = append([]string{"-E", "LANG=" + lang, "LC_ALL=" + lang, "LC_MESSAGES=" + lang, "apt-get", "update", "--allow-releaseinfo-change"}, args...)
 	} else {
-		aptArgs = append([]string{"-E", "apt", "update", "--allow-releaseinfo-change"}, args...)
+		aptArgs = append([]string{"-E", "apt-get", "update", "--allow-releaseinfo-change"}, args...)
 	}
 
 	cmd := exec.Command("sudo", aptArgs...)
@@ -934,9 +1017,9 @@ Package: %s
 
 		if lang != "" {
 			// Set locale variables before sudo for proper APT localization
-			installArgs = []string{"-E", "LANG=" + lang, "LC_ALL=" + lang, "LC_MESSAGES=" + lang, "apt", "install", "-fy", "--no-install-recommends", "--allow-downgrades"}
+			installArgs = []string{"-E", "LANG=" + lang, "LC_ALL=" + lang, "LC_MESSAGES=" + lang, "apt-get", "-o", "DPkg::Lock::Timeout=-1", "install", "-fy", "--no-install-recommends", "--allow-downgrades"}
 		} else {
-			installArgs = []string{"-E", "apt", "install", "-fy", "--no-install-recommends", "--allow-downgrades"}
+			installArgs = []string{"-E", "apt-get", "-o", "DPkg::Lock::Timeout=-1", "install", "-fy", "--no-install-recommends", "--allow-downgrades"}
 		}
 		installArgs = append(installArgs, aptFlags...)
 		installArgs = append(installArgs, pkgDir+".deb")
@@ -1221,18 +1304,18 @@ func PurgePackages(app string, isUpdate bool) error {
 			// Set locale variables before sudo for proper APT localization
 			if isUpdate {
 				// Skip --autoremove for faster updates
-				purgeArgs = []string{"-E", "LANG=" + lang, "LC_ALL=" + lang, "LC_MESSAGES=" + lang, "apt", "purge", "-y", pkgName}
+				purgeArgs = []string{"-E", "LANG=" + lang, "LC_ALL=" + lang, "LC_MESSAGES=" + lang, "apt-get", "purge", "-y", pkgName}
 			} else {
 				// Normal case, use --autoremove
-				purgeArgs = []string{"-E", "LANG=" + lang, "LC_ALL=" + lang, "LC_MESSAGES=" + lang, "apt", "purge", "-y", pkgName, "--autoremove"}
+				purgeArgs = []string{"-E", "LANG=" + lang, "LC_ALL=" + lang, "LC_MESSAGES=" + lang, "apt-get", "purge", "-y", pkgName, "--autoremove"}
 			}
 		} else {
 			if isUpdate {
 				// Skip --autoremove for faster updates
-				purgeArgs = []string{"-E", "apt", "purge", "-y", pkgName}
+				purgeArgs = []string{"-E", "apt-get", "purge", "-y", pkgName}
 			} else {
 				// Normal case, use --autoremove
-				purgeArgs = []string{"-E", "apt", "purge", "-y", pkgName, "--autoremove"}
+				purgeArgs = []string{"-E", "apt-get", "purge", "-y", pkgName, "--autoremove"}
 			}
 		}
 
@@ -1374,9 +1457,9 @@ func PurgePackages(app string, isUpdate bool) error {
 
 			if lang != "" {
 				// Set locale variables before sudo for proper APT localization
-				purgeArgs = append([]string{"-E", "LANG=" + lang, "LC_ALL=" + lang, "LC_MESSAGES=" + lang, "apt", "purge", "-y"}, packages...)
+				purgeArgs = append([]string{"-E", "LANG=" + lang, "LC_ALL=" + lang, "LC_MESSAGES=" + lang, "apt-get", "purge", "-y"}, packages...)
 			} else {
-				purgeArgs = append([]string{"-E", "apt", "purge", "-y"}, packages...)
+				purgeArgs = append([]string{"-E", "apt-get", "purge", "-y"}, packages...)
 			}
 
 			cmd := exec.Command("sudo", purgeArgs...)
@@ -1727,26 +1810,59 @@ func DebianPPAInstaller(ppaName, ppaDist, key string) error {
 	} else {
 		Status(Tf("Adding %s PPA", ppaName))
 
-		// Create the .list file
-		ppaOwner := strings.Split(ppaName, "/")[0]
-		ppaRepo := strings.Split(ppaName, "/")[1]
-		listFilename := fmt.Sprintf("/etc/apt/sources.list.d/%s-ubuntu-%s-%s.list", ppaOwner, ppaRepo, ppaDist)
+		// Parse owner and repo from ppaName
+		parts := strings.SplitN(ppaName, "/", 2)
+		if len(parts) != 2 {
+			return fmt.Errorf(T("invalid PPA name format: %s"), ppaName)
+		}
+		ppaOwner, ppaRepo := parts[0], parts[1]
 
-		// Add repository to sources.list.d
-		cmd = exec.Command("sudo", "tee", listFilename)
-		cmd.Stdin = strings.NewReader(fmt.Sprintf("deb https://ppa.launchpadcontent.net/%s/ubuntu %s main", ppaName, ppaDist))
-		if err := cmd.Run(); err != nil {
-			return fmt.Errorf(T("failed to add repository to sources.list: %w"), err)
+		// Prepare filenames
+		keyringName := fmt.Sprintf("%s-ubuntu-%s-%s.gpg", ppaOwner, ppaRepo, ppaDist)
+		keyringPath := fmt.Sprintf("/etc/apt/keyrings/%s", keyringName)
+		listFilename := fmt.Sprintf("/etc/apt/sources.list.d/%s-ubuntu-%s-%s.list", ppaOwner, ppaRepo, ppaDist)
+		tmpKeyring := "/tmp/keyring.gpg"
+
+		// Remove any temporary gpg keyring
+		os.Remove(tmpKeyring)
+
+		// Fetch the key from keyserver using native Go implementation
+		keyData, err := fetchGPGKeyFromKeyserver(key, "keyserver.ubuntu.com")
+		if err != nil {
+			return fmt.Errorf(T("Failed to retrieve the PPA signing key: %w"), err)
 		}
 
-		// Add GPG key
-		cmd = exec.Command("sudo", "apt-key", "adv", "--keyserver", "hkp://keyserver.ubuntu.com:80", "--recv-keys", key)
+		// Ensure keyring folder exists
+		cmd = exec.Command("sudo", "mkdir", "-p", "/etc/apt/keyrings/")
 		if err := cmd.Run(); err != nil {
-			// Remove the list file if key addition fails
-			removeCmd := exec.Command("sudo", "rm", "-f", listFilename)
-			removeCmd.Run() // Ignore errors from removal
+			os.Remove(tmpKeyring)
+			return fmt.Errorf(T("Unable to create the keyring folder: %w"), err)
+		}
 
-			return fmt.Errorf(T("failed to sign the %s PPA: %w"), ppaName, err)
+		// Export the key to binary format and write to keyring file
+		exportedKeyData, err := exportGPGKey(keyData)
+		if err != nil {
+			return fmt.Errorf(T("Failed to export key for the %s PPA: %w"), ppaName, err)
+		}
+
+		// Write the exported key data to the keyring file
+		keyringFile, err := os.Create(keyringPath)
+		if err != nil {
+			return fmt.Errorf(T("Failed to create keyring file for the %s PPA: %w"), ppaName, err)
+		}
+		defer keyringFile.Close()
+
+		if _, err := keyringFile.Write(exportedKeyData); err != nil {
+			os.Remove(keyringPath) // Clean up on failure
+			return fmt.Errorf(T("Failed to write key to keyring for the %s PPA: %w"), ppaName, err)
+		}
+
+		// Write the sources.list.d entry with signed-by
+		sourcesLine := fmt.Sprintf("deb [signed-by=%s] https://ppa.launchpadcontent.net/%s/ubuntu %s main", keyringPath, ppaName, ppaDist)
+		cmd = exec.Command("sudo", "tee", listFilename)
+		cmd.Stdin = strings.NewReader(sourcesLine)
+		if err := cmd.Run(); err != nil {
+			return fmt.Errorf(T("Failed to add repository to sources.list: %w"), err)
 		}
 
 		// Update APT
@@ -1782,9 +1898,13 @@ func AddExternalRepo(reponame, pubkeyurl, uris, suites, components string, addit
 
 	// Check if links are valid
 	fmt.Println("add_external_repo: checking 3rd party pubkeyurl validity")
-	cmd := exec.Command("wget", "--spider", pubkeyurl)
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("add_external_repo: pubkeyurl isn't a valid link: %w", err)
+	resp, err := http.Get(pubkeyurl)
+	if err != nil {
+		return fmt.Errorf("add_external_repo: failed to reach pubkeyurl: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return fmt.Errorf("add_external_repo: pubkeyurl returned status code %d", resp.StatusCode)
 	}
 
 	// Make apt keyring directory if it doesn't exist
@@ -1822,32 +1942,46 @@ func AddExternalRepo(reponame, pubkeyurl, uris, suites, components string, addit
 		}
 	}
 
-	// Use a pipe to download the key and save it as a gpg keyring
-	downloadCmd := exec.Command("wget", "-qO-", pubkeyurl)
-	downloadOut, err := downloadCmd.StdoutPipe()
+	// Download the key and dearmor it using native Go implementation
+	keyResp, err := http.Get(pubkeyurl)
 	if err != nil {
-		return fmt.Errorf("add_external_repo: failed to create stdout pipe: %w", err)
+		return fmt.Errorf("add_external_repo: failed to download key from %s: %w", pubkeyurl, err)
+	}
+	defer keyResp.Body.Close()
+
+	if keyResp.StatusCode != http.StatusOK {
+		return fmt.Errorf("add_external_repo: failed to download key, got status %d", keyResp.StatusCode)
 	}
 
-	gpgCmd := exec.Command("sudo", "gpg", "--dearmor", "-o", keyringFile)
-	gpgCmd.Stdin = downloadOut
-
-	if err := downloadCmd.Start(); err != nil {
-		return fmt.Errorf("add_external_repo: failed to start download command: %w", err)
+	keyData, err := io.ReadAll(keyResp.Body)
+	if err != nil {
+		return fmt.Errorf("add_external_repo: failed to read key data: %w", err)
 	}
 
-	if err := gpgCmd.Run(); err != nil {
-		// Clean up if gpg command fails
-		exec.Command("sudo", "rm", "-f", sourcesFile).Run()
-		exec.Command("sudo", "rm", "-f", keyringFile).Run()
-		return fmt.Errorf("add_external_repo: download from specified pubkeyurl failed: %w", err)
+	// Dearmor the key data
+	dearmoredKeyData, err := dearmorGPGKey(keyData)
+	if err != nil {
+		// Clean up on failure
+		os.Remove(sourcesFile)
+		os.Remove(keyringFile)
+		return fmt.Errorf("add_external_repo: failed to dearmor key data: %w", err)
 	}
 
-	if err := downloadCmd.Wait(); err != nil {
-		// Clean up if download command fails
-		exec.Command("sudo", "rm", "-f", sourcesFile).Run()
-		exec.Command("sudo", "rm", "-f", keyringFile).Run()
-		return fmt.Errorf("add_external_repo: download from specified pubkeyurl failed: %w", err)
+	// Write the dearmored key data to the keyring file
+	keyringFileHandle, err := os.Create(keyringFile)
+	if err != nil {
+		// Clean up on failure
+		os.Remove(sourcesFile)
+		os.Remove(keyringFile)
+		return fmt.Errorf("add_external_repo: failed to create keyring file: %w", err)
+	}
+	defer keyringFileHandle.Close()
+
+	if _, err := keyringFileHandle.Write(dearmoredKeyData); err != nil {
+		// Clean up on failure
+		os.Remove(sourcesFile)
+		os.Remove(keyringFile)
+		return fmt.Errorf("add_external_repo: failed to write keyring file: %w", err)
 	}
 
 	// Create the .sources file
@@ -1971,7 +2105,7 @@ func AdoptiumInstaller() error {
 
 	// Determine if the OS is supported with a specific repository configuration
 	switch osCodename {
-	case "bionic", "focal", "jammy", "noble", "buster", "bullseye", "bookworm":
+	case "bionic", "focal", "jammy", "noble", "buster", "bullseye", "bookworm", "trixie":
 		// For supported OS versions, use the OS-specific repository
 		err = AddExternalRepo(
 			"adoptium",
@@ -2007,7 +2141,6 @@ func AdoptiumInstaller() error {
 }
 
 // PipxInstall installs packages using pipx, handling various distro and Python version requirements
-// This is a Go implementation of the original bash pipx_install function
 func PipxInstall(packages ...string) error {
 	if len(packages) == 0 {
 		return fmt.Errorf("%s", T("no packages specified for pipx installation"))
@@ -2081,23 +2214,30 @@ func PipxInstall(packages ...string) error {
 	fmt.Printf(T("Installing %s with pipx...\n"), strings.Join(packages, ", "))
 
 	// Create the pipx install command with environment variables
-	cmd := exec.Command("sudo", "-E", "bash", "-c",
+	installCmd := exec.Command("sudo", "-E", "bash", "-c",
 		fmt.Sprintf("PIPX_HOME=/usr/local/pipx PIPX_BIN_DIR=/usr/local/bin pipx install %s",
 			strings.Join(packages, " ")))
 
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	installCmd.Stdout = os.Stdout
+	installCmd.Stderr = os.Stderr
 
-	if err := cmd.Run(); err != nil {
+	if err := installCmd.Run(); err != nil {
 		return fmt.Errorf(T("failed to install %s with pipx: %w"), strings.Join(packages, " "), err)
 	}
+	
+	// Create the pipx upgrade command with environment variables
+	upgradeCmd := exec.Command("sudo", "-E", "bash", "-c",
+		fmt.Sprintf("PIPX_HOME=/usr/local/pipx PIPX_BIN_DIR=/usr/local/bin pipx upgrade %s",
+			strings.Join(packages, " ")))
+
+	upgradeCmd.Stdout = os.Stdout
+	upgradeCmd.Stderr = os.Stderr
 
 	fmt.Printf(T("Successfully installed %s with pipx\n"), strings.Join(packages, ", "))
 	return nil
 }
 
 // PipxUninstall uninstalls packages that were installed using pipx
-// This is a Go implementation of the original bash pipx_uninstall function
 func PipxUninstall(packages ...string) error {
 	if len(packages) == 0 {
 		return fmt.Errorf("%s", T("no packages specified for pipx uninstallation"))

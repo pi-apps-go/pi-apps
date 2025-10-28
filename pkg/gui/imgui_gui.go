@@ -19,8 +19,8 @@
 // This replaces the buggy xlunch X11 implementation with a modern, stable ImGui interface
 // Uses SDL2 backend for better cross-platform compatibility compared to GLFW
 
-//go:build cgo
-// +build cgo
+//go:build imgui
+// +build imgui
 
 package gui
 
