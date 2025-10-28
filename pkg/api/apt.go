@@ -15,7 +15,8 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 // Module: apt.go
-// Description: Provides functions for managing APT repositories.
+// Description: Provides functions for managing APT repositories and packages.
+// In order to allow multiple package managers at one, all package manager related functions (here for APT) are implemented in this file.
 
 package api
 
@@ -38,12 +39,6 @@ import (
 	"github.com/ProtonMail/gopenpgp/v3/armor"
 	"github.com/ProtonMail/gopenpgp/v3/crypto"
 )
-
-// getOriginalLang returns the original LANG environment variable set by the user
-func getOriginalLang() string {
-	// Now that AddEnglish() doesn't override locale variables, just use LANG directly
-	return os.Getenv("LANG")
-}
 
 // RepoAdd adds local package files to the /tmp/pi-apps-local-packages repository
 func RepoAdd(files ...string) error {
@@ -2140,130 +2135,535 @@ func AdoptiumInstaller() error {
 	return nil
 }
 
-// PipxInstall installs packages using pipx, handling various distro and Python version requirements
-func PipxInstall(packages ...string) error {
-	if len(packages) == 0 {
-		return fmt.Errorf("%s", T("no packages specified for pipx installation"))
+// PackageInstalled checks if a package is installed
+func PackageInstalled(packageName string) bool {
+	if packageName == "" {
+		Error("PackageInstalled(): no package specified!")
+		return false
 	}
 
-	// Use "pipx" as the app name for tracking dependencies
-	appName := "pipx"
-
-	// Check if pipx is available with a new enough version (>= 1.0.0)
-	pipxAvailable := PackageAvailable("pipx", "")
-
-	pipxNewEnough := false
-	if pipxAvailable {
-		pipxNewEnough = PackageIsNewEnough("pipx", "1.0.0")
-	}
-
-	if pipxAvailable && pipxNewEnough {
-		// Install pipx from package manager if it's available and new enough
-		if err := InstallPackages(appName, "pipx", "python3-venv"); err != nil {
-			return fmt.Errorf(T("failed to install pipx and python3-venv: %w"), err)
+	// Use dpkg to check if the package is installed
+	// Force English locale to ensure consistent error message parsing
+	cmd := exec.Command("dpkg", "-s", packageName)
+	cmd.Env = append(os.Environ(), "LANG=en_US.UTF-8", "LC_ALL=en_US.UTF-8")
+	if err := cmd.Run(); err != nil {
+		// Check if it's a specific dpkg error about package not being installed
+		if exitError, ok := err.(*exec.ExitError); ok {
+			stderr := string(exitError.Stderr)
+			if strings.Contains(stderr, "is not installed and no information is available") {
+				return false
+			}
 		}
+		return false
+	}
+
+	return true
+}
+
+// PackageAvailable determines if the specified package exists in a local repository
+func PackageAvailable(packageName string, dpkgArch string) bool {
+	if packageName == "" {
+		Error("PackageAvailable(): no package name specified!")
+		return false
+	}
+
+	// If dpkgArch is not specified, get the current architecture
+	if dpkgArch == "" {
+		cmd := exec.Command("dpkg", "--print-architecture")
+		cmd.Env = append(os.Environ(), "LANG=en_US.UTF-8", "LC_ALL=en_US.UTF-8")
+		output, err := cmd.Output()
+		if err != nil {
+			Debug("Error getting dpkg architecture: " + err.Error())
+			return false
+		}
+		dpkgArch = strings.TrimSpace(string(output))
+	}
+
+	// Use apt-cache to check if package is available
+	// Force English locale to ensure consistent output parsing
+	cmd := exec.Command("apt-cache", "policy", packageName+":"+dpkgArch)
+	cmd.Env = append(os.Environ(), "LANG=en_US.UTF-8", "LC_ALL=en_US.UTF-8")
+	output, err := cmd.Output()
+	if err != nil {
+		Debug("Error checking if package is available: " + err.Error())
+		return false
+	}
+
+	// Check if the output contains "Unable to locate package" even with exit code 0
+	outputStr := string(output)
+	if strings.Contains(outputStr, "Unable to locate package") {
+		return false
+	}
+
+	// Parse the output to see if a candidate version is available
+	lines := strings.Split(outputStr, "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "Candidate:") {
+			parts := strings.SplitN(line, ":", 2)
+			if len(parts) < 2 {
+				continue
+			}
+			candidate := strings.TrimSpace(parts[1])
+			// Package is available if candidate is not empty and not "(none)"
+			return candidate != "" && candidate != "(none)"
+		}
+	}
+
+	// If no Candidate line found, package is not available
+	return false
+}
+
+// PackageDependencies outputs the list of dependencies for the specified package
+//
+//	[]string - list of dependencies
+//	error - error if package is not specified
+func PackageDependencies(packageName string) ([]string, error) {
+	if packageName == "" {
+		Error("PackageDependencies(): no package specified!")
+		return nil, fmt.Errorf("no package specified")
+	}
+
+	// Get package info like the original implementation
+	info, err := PackageInfo(packageName)
+	if err != nil {
+		return nil, err
+	}
+
+	// Extract the Depends line from package info
+	var deps []string
+	for _, line := range strings.Split(info, "\n") {
+		if after, ok := strings.CutPrefix(line, "Depends:"); ok {
+			// Return the entire dependency line, which includes version requirements
+			depLine := strings.TrimSpace(after)
+			if depLine != "" {
+				return []string{depLine}, nil
+			}
+			break
+		}
+	}
+
+	return deps, nil
+}
+
+// PackageInstalledVersion returns the installed version of the specified package
+//
+//	"" - package is not installed
+//	version - package is installed
+func PackageInstalledVersion(packageName string) (string, error) {
+	if packageName == "" {
+		Error("PackageInstalledVersion(): no package specified!")
+		return "", fmt.Errorf("no package specified")
+	}
+
+	// Use dpkg to get the installed version
+	// Force English locale to ensure consistent output format
+	cmd := exec.Command("dpkg-query", "-W", "-f=${Version}", packageName)
+	cmd.Env = append(os.Environ(), "LANG=en_US.UTF-8", "LC_ALL=en_US.UTF-8")
+	output, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf(T("package %s is not installed"), packageName)
+	}
+
+	return strings.TrimSpace(string(output)), nil
+}
+
+// PackageLatestVersion returns the latest available version of the specified package
+//
+//	"" - package is not available
+//	version - package is available
+func PackageLatestVersion(packageName string, repo ...string) (string, error) {
+	if packageName == "" {
+		Error("PackageLatestVersion(): no package specified!")
+		return "", fmt.Errorf("no package specified")
+	}
+
+	// Optional repo selection flags
+	var additionalFlags []string
+	if len(repo) >= 2 && repo[0] == "-t" {
+		additionalFlags = []string{"-t", repo[1]}
+	}
+
+	// Get the latest version using apt-cache policy
+	// Force English locale to ensure consistent output parsing
+	var cmd *exec.Cmd
+	if len(additionalFlags) > 0 {
+		cmd = exec.Command("apt-cache", append([]string{"policy"}, append(additionalFlags, packageName)...)...)
 	} else {
-		// Check Python version to determine installation method
-		python3NewEnough := PackageIsNewEnough("python3", "3.7")
+		cmd = exec.Command("apt-cache", "policy", packageName)
+	}
+	cmd.Env = append(os.Environ(), "LANG=en_US.UTF-8", "LC_ALL=en_US.UTF-8")
 
-		if python3NewEnough {
-			// Python 3.7+ is available, install pipx using pip
-			if err := InstallPackages(appName, "python3-venv"); err != nil {
-				return fmt.Errorf(T("failed to install python3-venv: %w"), err)
+	output, err := cmd.Output()
+	if err != nil {
+		return "", err
+	}
+
+	outputStr := string(output)
+
+	// Check if the package cannot be located
+	if strings.Contains(outputStr, "N: Unable to locate package "+packageName) {
+		return "", fmt.Errorf("package %s is not available", packageName)
+	}
+
+	// Parse the output to extract the Candidate version
+	lines := strings.Split(outputStr, "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "Candidate:") {
+			parts := strings.SplitN(line, ":", 2)
+			if len(parts) < 2 {
+				continue
 			}
-
-			fmt.Println(T("Installing pipx with pip..."))
-			cmd := exec.Command("sudo", "-H", "python3", "-m", "pip", "install", "--upgrade", "pipx")
-			cmd.Stdout = os.Stdout
-			cmd.Stderr = os.Stderr
-			if err := cmd.Run(); err != nil {
-				return fmt.Errorf(T("failed to install pipx with pip: %w"), err)
+			version := strings.TrimSpace(parts[1])
+			// If candidate is "(none)", the package is not available
+			if version == "(none)" {
+				return "", fmt.Errorf("package %s is not available", packageName)
 			}
-		} else {
-			// Check if Python 3.8 is available
-			python38Available := PackageAvailable("python3.8", "")
-
-			if python38Available {
-				// Install Python 3.8 and its venv package
-				if err := InstallPackages(appName, "python3.8", "python3.8-venv"); err != nil {
-					return fmt.Errorf(T("failed to install python3.8 and python3.8-venv: %w"), err)
-				}
-
-				fmt.Println(T("Installing pipx with pip using Python 3.8..."))
-				cmd := exec.Command("sudo", "-H", "python3.8", "-m", "pip", "install", "--upgrade", "pipx")
-				cmd.Stdout = os.Stdout
-				cmd.Stderr = os.Stderr
-				if err := cmd.Run(); err != nil {
-					return fmt.Errorf(T("failed to install pipx with pip using python3.8: %w"), err)
-				}
-			} else {
-				// No suitable Python version found
-				return fmt.Errorf(T("pipx is not available on your distro and so cannot install %s to python venv"), strings.Join(packages, " "))
-			}
+			return version, nil
 		}
 	}
 
-	// Check if pipx command exists after installation
-	fmt.Println(T("Verifying pipx installation..."))
-	checkCmd := exec.Command("which", "pipx")
-	if err := checkCmd.Run(); err != nil {
-		return fmt.Errorf("%s", T("pipx installation failed: command not found after installation"))
+	// If no Candidate line found, package is not available
+	return "", fmt.Errorf("package %s is not available", packageName)
+}
+
+// RefreshAllPkgAppStatus updates the status of all package-apps
+func RefreshAllPkgAppStatus() error {
+	// Get the PI_APPS_DIR environment variable
+	directory := os.Getenv("PI_APPS_DIR")
+	if directory == "" {
+		return fmt.Errorf("PI_APPS_DIR environment variable not set")
 	}
 
-	// Install the requested packages with pipx
-	fmt.Printf(T("Installing %s with pipx...\n"), strings.Join(packages, ", "))
-
-	// Create the pipx install command with environment variables
-	installCmd := exec.Command("sudo", "-E", "bash", "-c",
-		fmt.Sprintf("PIPX_HOME=/usr/local/pipx PIPX_BIN_DIR=/usr/local/bin pipx install %s",
-			strings.Join(packages, " ")))
-
-	installCmd.Stdout = os.Stdout
-	installCmd.Stderr = os.Stderr
-
-	if err := installCmd.Run(); err != nil {
-		return fmt.Errorf(T("failed to install %s with pipx: %w"), strings.Join(packages, " "), err)
+	// Get all package-apps
+	packageApps, err := ListApps("package")
+	if err != nil {
+		return fmt.Errorf("error listing package apps: %w", err)
 	}
-	
-	// Create the pipx upgrade command with environment variables
-	upgradeCmd := exec.Command("sudo", "-E", "bash", "-c",
-		fmt.Sprintf("PIPX_HOME=/usr/local/pipx PIPX_BIN_DIR=/usr/local/bin pipx upgrade %s",
-			strings.Join(packages, " ")))
 
-	upgradeCmd.Stdout = os.Stdout
-	upgradeCmd.Stderr = os.Stderr
+	// Get system architecture
+	dpkgArch, err := getDpkgArchitecture()
+	if err != nil {
+		return fmt.Errorf("error getting dpkg architecture: %w", err)
+	}
 
-	fmt.Printf(T("Successfully installed %s with pipx\n"), strings.Join(packages, ", "))
+	// Gather all packages needed by package apps
+	var allPackages []string
+	for _, app := range packageApps {
+		packagesFile := filepath.Join(directory, "apps", app, "packages")
+		if !FileExists(packagesFile) {
+			continue
+		}
+
+		packages, err := readPackagesFile(packagesFile)
+		if err != nil {
+			Debug(fmt.Sprintf("Error reading packages for %s: %v", app, err))
+			continue
+		}
+
+		allPackages = append(allPackages, packages...)
+	}
+
+	// Format packages for apt-cache policy
+	var formattedPackages []string
+	for _, pkg := range allPackages {
+		formattedPackages = append(formattedPackages, fmt.Sprintf("%s:%s", pkg, dpkgArch))
+	}
+
+	// Get policy info for all packages at once
+	aptCacheOutput, err := getAptCachePolicy(formattedPackages)
+	if err != nil {
+		return fmt.Errorf("error getting apt-cache policy: %w", err)
+	}
+
+	// Get dpkg status for all packages
+	dpkgStatus, err := getDpkgStatus(allPackages)
+	if err != nil {
+		return fmt.Errorf("error getting dpkg status: %w", err)
+	}
+
+	// Use the collected data to refresh status for each package app
+	for _, app := range packageApps {
+		// We'll update through our own implementation rather than calling RefreshPkgAppStatus
+		// to avoid re-querying package status information
+		err := refreshPackageAppStatusWithCache(app, aptCacheOutput, dpkgStatus, directory)
+		if err != nil {
+			Debug(fmt.Sprintf("Error refreshing status for %s: %v", app, err))
+		}
+	}
+
 	return nil
 }
 
-// PipxUninstall uninstalls packages that were installed using pipx
-func PipxUninstall(packages ...string) error {
+// getDpkgArchitecture gets the current system architecture from dpkg
+//
+//	architecture - system architecture
+//	error - error if dpkg is not installed
+func getDpkgArchitecture() (string, error) {
+	cmd := exec.Command("dpkg", "--print-architecture")
+	output, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("error running dpkg --print-architecture: %w", err)
+	}
+	return strings.TrimSpace(string(output)), nil
+}
+
+// getAptCachePolicy runs apt-cache policy for the specified packages
+//
+//	"" - no packages specified
+//	aptCacheOutput - apt cache output
+//	error - error if apt-cache policy fails
+func getAptCachePolicy(packages []string) (string, error) {
 	if len(packages) == 0 {
-		return fmt.Errorf("%s", T("no packages specified for pipx uninstallation"))
+		return "", nil
 	}
 
-	// Check if pipx command exists
-	checkCmd := exec.Command("which", "pipx")
-	if err := checkCmd.Run(); err != nil {
-		return fmt.Errorf("%s", T("pipx is not installed: command not found"))
+	cmd := exec.Command("apt-cache", append([]string{"policy"}, packages...)...)
+	output, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("error running apt-cache policy: %w", err)
 	}
 
-	// Uninstall the requested packages with pipx
-	fmt.Printf(T("Uninstalling %s with pipx...\n"), strings.Join(packages, ", "))
+	return string(output), nil
+}
 
-	// Create the pipx uninstall command with environment variables
-	cmd := exec.Command("sudo", "-E", "bash", "-c",
-		fmt.Sprintf("PIPX_HOME=/usr/local/pipx PIPX_BIN_DIR=/usr/local/bin pipx uninstall %s",
-			strings.Join(packages, " ")))
-
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf(T("failed to uninstall %s with pipx: %w"), strings.Join(packages, " "), err)
+// getDpkgStatus gets the status of the specified packages from dpkg
+//
+//	"" - no packages specified
+//	dpkgStatus - dpkg status
+//	error - error if dpkg status fails
+func getDpkgStatus(packages []string) (string, error) {
+	if len(packages) == 0 {
+		return "", nil
 	}
 
-	fmt.Printf(T("Successfully uninstalled %s with pipx\n"), strings.Join(packages, ", "))
+	// Read the dpkg status file
+	statusData, err := os.ReadFile("/var/lib/dpkg/status")
+	if err != nil {
+		return "", fmt.Errorf("error reading dpkg status file: %w", err)
+	}
+
+	// Split the status file into package sections
+	sections := strings.Split(string(statusData), "\n\n")
+	var result strings.Builder
+
+	// Create a map for quick package lookup
+	packageMap := make(map[string]bool)
+	for _, pkg := range packages {
+		packageMap[pkg] = true
+	}
+
+	// Process each section
+	for _, section := range sections {
+		lines := strings.Split(section, "\n")
+		if len(lines) == 0 {
+			continue
+		}
+
+		// Check if this section is for one of our packages
+		if strings.HasPrefix(lines[0], "Package: ") {
+			pkgName := strings.TrimPrefix(lines[0], "Package: ")
+			if packageMap[pkgName] {
+				// Include this section and the next 2 lines
+				result.WriteString(section)
+				result.WriteString("\n\n")
+			}
+		}
+	}
+
+	return result.String(), nil
+}
+
+// refreshPackageAppStatusWithCache refreshes a single package-app status using cached apt and dpkg data
+func refreshPackageAppStatusWithCache(appName, aptCacheOutput, dpkgStatus, directory string) error {
+	packagesFile := filepath.Join(directory, "apps", appName, "packages")
+	if !FileExists(packagesFile) {
+		return fmt.Errorf("packages file does not exist for %s", appName)
+	}
+
+	// Read the packages file to get the list of packages
+	packages, err := readPackagesFile(packagesFile)
+	if err != nil {
+		return fmt.Errorf("error reading packages file: %w", err)
+	}
+
+	// Check if any package is installed
+	var installed bool
+	var availablePackage string
+
+	for _, pkg := range packages {
+		// Check if installed
+		if isPackageInstalledFromStatus(pkg, dpkgStatus) {
+			installed = true
+			availablePackage = pkg
+			break
+		}
+
+		// Check if available in repository
+		if isPackageAvailableFromPolicy(pkg, aptCacheOutput) {
+			availablePackage = pkg
+		}
+	}
+
+	// If no package is available, mark as hidden
+	if availablePackage == "" {
+		// Mark the app as hidden
+		Debug(fmt.Sprintf("Marking %s as hidden", appName))
+		err := RunCategoryEdit(appName, "hidden")
+		if err != nil {
+			return fmt.Errorf("error marking app as hidden: %w", err)
+		}
+		return nil
+	}
+
+	// Get current app status
+	status, err := GetAppStatus(appName)
+	if err != nil {
+		Debug(fmt.Sprintf("Error getting app status: %v", err))
+	}
+
+	if installed {
+		// If the package is installed, mark the app as installed
+		if status != "installed" {
+			Debug(fmt.Sprintf("Marking %s as installed", appName))
+			statusDir := filepath.Join(directory, "data", "status")
+			if err := os.MkdirAll(statusDir, 0755); err != nil {
+				return fmt.Errorf("error creating status directory: %w", err)
+			}
+
+			// Write "installed" to the status file
+			statusFile := filepath.Join(statusDir, appName)
+			if err := os.WriteFile(statusFile, []byte("installed"), 0644); err != nil {
+				return fmt.Errorf("error writing status file: %w", err)
+			}
+
+			// Send analytics
+			go func() {
+				ShlinkLink(appName, "install")
+			}()
+		}
+	} else {
+		// The package is not installed but available
+		if status != "uninstalled" {
+			Debug(fmt.Sprintf("Marking %s as uninstalled", appName))
+			// Remove the status file to mark it as uninstalled
+			statusFile := filepath.Join(directory, "data", "status", appName)
+			_ = os.Remove(statusFile) // Ignore error if file doesn't exist
+
+			// Send analytics
+			go func() {
+				ShlinkLink(appName, "uninstall")
+			}()
+		}
+	}
+
+	// Check if the app is currently hidden but should be unhidden
+	categoryOverridesFile := filepath.Join(directory, "data", "category-overrides")
+	if FileExists(categoryOverridesFile) {
+		// Check if app is marked as hidden in the category-overrides file
+		file, err := os.Open(categoryOverridesFile)
+		if err == nil {
+			defer file.Close()
+
+			scanner := bufio.NewScanner(file)
+			for scanner.Scan() {
+				line := scanner.Text()
+				if line == fmt.Sprintf("%s|hidden", appName) {
+					// App is hidden but should be unhidden
+					Debug(fmt.Sprintf("Unhiding %s as its packages are now available", appName))
+
+					// Get the original category from categories file
+					cat, err := getOriginalCategory(directory, appName)
+					if err != nil {
+						Debug(fmt.Sprintf("Error getting original category: %v", err))
+						cat = "Other" // Default to "Other" if there's an error
+					}
+
+					// Move app to original category
+					err = RunCategoryEdit(appName, cat)
+					if err != nil {
+						return fmt.Errorf("error unhiding app: %w", err)
+					}
+					break
+				}
+			}
+		}
+	}
+
 	return nil
+}
+
+// isPackageInstalledFromStatus checks if a package is installed by looking at the dpkg status
+//
+//	packageName - package name
+//	dpkgStatus - dpkg status
+//	false - package is not installed
+//	true - package is installed
+func isPackageInstalledFromStatus(packageName, dpkgStatus string) bool {
+	// Look for the package and check if it's installed
+	packageSection := fmt.Sprintf("Package: %s\n", packageName)
+	index := strings.Index(dpkgStatus, packageSection)
+	if index == -1 {
+		return false
+	}
+
+	// Check the status in the few lines after the package name
+	statusSection := dpkgStatus[index : index+200] // Look at a reasonable section after the package name
+	return strings.Contains(statusSection, "Status: install ok installed")
+}
+
+// isPackageAvailableFromPolicy checks if a package is available in repositories
+func isPackageAvailableFromPolicy(packageName, aptCacheOutput string) bool {
+	// Look for the package and check if there's a candidate
+	packageSection := fmt.Sprintf("%s:", packageName)
+	index := strings.Index(aptCacheOutput, packageSection)
+	if index == -1 {
+		return false
+	}
+
+	// Check a reasonable section after the package name for Candidate line
+	sectionEnd := index + 300
+	if sectionEnd > len(aptCacheOutput) {
+		sectionEnd = len(aptCacheOutput)
+	}
+	sectionText := aptCacheOutput[index:sectionEnd]
+
+	// Package is available if there's a Candidate line that's not "(none)"
+	candidateLine := regexp.MustCompile(`(?m)^  Candidate: (.+)$`).FindStringSubmatch(sectionText)
+	return len(candidateLine) > 1 && candidateLine[1] != "(none)"
+}
+
+// PackageInfo lists everything dpkg knows about the specified package
+func PackageInfo(packageName string) (string, error) {
+	if packageName == "" {
+		Error("PackageInfo(): no package specified!")
+		return "", fmt.Errorf("no package specified")
+	}
+
+	// Validate package name to prevent dpkg errors with spaces or invalid characters
+	if strings.ContainsAny(packageName, " \t\n\r") {
+		return "", fmt.Errorf("package name '%s' contains invalid characters (spaces or whitespace)", packageName)
+	}
+
+	// We'll directly use exec.Command to get package info since syspkg doesn't
+	// seem to have a direct method for detailed package info
+	// Force English locale to ensure consistent error message parsing
+	cmd := exec.Command("dpkg", "-s", packageName)
+	cmd.Env = append(os.Environ(), "LANG=en_US.UTF-8", "LC_ALL=en_US.UTF-8")
+	output, err := cmd.Output()
+	if err != nil {
+		// Check if it's a specific dpkg error about package not being installed
+		if exitError, ok := err.(*exec.ExitError); ok {
+			stderr := string(exitError.Stderr)
+			if strings.Contains(stderr, "is not installed and no information is available") {
+				return "", fmt.Errorf(T("package '%s' is not installed and no information is available"), packageName)
+			}
+			// for debugging purposes show the output of the command
+			Debug("Output of dpkg -s " + packageName + ": " + string(stderr))
+		}
+		return "", fmt.Errorf("failed to get package info: %w", err)
+	}
+
+	return string(output), nil
 }

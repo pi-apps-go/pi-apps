@@ -102,7 +102,7 @@ func Init() {
 	PRETTY_NAME = lsb.PRETTY_NAME
 	VERSION_ID = lsb.VERSION_ID
 	VERSION_CODENAME = lsb.VERSION_CODENAME
-	        
+
 }
 
 // symlink Init to init to let Go automatically run this function
@@ -273,7 +273,8 @@ func CommandExists(command string) bool {
 
 // initSystemInfo gets system information using lsb_release
 func initSystemInfo() {
-	// Check
+	// Check (no longer needed as lsb-release is now included in Pi-Apps Go)
+	// TODO: Remove this completely in the future
 	if !CommandExists("lsb_release") {
 		Status("Installing lsb_release, please wait...")
 		runCommand("sudo", "apt", "install", "-y", "lsb-release")

@@ -362,6 +362,7 @@ func DiagnoseApps(failureList string) []DiagnoseResult {
 		// Add support links
 		appType, _ := AppType(appName)
 
+		// TODO: Change this below message depending on the package manager being used.
 		if appType == "package" {
 			headerText += "\nAs this is an APT error, consider Googling the errors or asking for help in the <a href=\"https://forums.raspberrypi.com\">Raspberry Pi Forums</a>."
 		} else {

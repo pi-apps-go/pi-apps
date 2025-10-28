@@ -1077,7 +1077,8 @@ func showBasicsDialog(currentName, currentType string) (string, string, string, 
 			return "", "", "", fmt.Errorf("failed to create combo box: %v", err)
 		}
 		typeCombo.AppendText("standard - Use scripts to install the app")
-		typeCombo.AppendText("package - Will install apt package(s)")
+		// TODO: Change this below message depending on the package manager being used.
+		typeCombo.AppendText(fmt.Sprintf("package - Will install %s package(s)", PackageManager))
 		typeCombo.AppendText("flatpak_package - Will install flatpak package(s)")
 		typeCombo.SetActive(0) // Default to standard
 		grid.Attach(typeCombo, 1, 1, 1, 1)
@@ -1866,55 +1867,6 @@ func showAppDetailsDialog(appName, appType string) (string, *AppDetails, error) 
 	}
 }
 
-// getIconFromPackage tries to find an icon for the given package
-func getIconFromPackage(packageName, piAppsDir string) string {
-	// ensure piAppsDir is set
-	if piAppsDir == "" {
-		piAppsDir = GetPiAppsDir()
-		os.Setenv("PI_APPS_DIR", piAppsDir)
-	}
-	// Try running dpkg -L command to list files in the package
-	cmd := exec.Command("dpkg", "-L", packageName)
-	output, err := cmd.Output()
-	if err != nil {
-		// Package not installed, try apt-file
-		if commandExists("apt-file") {
-			cmd = exec.Command("apt-file", "list", packageName)
-			output, err = cmd.Output()
-			if err != nil {
-				return ""
-			}
-		} else {
-			return ""
-		}
-	}
-
-	// Look for icon files in the output
-	lines := strings.Split(string(output), "\n")
-	for _, line := range lines {
-		// For apt-file output, extract the filepath
-		if strings.Contains(line, ":") {
-			parts := strings.SplitN(line, ":", 2)
-			if len(parts) >= 2 {
-				line = parts[1]
-			}
-		}
-
-		// Look for icon files in standard directories
-		if (strings.Contains(line, "/icons/") || strings.Contains(line, "/pixmaps/")) &&
-			(strings.HasSuffix(line, ".png") || strings.HasSuffix(line, ".svg") ||
-				strings.HasSuffix(line, ".xpm") || strings.HasSuffix(line, ".jpg")) {
-			// Check if the file exists
-			if _, err := os.Stat(line); err == nil {
-				return line
-			}
-		}
-	}
-
-	// If we couldn't find an icon, return empty string
-	return ""
-}
-
 // getFlatpakIconFromPackage tries to find an icon for the given flatpak package
 func getFlatpakIconFromPackage(packageName, piAppsDir string) string {
 	// ensure piAppsDir is set
@@ -2041,28 +1993,6 @@ func copyFile(src, dst string) error {
 
 	_, err = io.Copy(destFile, sourceFile)
 	return err
-}
-
-// checkShellcheck verifies shellcheck is installed, prompts to install it if not
-func checkShellcheck() error {
-	// Check if shellcheck is installed
-	if !commandExists("shellcheck") {
-		// Ask if they want to install shellcheck
-		dialog := gtk.MessageDialogNew(nil, gtk.DIALOG_MODAL, gtk.MESSAGE_QUESTION, gtk.BUTTONS_YES_NO,
-			"Shellcheck is not installed, but it's useful for finding errors in shell scripts. Install it now?")
-		response := dialog.Run()
-		dialog.Destroy()
-
-		if response == gtk.RESPONSE_YES {
-			cmd := exec.Command("sudo", "apt-get", "install", "-y", "shellcheck")
-			cmd.Stdout = os.Stdout
-			cmd.Stderr = os.Stderr
-			if err := cmd.Run(); err != nil {
-				return fmt.Errorf("failed to install shellcheck: %v", err)
-			}
-		}
-	}
-	return nil
 }
 
 // runShellcheck executes shellcheck on the given script file

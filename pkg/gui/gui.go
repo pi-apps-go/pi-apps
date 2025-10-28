@@ -2886,11 +2886,3 @@ func (g *GUI) setupClickableLinks(textView *gtk.TextView, text string) {
 		buffer.Insert(endIter, linkNote)
 	}
 }
-
-// minInt returns the minimum of two integers
-func minInt(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}

@@ -333,3 +333,9 @@ func apiDirExists(path string) bool {
 	info, err := os.Stat(path)
 	return err == nil && info.IsDir()
 }
+
+// getOriginalLang returns the original LANG environment variable set by the user
+func getOriginalLang() string {
+	// Now that AddEnglish() doesn't override locale variables, just use LANG directly
+	return os.Getenv("LANG")
+}

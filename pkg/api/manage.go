@@ -185,15 +185,21 @@ func ManageApp(action Action, appName string, isUpdate bool) error {
 				return fmt.Errorf("no installable packages specified for app %s", appName)
 			}
 
-			// Set up apt command
-			aptAction := "install"
-			if action == ActionUninstall {
-				aptAction = "purge --autoremove"
+			switch action {
+			case ActionInstall:
+				err := installPackageAppDependencies(packages)
+				if err != nil {
+					return fmt.Errorf("failed to install package app: %w", err)
+				}
+				return nil
+			case ActionUninstall:
+				err := uninstallPackageAppDependencies(packages)
+				if err != nil {
+					return fmt.Errorf("failed to uninstall package app: %w", err)
+				}
+				return nil
 			}
-
-			// For package type apps, use apt
-			cmd = exec.Command("sudo", "apt", aptAction, "-yf")
-			cmd.Args = append(cmd.Args, strings.Fields(packages)...)
+			return fmt.Errorf("unsupported action %s for package app", action)
 		default:
 			return fmt.Errorf("unknown app type: %s", appType)
 		}
@@ -628,72 +634,6 @@ func MultiUninstall(appList []string) error {
 }
 
 // Helper functions
-
-// installPackageApp installs a package-based app
-func installPackageApp(appName string) error {
-	// Show colored status message
-	Status(fmt.Sprintf("Installing \033[1m%s\033[22m...", appName))
-
-	packageListPath := filepath.Join(getPiAppsDir(), "apps", appName, "packages")
-
-	// Read packages list
-	packageListBytes, err := os.ReadFile(packageListPath)
-	if err != nil {
-		return fmt.Errorf("failed to read packages list: %v", err)
-	}
-
-	packageList := strings.TrimSpace(string(packageListBytes))
-	packages := strings.Fields(packageList)
-
-	// Install packages with sudo
-	cmd := exec.Command("sudo", append([]string{"apt-get", "install", "-y"}, packages...)...)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	err = cmd.Run()
-	if err != nil {
-		return fmt.Errorf("failed to install packages: %v", err)
-	}
-
-	// Show success message
-	StatusGreen(fmt.Sprintf("Installed %s successfully.", appName))
-
-	// Mark app as installed
-	return markAppAsInstalled(appName)
-}
-
-// uninstallPackageApp uninstalls a package-based app
-func uninstallPackageApp(appName string) error {
-	// Show colored status message
-	Status(fmt.Sprintf("Uninstalling \033[1m%s\033[22m...", appName))
-
-	packageListPath := filepath.Join(getPiAppsDir(), "apps", appName, "packages")
-
-	// Read packages list
-	packageListBytes, err := os.ReadFile(packageListPath)
-	if err != nil {
-		return fmt.Errorf("failed to read packages list: %v", err)
-	}
-
-	packageList := strings.TrimSpace(string(packageListBytes))
-	packages := strings.Fields(packageList)
-
-	// Uninstall packages with sudo
-	cmd := exec.Command("sudo", append([]string{"apt-get", "remove", "-y"}, packages...)...)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	err = cmd.Run()
-	if err != nil {
-		return fmt.Errorf("failed to uninstall packages: %v", err)
-	}
-
-	// Show success message
-	StatusGreen(fmt.Sprintf("Uninstalled %s successfully.", appName))
-
-	// Mark app as uninstalled
-	return markAppAsUninstalled(appName)
-}
 
 // installFlatpakApp installs a flatpak app based on the flatpak_packages file
 func installFlatpakApp(appName string) error {
