@@ -14,9 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// Module: apt.go
-// Description: Provides functions for managing APT repositories and packages.
-// In order to allow multiple package managers at one, all package manager related functions (here for APT) are implemented in this file.
+// Module: dummy.go
+// Description: Provides dummy functions for managing repositories and packages if no package manager build tag is set.
 
 //go:build dummy
 
@@ -110,9 +109,6 @@ func AptLockWait() error {
 		time.Sleep(1 * time.Second)
 	}
 
-	// Try to install a non-existent package to see if apt fails due to a lock-file
-	// NOTE: This check needs to be resilient to APT 3.0's UI changes, which may affect the error message format
-	// APT 3.0 is on Debian 13+/Ubuntu 25.04+ which uses colors extensively for the UI and as a result partially changed the output format
 	for {
 		// return nothing if no package manager build tag is set
 		time.Sleep(1 * time.Second)
@@ -320,8 +316,7 @@ func DebianPPAInstaller(ppaName, ppaDist, key string) error {
 	return nil
 }
 
-// AddExternalRepo adds an external apt repository and its gpg key
-// Follows https://wiki.debian.org/DebianRepository/UseThirdParty specification with deb822 format
+// AddExternalRepo adds an external package manager repository
 func AddExternalRepo(reponame, pubkeyurl, uris, suites, components string, additionalOptions ...string) error {
 	// Check if all needed vars are set
 	if reponame == "" {
@@ -346,7 +341,7 @@ func AddExternalRepo(reponame, pubkeyurl, uris, suites, components string, addit
 	return nil
 }
 
-// RmExternalRepo removes an external apt repository and its gpg key
+// RmExternalRepo removes an external package manager repository
 // If force is true, it removes the repo regardless of whether it's in use
 func RmExternalRepo(reponame string, force bool) error {
 	if reponame == "" {
@@ -444,10 +439,10 @@ func getDpkgArchitecture() (string, error) {
 	return "", fmt.Errorf("failed to get dpkg architecture: no package manager build tag is set")
 }
 
-// getAptCachePolicy runs apt-cache policy for the specified packages
+// getAptCachePolicy runs the package manager's policy command for the specified packages
 //
 //	"" - no packages specified
-//	aptCacheOutput - apt cache output
+//	packageManagerCachePolicyOutput - package manager cache policy output
 //	error - error if apt-cache policy fails
 func getAptCachePolicy(packages []string) (string, error) {
 	// return empty string if no package manager build tag is set
@@ -487,14 +482,14 @@ func isPackageAvailableFromPolicy(packageName, aptCacheOutput string) bool {
 	return false
 }
 
-// PackageInfo lists everything dpkg knows about the specified package
+// PackageInfo lists everything the package manager knows about the specified package
 func PackageInfo(packageName string) (string, error) {
 	if packageName == "" {
 		Error("PackageInfo(): no package specified!")
 		return "", fmt.Errorf("no package specified")
 	}
 
-	// Validate package name to prevent dpkg errors with spaces or invalid characters
+	// Validate package name to prevent package manager errors with spaces or invalid characters
 	if strings.ContainsAny(packageName, " \t\n\r") {
 		return "", fmt.Errorf("package name '%s' contains invalid characters (spaces or whitespace)", packageName)
 	}
