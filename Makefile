@@ -8,6 +8,16 @@ BUILD_DATE=$(shell date -u +%Y-%m-%dT%H:%M:%SZ || echo "Warning: unable to get c
 GIT_COMMIT_HASH=$(shell git rev-parse HEAD || echo "Warning: unable to get Git commit hash")
 LDFLAGS=-X main.BuildDate="$(BUILD_DATE)" -X main.GitCommit="$(GIT_COMMIT_HASH)"
 
+PKG_MGR := $(shell \
+    if command -v apt >/dev/null 2>&1; then echo apt; \
+    elif command -v apk >/dev/null 2>&1; then echo apk; \
+    else echo dummy; fi)
+
+ifeq ($(PKG_MGR),dummy)
+$(warning "Unknown package manager, using dummy package manager")
+PKG_MGR := dummy
+endif
+
 all: build
 
 build: build-api build-pi-apps build-manage build-settings build-updater build-gui build-xpi-apps
@@ -18,52 +28,46 @@ build-with-multi-call: build-multi-call-pi-apps
 build-with-multi-call-debug: build-multi-call-pi-apps-debug
 
 build-api:
-	go build -o bin/api -ldflags "$(LDFLAGS) -w -s" -trimpath ./cmd/api
+	go build -o bin/api -ldflags "$(LDFLAGS) -w -s" -trimpath -tags=$(PKG_MGR) ./cmd/api
 
 build-pi-apps:
-	go build -o bin/pi-apps -ldflags "$(LDFLAGS) -w -s" -trimpath ./cmd/pi-apps
+	go build -o bin/pi-apps -ldflags "$(LDFLAGS) -w -s" -trimpath -tags=$(PKG_MGR) ./cmd/pi-apps
 
 build-api-debug:
-	go build -o bin/api -ldflags "$(LDFLAGS)" ./cmd/api
+	go build -o bin/api -ldflags "$(LDFLAGS)" -tags=$(PKG_MGR) ./cmd/api
 
 build-pi-apps-debug:
-	go build -o bin/pi-apps -ldflags "$(LDFLAGS)" ./cmd/pi-apps
+	go build -o bin/pi-apps -ldflags "$(LDFLAGS)" -tags=$(PKG_MGR) ./cmd/pi-apps
 
 build-manage:
-	go build -o bin/manage -ldflags "$(LDFLAGS) -w -s" -trimpath ./cmd/manage/main.go
+	go build -o bin/manage -ldflags "$(LDFLAGS) -w -s" -trimpath -tags=$(PKG_MGR) ./cmd/manage/main.go
 
 build-manage-debug:
-	go build -o bin/manage -ldflags "$(LDFLAGS)" ./cmd/manage/main.go
+	go build -o bin/manage -ldflags "$(LDFLAGS)" -tags=$(PKG_MGR) ./cmd/manage/main.go
 
 build-gui:
-	go build -o bin/gui -ldflags "$(LDFLAGS) -w -s" -trimpath ./cmd/gui/main.go
+	go build -o bin/gui -ldflags "$(LDFLAGS) -w -s" -trimpath -tags=$(PKG_MGR) ./cmd/gui/main.go
 
 build-gui-debug:
-	go build -o bin/gui -ldflags "$(LDFLAGS)" ./cmd/gui/main.go
-
-build-gui-with-xlunch:
-	go build -o bin/gui -ldflags "$(LDFLAGS) -w -s" -tags=xlunch -trimpath ./cmd/gui/main.go
-
-build-gui-with-xlunch-debug:
-	go build -o bin/gui -ldflags "$(LDFLAGS)" -tags=xlunch ./cmd/gui/main.go
+	go build -o bin/gui -ldflags "$(LDFLAGS)" -tags=$(PKG_MGR) ./cmd/gui/main.go
 
 build-settings:
-	go build -o bin/settings -ldflags "$(LDFLAGS) -w -s" -trimpath ./cmd/settings
+	go build -o bin/settings -ldflags "$(LDFLAGS) -w -s" -trimpath -tags=$(PKG_MGR) ./cmd/settings
 
 build-settings-debug:
-	go build -o bin/settings -ldflags "$(LDFLAGS)" ./cmd/settings
+	go build -o bin/settings -ldflags "$(LDFLAGS)" -tags=$(PKG_MGR) ./cmd/settings
 
 build-updater:
-	go build -o bin/updater -ldflags "$(LDFLAGS) -w -s" -trimpath ./cmd/updater
+	go build -o bin/updater -ldflags "$(LDFLAGS) -w -s" -trimpath -tags=$(PKG_MGR) ./cmd/updater
 
 build-updater-debug:
-	go build -o bin/updater -ldflags "$(LDFLAGS)" ./cmd/updater
+	go build -o bin/updater -ldflags "$(LDFLAGS)" -tags=$(PKG_MGR) ./cmd/updater
 
 build-xpi-apps:
-	go build -o bin/xpi-apps -ldflags "$(LDFLAGS) -w -s" -trimpath ./cmd/xpi-apps
+	go build -o bin/xpi-apps -ldflags "$(LDFLAGS) -w -s" -trimpath -tags=$(PKG_MGR) ./cmd/xpi-apps
 
 build-xpi-apps-debug:
-	go build -o bin/xpi-apps -ldflags "$(LDFLAGS)" ./cmd/xpi-apps
+	go build -o bin/xpi-apps -ldflags "$(LDFLAGS)" -tags=$(PKG_MGR) ./cmd/xpi-apps
 
 # Note: error-report-server is not meant to be compiled by a user and is not included during compiling unless you are hosting the error report server yourself.
 build-error-report-server:
@@ -74,10 +78,10 @@ build-error-report-server-debug:
 
 # If multi-call-pi-apps is used, the normal pi-apps-go seperated binaries cannot be used at the same time..
 build-multi-call-pi-apps:
-	go build -o bin/multi-call-pi-apps -ldflags "$(LDFLAGS) -w -s" -trimpath ./cmd/multi-call-pi-apps
+	go build -o bin/multi-call-pi-apps -ldflags "$(LDFLAGS) -w -s" -trimpath -tags=$(PKG_MGR) ./cmd/multi-call-pi-apps
 
 build-multi-call-pi-apps-debug:
-	go build -o bin/multi-call-pi-apps -ldflags "$(LDFLAGS)" ./cmd/multi-call-pi-apps
+	go build -o bin/multi-call-pi-apps -ldflags "$(LDFLAGS)" -tags=$(PKG_MGR) ./cmd/multi-call-pi-apps
 
 clean:
 	rm -rf bin/ api-go manage pi-apps settings updater gui error-report-server multi-call-pi-apps xpi-apps

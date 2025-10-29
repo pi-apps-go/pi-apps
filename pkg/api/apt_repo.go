@@ -17,6 +17,8 @@
 // Module: apt_repo.go
 // Description: Provides functions for managing APT repositories.
 
+//go:build apt
+
 package api
 
 import (

@@ -14,8 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// Module: flatpak.go
-// Description: Provides functions for managing flatpak apps.
+// Module: apt_flatpak.go
+// Description: Provides functions for managing flatpak apps when using the APT package manager.
+
+//go:build apt
 
 package api
 

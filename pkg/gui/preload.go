@@ -529,7 +529,7 @@ func getCategoryDescription(category string) string {
 		"Installed":         "All Pi-Apps Apps that you have installed.",
 		"Internet":          "Browsers, Chat Clients, Email Clients, and so much more.",
 		"Multimedia":        "Video playback and creation, audio playback and creation, and streaming alternatives.",
-		"Packages":          "Simple Apps that install directly from APT repos.",
+		"Packages":          "Simple Apps that install directly from distribution repos (like APT).",
 		"Tools":             "An assortment of helpful programs that don't already fit into another category.",
 		"Terminals":         "Alternative terminal programs built for the modern age as well as to replicate your old vintage computer.",
 		"Programming":       "Code editors, IDEs, and other applications to help you write and make other programs.",

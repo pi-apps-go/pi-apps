@@ -14,9 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// Module: preload_daemon.go
-// Description: Background daemon for refreshing app list files.
+// Module: preload_daemon_stub.go
+// Description: Background daemon for refreshing app list files (stub).
 // This replaces the bash preload-daemon script functionality for the Go rewrite.
+
+//go:build dummy
 
 package gui
 
@@ -180,42 +182,23 @@ func (d *PreloadDaemon) refreshAll() {
 	logger.Info("Preload-daemon done")
 }
 
-// refreshPackageAppStatus refreshes package app status if dpkg status has changed
+// refreshPackageAppStatus (stub): returns a stub status file for testing/non-APT builds
 func (d *PreloadDaemon) refreshPackageAppStatus() error {
-	dpkgStatusFile := "/var/lib/dpkg/status"
-	timestampFile := filepath.Join(d.directory, "data", "preload", "timestamps-dpkg-status")
-
-	// Get current dpkg status modification time
-	stat, err := os.Stat(dpkgStatusFile)
-	if err != nil {
-		// dpkg status file doesn't exist or can't be read, skip
-		return nil
-	}
-	currentTime := fmt.Sprintf("%d", stat.ModTime().Unix())
-
-	// Check if it has changed
-	savedTime, err := os.ReadFile(timestampFile)
-	if err == nil && string(savedTime) == currentTime {
-		// No change, skip refresh
-		return nil
-	}
-
-	logger.Info("Refreshing pkgapp_status...")
-
-	// Save new timestamp
+	// Write a stub file indicating this function was called
 	preloadDir := filepath.Join(d.directory, "data", "preload")
+	stubFile := filepath.Join(preloadDir, "timestamps-dpkg-status")
 	if err := os.MkdirAll(preloadDir, 0755); err != nil {
-		logger.Error(fmt.Sprintf("failed to create preload directory: %v\n", err))
-		return fmt.Errorf("failed to create preload directory: %w", err)
+		logger.Error(fmt.Sprintf("failed to create preload directory for stub: %v\n", err))
+		return fmt.Errorf("failed to create preload directory for stub: %w", err)
 	}
-
-	if err := os.WriteFile(timestampFile, []byte(currentTime), 0644); err != nil {
-		logger.Error(fmt.Sprintf("failed to save dpkg timestamp: %v\n", err))
-		return fmt.Errorf("failed to save dpkg timestamp: %w", err)
+	stubContent := []byte("stub-dpkg-status\n")
+	if err := os.WriteFile(stubFile, stubContent, 0644); err != nil {
+		logger.Error(fmt.Sprintf("failed to write stub dpkg status: %v\n", err))
+		return fmt.Errorf("failed to write stub dpkg status: %w", err)
 	}
-
-	// Call API function to refresh package app status
-	return api.RefreshAllPkgAppStatus()
+	// Optionally log that this is a stub action
+	logger.Info("refreshPackageAppStatus stub: wrote dummy status file")
+	return nil
 }
 
 // getFoldersToPreload gets the list of all folders that should be preloaded

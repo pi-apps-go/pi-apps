@@ -888,7 +888,7 @@ func LogDiagnose(logfilePath string, allowWrite bool) (*ErrorDiagnosis, error) {
 				"#deb-src http://archive.raspberrypi.com/debian/ "+getCodename()+" main")
 		diagnosis.ErrorType = "system"
 	}
-	
+
 	if rpiIssueExists && (!raspiSourcesExists || !containsRaspiRepo("/etc/apt/sources.list.d/raspi.sources")) {
 		diagnosis.Captions = append(diagnosis.Captions,
 			"Packages failed to install because you seem to have deleted or altered an important repository file in /etc/apt/sources.list.d\n\n"+
@@ -977,7 +977,7 @@ func LogDiagnose(logfilePath string, allowWrite bool) (*ErrorDiagnosis, error) {
 			diagnosis.ErrorType = "system"
 		}
 	}
-	
+
 	// check for "unable to securely remove '.*': Bad message"
 	regexBadMessage := regexp.MustCompile(`unable to securely remove '.*': Bad message`)
 	if regexBadMessage.MatchString(errors) {
@@ -1002,7 +1002,7 @@ func LogDiagnose(logfilePath string, allowWrite bool) (*ErrorDiagnosis, error) {
 				"sudo rm -rf /etc/modules-load.d/anbox.conf /lib/udev/rules.d/99-anbox.rules /usr/src/anbox-ashmem-1/ /usr/src/anbox-binder-1/ /var/lib/dkms/anbox-*")
 		diagnosis.ErrorType = "package"
 	}
-	
+
 	// check for "M=/var/lib/dkms/xone.*bad exit status"
 	regexXoneCompileFailure := regexp.MustCompile(`M=/var/lib/dkms/xone.*bad exit status`)
 	if regexXoneCompileFailure.MatchString(errors) {
@@ -1538,7 +1538,7 @@ func LogDiagnose(logfilePath string, allowWrite bool) (*ErrorDiagnosis, error) {
 				"Please check your internet connection and try again. If you're behind a proxy, make sure it's configured correctly for Cargo.")
 		diagnosis.ErrorType = "internet"
 	}
-	
+
 	// Check for ERROR: Downloaded system image hash doesn't match, expected <hash> from Waydroid
 	regexHashDoesNotMatch := regexp.MustCompile(`ERROR: Downloaded system image hash doesn't match, expected`)
 	if regexHashDoesNotMatch.MatchString(errors) {
@@ -1546,7 +1546,7 @@ func LogDiagnose(logfilePath string, allowWrite bool) (*ErrorDiagnosis, error) {
 			"Waydroid OS image download failed. Check your internet connection and firewall, then try again.")
 		diagnosis.ErrorType = "internet"
 	}
-	
+
 	// other system errors below
 
 	// check for modprobe: FATAL: Module .* not found in directory
@@ -1915,19 +1915,19 @@ func LogDiagnose(logfilePath string, allowWrite bool) (*ErrorDiagnosis, error) {
 				"Try installing the required rustc target with: rustup target add <target>")
 		diagnosis.ErrorType = "system"
 	}
-	
+
 	// temporary debian trixie error diagnosis (doesn't block sending error reports but does show info to users if there is no other automatic diagnosis)
-	
+
 	if NAME == "Debian" || NAME == "Raspbian" && VERSION_ID == "13" {
 		diagnosis.Captions = append(diagnosis.Captions,
 			"All the Pi-Apps Go apps are not yet supported in Trixie.\n\n"+
-			"We are tracking all apps that fail to install on PiOS Trixie from upstream issue https://github.com/Botspot/pi-apps/issues/2829\n"+
-			"Each comment contains a link to the offending actions run showing the install failure. Please check your app that you tried to install that failed to see if it is already reported.\n\n"+
-			"Now would be a great time for Beta Testers to get involved with debugging and triaging these issues.\n"+
-			"In a lot of cases these are issues with the upstream projects (not pi-apps).\n"+
-			"Please open a bug report at the upstream project for the failure and link back to the pi-apps issue if this is the case.\n\n"+
-			"We will make an announcement via our Sharkey server/Github issue when most of these compatibility issues have been resolved.\n"+
-			"Most users should please continue to use PiOS Bookworm for the best Pi-Apps Go compatibility for the time being.")
+				"We are tracking all apps that fail to install on PiOS Trixie from upstream issue https://github.com/Botspot/pi-apps/issues/2829\n"+
+				"Each comment contains a link to the offending actions run showing the install failure. Please check your app that you tried to install that failed to see if it is already reported.\n\n"+
+				"Now would be a great time for Beta Testers to get involved with debugging and triaging these issues.\n"+
+				"In a lot of cases these are issues with the upstream projects (not pi-apps).\n"+
+				"Please open a bug report at the upstream project for the failure and link back to the pi-apps issue if this is the case.\n\n"+
+				"We will make an announcement via our Sharkey server/Github issue when most of these compatibility issues have been resolved.\n"+
+				"Most users should please continue to use PiOS Bookworm for the best Pi-Apps Go compatibility for the time being.")
 		diagnosis.ErrorType = "Operating_System_Release"
 	}
 

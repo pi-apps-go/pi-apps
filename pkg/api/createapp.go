@@ -2308,10 +2308,16 @@ func showSuccessDialog(appName string, piAppsDir string) {
 	textView.SetCursorVisible(false)
 	textBuffer, _ := textView.GetBuffer()
 
+	account, repo := GetGitUrl()
 	// Format message
 	message := fmt.Sprintf(
-		"Your app is located at %s/apps/%s\n\nTo add your app to the Pi-Apps official repository, put that folder in a .ZIP file and open an issue on the Pi-Apps repository: https://github.com/Botspot/pi-apps/issues/new/choose",
-		piAppsDir, appName)
+		"Your app is located at %s/apps/%s\n\nTo add your app to the Pi-Apps official repository, put that folder in a .ZIP file and open an issue on the Pi-Apps repository: https://github.com/%s/%s/issues/new/choose",
+		piAppsDir, appName, account, repo)
+	if account == "" || repo == "" {
+		message = fmt.Sprintf(
+			"Your app is located at %s/apps/%s\n\nTo add your app to the Pi-Apps official repository, put that folder in a .ZIP file and open an issue on the Pi-Apps repository: https://github.com/pi-apps-go/pi-apps-go/issues/new/choose",
+			piAppsDir, appName)
+	}
 
 	textBuffer.SetText(message)
 

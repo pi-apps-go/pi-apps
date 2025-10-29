@@ -364,9 +364,14 @@ func DiagnoseApps(failureList string) []DiagnoseResult {
 
 		// TODO: Change this below message depending on the package manager being used.
 		if appType == "package" {
-			headerText += "\nAs this is an APT error, consider Googling the errors or asking for help in the <a href=\"https://forums.raspberrypi.com\">Raspberry Pi Forums</a>."
+			headerText += "\n" + PackageAppErrorMessage
 		} else {
-			headerText += "\nSupport is available on <a href=\"https://discord.gg/RXSTvaUvuu\">Discord</a> and <a href=\"https://github.com/Botspot/pi-apps/issues/new/choose\">Github</a>."
+			account, repo := GetGitUrl()
+			if account == "" || repo == "" {
+				headerText += "\nSupport is available on <a href=\"https://discord.gg/RXSTvaUvuu\">Discord</a> and <a href=\"https://github.com/pi-apps-go/pi-apps-go/issues/new/choose\">Github</a>."
+			} else {
+				headerText += fmt.Sprintf("\nSupport is available on <a href=\"https://discord.gg/RXSTvaUvuu\">Discord</a> and <a href=\"https://github.com/%s/%s/issues/new/choose\">Github</a>.", account, repo)
+			}
 		}
 
 		// If we have no error caption, tell user to view the log

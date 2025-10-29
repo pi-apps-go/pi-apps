@@ -18,6 +18,8 @@
 // Description: Provides functions for managing APT repositories and packages.
 // In order to allow multiple package managers at one, all package manager related functions (here for APT) are implemented in this file.
 
+//go:build apt
+
 package api
 
 import (

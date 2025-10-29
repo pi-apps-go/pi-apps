@@ -16,6 +16,8 @@
 // Module: misc_apt.go
 // Description: Provides functions for miscellaneous operations that require APT. This also contains strings for APT related messages.
 
+//go:build apt
+
 package api
 
 import (
@@ -26,6 +28,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/gotk3/gotk3/glib"
 	"github.com/gotk3/gotk3/gtk"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
@@ -33,12 +36,20 @@ import (
 
 // variables for APT related messages
 var (
-	MissingInitMessage = T("Congratulations, Linux tinkerer, you broke your system. The init package can not be found, which means you have removed the default debian sources from your system.\nAll apt based application installs will fail. Unless you have a backup of your /etc/apt/sources.list /etc/apt/sources.list.d you will need to reinstall your OS.")
-	PackageManager     = "apt"
+	MissingInitMessage     = T("Congratulations, Linux tinkerer, you broke your system. The init package can not be found, which means you have removed the default debian sources from your system.\nAll apt based application installs will fail. Unless you have a backup of your /etc/apt/sources.list /etc/apt/sources.list.d you will need to reinstall your OS.")
+	PackageManager         = "apt"
+	PackageAppErrorMessage = T("As this is an APT error, consider Googling the errors or asking for help in the <a href=\"https://forums.raspberrypi.com\">Raspberry Pi Forums</a>.")
 )
 
 // checkShellcheck checks if shellcheck is installed and installs it if it isn't
 func checkShellcheck() error {
+	// Initialize application name
+	glib.SetPrgname("Pi-Apps-Settings")
+	glib.SetApplicationName("Pi-Apps Settings (app creation wizard)")
+
+	// Initialize GTK
+	gtk.Init(nil)
+
 	// Check if shellcheck is installed
 	if !commandExists("shellcheck") {
 		// Ask if they want to install shellcheck

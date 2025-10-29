@@ -32,6 +32,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"syscall"
@@ -477,31 +478,39 @@ func checkOSVersion(osInfo *SystemOSInfo) string {
 	// Check for Arch Linux
 	// Don't mark system as unsupported, but show a warning since we are going to add support for it.
 	if strings.Contains(strings.ToLower(osInfo.PrettyName), "arch") {
-		// For now, give a warning saying it isn't supported without a plugin.
-		// TODO: Remove this warning once we have support for Arch Linux and instead check for the plugin once the plugin interface is implemented.
-		Warning("Pi-Apps is not supported on Arch Linux without a plugin. To enable support, please install the Pi-Apps Arch Linux plugin in the Pi-Apps Settings app.")
+		// If Pi-Apps Go was compiled without Arch Linux support, show a warning.
+		// Arch like distributions are not yet officially supported by Pi-Apps Go so for now this will be a warning.
+		if PackageManager != "pacman" {
+			Warning("Pi-Apps Go was compiled without Arch Linux support, but you are running Arch Linux. please compile Pi-Apps Go with the build tag 'arch' to enable support.")
+		}
 	}
 
 	// Check for Alpine Linux
 	// This is already detected in the form of checking C libraies (musl is used in Alpine Linux) but still add a separate check for it.
 	if strings.Contains(strings.ToLower(osInfo.PrettyName), "alpine") {
-		// Don't mark system as unsupported, but show a warning since we are going to add support for it.
-		// TODO: Remove this warning once we have support for Alpine Linux and instead check for the plugin once the plugin interface is implemented.
-		Warning("Pi-Apps is not supported on Alpine Linux without a plugin. To enable support, please install the Pi-Apps Alpine Linux plugin in the Pi-Apps Settings app.")
+		// If Pi-Apps Go was compiled without Alpine Linux support, show a warning.
+		// Alpine Linux is not yet officially supported by Pi-Apps Go so for now this will be a warning.
+		if PackageManager != "apk" {
+			Warning("Pi-Apps Go was compiled without Alpine Linux support, but you are running Alpine Linux. please compile Pi-Apps Go with the build tag 'apk' to enable support.")
+		}
 	}
 
 	// Check for RHEL like distributions (this includes Fedora, CentOS, etc.)
 	if strings.Contains(strings.ToLower(osInfo.PrettyName), "rhel") || strings.Contains(strings.ToLower(osInfo.PrettyName), "fedora") || strings.Contains(strings.ToLower(osInfo.PrettyName), "centos") || strings.Contains(strings.ToLower(osInfo.PrettyName), "rocky") || strings.Contains(strings.ToLower(osInfo.PrettyName), "alma") {
-		// Don't mark system as unsupported, but show a warning since we are going to add support for it.
-		// TODO: Remove this warning once we have support for RHEL like distributions and instead check for the plugin once the plugin interface is implemented.
-		Warning("Pi-Apps is not supported on RHEL like distributions without a plugin. To enable support, please install the Pi-Apps RHEL like plugin in the Pi-Apps Settings app.")
+		// If Pi-Apps Go was compiled without RHEL like distributions support, show a warning.
+		// RHEL like distributions are not yet officially supported by Pi-Apps Go so for now this will be a warning.
+		if PackageManager != "dnf" {
+			Warning("Pi-Apps Go was compiled without RHEL like distributions support, but you are running a RHEL like distribution. please compile Pi-Apps Go with the build tag 'dnf' to enable support.")
+		}
 	}
 
 	// Check for openSUSE (please note that we will not be officially supporting openSUSE due to the bit harder learning curve of the package manager until the plugin interface is implemented to let the community support it)
 	if strings.Contains(strings.ToLower(osInfo.PrettyName), "opensuse") {
-		// Don't mark system as unsupported, but show a warning since the community can add support for it.
-		// TODO: Remove this warning once the community has support for openSUSE and instead check for the plugin once the plugin interface is implemented.
-		Warning("Pi-Apps is not supported on openSUSE without a plugin. To enable support, please install the Pi-Apps openSUSE plugin in the Pi-Apps Settings app.")
+		// If Pi-Apps Go was compiled without openSUSE support, show a warning.
+		// OpenSUSE is not yet officially supported by Pi-Apps Go so for now this will be a warning.
+		if PackageManager != "zypper" {
+			Warning("Pi-Apps Go was compiled without openSUSE support, but you are running openSUSE. please compile Pi-Apps Go with the build tag 'zypper' to enable support.")
+		}
 	}
 
 	// Check for ARMv6
@@ -584,32 +593,18 @@ func isMuslSystem() bool {
 
 	// Method 3: Check the default dynamic linker
 	// On musl systems, the default linker will be ld-musl-*
-	defaultLinkers := []string{
-		"/lib/ld-musl-x86_64.so.1",
-		"/lib/ld-musl-aarch64.so.1",
-		"/lib/ld-musl-armhf.so.1",
-		"/lib/ld-musl-riscv64.so.1",
-	}
-
-	glibcLinkers := []string{
-		"/lib64/ld-linux-x86-64.so.2",
-		"/lib/ld-linux-aarch64.so.1",
-		"/lib/ld-linux-armhf.so.3",
-		"/lib/ld-linux-riscv64-lp64d.so.1",
-	}
+	// Use globs to account for all possible architectures.
+	defaultLinkers, _ := filepath.Glob("/lib/ld-musl-*.so.*")
+	glibcLinkers, _ := filepath.Glob("/lib*/ld-linux-*.so.*")
 
 	// Check if glibc linkers exist - if they do, prioritize them as the primary system
-	for _, linker := range glibcLinkers {
-		if FileExists(linker) {
-			return false
-		}
+	if slices.ContainsFunc(glibcLinkers, FileExists) {
+		return false
 	}
 
 	// Only if no glibc linkers exist, check for musl linkers
-	for _, linker := range defaultLinkers {
-		if FileExists(linker) {
-			return true
-		}
+	if slices.ContainsFunc(defaultLinkers, FileExists) {
+		return true
 	}
 
 	// Method 4: Check if ldd is provided by musl (fallback)
