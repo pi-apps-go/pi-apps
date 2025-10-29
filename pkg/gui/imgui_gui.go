@@ -35,8 +35,8 @@ import (
 	"github.com/AllenDang/cimgui-go/backend/sdlbackend"
 	"github.com/AllenDang/cimgui-go/imgui"
 	_ "github.com/AllenDang/cimgui-go/impl/opengl3"
-	"github.com/botspot/pi-apps/pkg/api"
 	"github.com/davidbyttow/govips/v2/vips"
+	"github.com/pi-apps-go/pi-apps/pkg/api"
 )
 
 // ImGuiAppEntry represents an app entry for ImGui interface

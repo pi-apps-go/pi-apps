@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/botspot/pi-apps/pkg/api"
-	updaterPkg "github.com/botspot/pi-apps/pkg/updater"
+	"github.com/pi-apps-go/pi-apps/pkg/api"
+	updaterPkg "github.com/pi-apps-go/pi-apps/pkg/updater"
 )
 
 var (

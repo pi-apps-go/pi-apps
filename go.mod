@@ -1,4 +1,4 @@
-module github.com/botspot/pi-apps
+module github.com/pi-apps-go/pi-apps
 
 go 1.24.0
 

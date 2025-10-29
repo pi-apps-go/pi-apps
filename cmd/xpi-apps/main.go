@@ -25,7 +25,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/botspot/pi-apps/pkg/builder"
+	"github.com/pi-apps-go/pi-apps/pkg/builder"
 )
 
 const (
@@ -112,12 +112,12 @@ Examples:
 
 func buildCommand(args []string) error {
 	var (
-		output      = flag.String("output", "./pi-apps", "output file path")
-		withModules = make([]string, 0)
+		output         = flag.String("output", "./pi-apps", "output file path")
+		withModules    = make([]string, 0)
 		replaceModules = make([]string, 0)
-		race        = flag.Bool("race", false, "enable race detector")
-		debug       = flag.Bool("debug", false, "enable debug symbols")
-		skipCleanup = flag.Bool("skip-cleanup", false, "don't clean up build artifacts")
+		race           = flag.Bool("race", false, "enable race detector")
+		debug          = flag.Bool("debug", false, "enable debug symbols")
+		skipCleanup    = flag.Bool("skip-cleanup", false, "don't clean up build artifacts")
 	)
 
 	// Custom flag parsing for --with and --replace
@@ -125,7 +125,7 @@ func buildCommand(args []string) error {
 	var i int
 	for i = 0; i < len(args); i++ {
 		arg := args[i]
-		
+
 		if arg == "--with" && i+1 < len(args) {
 			withModules = append(withModules, args[i+1])
 			i++ // skip next arg
@@ -192,7 +192,7 @@ func buildCommand(args []string) error {
 	// Build
 	ctx := context.Background()
 	fmt.Printf("Building pi-apps %s with %d plugins...\n", piAppsVersion, len(plugins))
-	
+
 	if err := b.Build(ctx, *output); err != nil {
 		return fmt.Errorf("build failed: %w", err)
 	}
@@ -204,7 +204,7 @@ func buildCommand(args []string) error {
 func devCommand(args []string) error {
 	// Development mode - build and run pi-apps with current module as plugin
 	// Similar to xcaddy's plugin development mode
-	
+
 	// Check if we're in a go module
 	if _, err := os.Stat("go.mod"); os.IsNotExist(err) {
 		return fmt.Errorf("development mode requires a go.mod file in the current directory")
@@ -216,7 +216,7 @@ func devCommand(args []string) error {
 	if err != nil {
 		return fmt.Errorf("failed to get current directory: %w", err)
 	}
-	
+
 	// For development mode, we'll use the current directory as a local plugin
 	plugin := builder.Plugin{
 		ModulePath:      "github.com/example/current-plugin", // This would be parsed from go.mod
@@ -237,7 +237,7 @@ func devCommand(args []string) error {
 
 	ctx := context.Background()
 	fmt.Println("Building pi-apps with current module...")
-	
+
 	if err := b.Build(ctx, tmpBinary); err != nil {
 		return fmt.Errorf("build failed: %w", err)
 	}
@@ -247,21 +247,21 @@ func devCommand(args []string) error {
 	// In reality, we'd exec the binary with the arguments
 	// For now, just print what we would do
 	fmt.Printf("Would run: %s %s\n", tmpBinary, strings.Join(args, " "))
-	
+
 	return nil
 }
 
 func parsePluginSpec(spec string) (builder.Plugin, error) {
 	// Format: module[@version][=replacement]
 	plugin := builder.Plugin{}
-	
+
 	// Check for replacement
 	if strings.Contains(spec, "=") {
 		parts := strings.SplitN(spec, "=", 2)
 		spec = parts[0]
 		plugin.ReplacementPath = parts[1]
 	}
-	
+
 	// Check for version
 	if strings.Contains(spec, "@") {
 		parts := strings.SplitN(spec, "@", 2)
@@ -270,11 +270,11 @@ func parsePluginSpec(spec string) (builder.Plugin, error) {
 	} else {
 		plugin.ModulePath = spec
 	}
-	
+
 	if plugin.ModulePath == "" {
 		return plugin, fmt.Errorf("module path is required")
 	}
-	
+
 	return plugin, nil
 }
 
@@ -284,9 +284,9 @@ func parseReplaceSpec(spec string) (builder.Replacement, error) {
 	if len(parts) != 2 {
 		return builder.Replacement{}, fmt.Errorf("replacement must be in format old=new")
 	}
-	
+
 	return builder.Replacement{
 		Old: parts[0],
 		New: parts[1],
 	}, nil
-} 
+}

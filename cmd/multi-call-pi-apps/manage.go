@@ -14,8 +14,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/botspot/pi-apps/pkg/api"
-	"github.com/botspot/pi-apps/pkg/gui"
+	"github.com/pi-apps-go/pi-apps/pkg/api"
+	"github.com/pi-apps-go/pi-apps/pkg/gui"
 )
 
 func runManage() {

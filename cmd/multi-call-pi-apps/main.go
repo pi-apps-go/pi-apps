@@ -19,14 +19,13 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"runtime/debug"
-	"fmt"
-	
+	"strings"
 
-	"github.com/botspot/pi-apps/pkg/api"
+	"github.com/pi-apps-go/pi-apps/pkg/api"
 )
 
 // Build-time variables
@@ -39,30 +38,30 @@ func main() {
 	// runtime crashes can happen (keep in mind Pi-Apps Go is ALPHA software)
 	// so add a handler to log those runtime errors to save them to a log file
 	// this option can be disabled by specifying DISABLE_ERROR_HANDLING to true
-	
+
 	errorHandling := os.Getenv("DISABLE_ERROR_HANDLING")
 	if errorHandling != "true" {
-	      	defer func() {
-		if r := recover(); r != nil {
-			// Capture stack trace as a string
-			stackTrace := string(debug.Stack())
+		defer func() {
+			if r := recover(); r != nil {
+				// Capture stack trace as a string
+				stackTrace := string(debug.Stack())
 
-			// Format the full crash report
-			crashReport := fmt.Sprintf(
-				"Pi-Apps Go has encountered a error and had to shutdown.\n\nReason: %v\n\nStack trace:\n%s",
-				r,
-				stackTrace,
-			)
+				// Format the full crash report
+				crashReport := fmt.Sprintf(
+					"Pi-Apps Go has encountered a error and had to shutdown.\n\nReason: %v\n\nStack trace:\n%s",
+					r,
+					stackTrace,
+				)
 
-			// Display the error to the user
-			api.ErrorNoExit(crashReport)
+				// Display the error to the user
+				api.ErrorNoExit(crashReport)
 
-                        // later put a function to write it to the log file in the logs folder
-			os.Exit(1)
-		}
-	}()
-        }
-	
+				// later put a function to write it to the log file in the logs folder
+				os.Exit(1)
+			}
+		}()
+	}
+
 	// Initialize API
 	api.Init()
 

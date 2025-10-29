@@ -25,10 +25,10 @@ import (
 	"runtime/debug"
 	"time"
 
-	"github.com/botspot/pi-apps/pkg/api"
-	"github.com/botspot/pi-apps/pkg/gui"
 	"github.com/charmbracelet/log"
 	"github.com/gotk3/gotk3/gtk"
+	"github.com/pi-apps-go/pi-apps/pkg/api"
+	"github.com/pi-apps-go/pi-apps/pkg/gui"
 )
 
 // Build-time variables

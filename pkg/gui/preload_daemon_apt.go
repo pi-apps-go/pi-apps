@@ -31,7 +31,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/botspot/pi-apps/pkg/api"
+	"github.com/pi-apps-go/pi-apps/pkg/api"
 )
 
 // PreloadDaemon manages background refreshing of app list files

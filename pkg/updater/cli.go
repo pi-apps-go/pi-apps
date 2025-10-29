@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/botspot/pi-apps/pkg/api"
+	"github.com/pi-apps-go/pi-apps/pkg/api"
 )
 
 // UpdaterCLI handles the command-line interface for the updater

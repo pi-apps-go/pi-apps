@@ -24,7 +24,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/botspot/pi-apps/pkg/api"
+	"github.com/pi-apps-go/pi-apps/pkg/api"
 )
 
 // Main entry point for settings, equivalent to the original bash script

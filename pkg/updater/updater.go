@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/botspot/pi-apps/pkg/api"
+	"github.com/pi-apps-go/pi-apps/pkg/api"
 )
 
 // UpdateMode represents different modes of running the updater

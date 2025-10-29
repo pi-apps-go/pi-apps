@@ -25,7 +25,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/botspot/pi-apps/pkg/error-report-server/server"
+	"github.com/pi-apps-go/pi-apps/pkg/error-report-server/server"
 )
 
 func main() {

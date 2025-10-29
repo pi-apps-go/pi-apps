@@ -4,13 +4,13 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"time"
 	"runtime/debug"
+	"time"
 
-	"github.com/botspot/pi-apps/pkg/api"
-	"github.com/botspot/pi-apps/pkg/gui"
 	"github.com/charmbracelet/log"
 	"github.com/gotk3/gotk3/gtk"
+	"github.com/pi-apps-go/pi-apps/pkg/api"
+	"github.com/pi-apps-go/pi-apps/pkg/gui"
 )
 
 var logger = log.NewWithOptions(os.Stderr, log.Options{
@@ -59,7 +59,7 @@ func runGUI() {
 			}
 		}()
 	}
-	
+
 	var (
 		directory      = flag.String("directory", "", "Pi-Apps directory (defaults to PI_APPS_DIR env var)")
 		mode           = flag.String("mode", "", "GUI mode: gtk, yad-default, xlunch-dark, etc.")

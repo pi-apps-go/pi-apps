@@ -24,8 +24,8 @@ import (
 	"os"
 	"runtime"
 
-	"github.com/botspot/pi-apps/pkg/api"
-	"github.com/botspot/pi-apps/pkg/settings"
+	"github.com/pi-apps-go/pi-apps/pkg/api"
+	"github.com/pi-apps-go/pi-apps/pkg/settings"
 )
 
 func main() {

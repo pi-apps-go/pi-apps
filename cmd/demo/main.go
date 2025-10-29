@@ -4,8 +4,8 @@ import (
 	"log"
 	"os"
 
-	"github.com/botspot/pi-apps/pkg/gui"
 	"github.com/gotk3/gotk3/gtk"
+	"github.com/pi-apps-go/pi-apps/pkg/gui"
 )
 
 func main() {

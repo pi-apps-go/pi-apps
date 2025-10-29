@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/botspot/pi-apps/pkg/settings"
+	"github.com/pi-apps-go/pi-apps/pkg/settings"
 )
 
 func runSettings() {

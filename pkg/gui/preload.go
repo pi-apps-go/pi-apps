@@ -28,10 +28,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/botspot/pi-apps/pkg/api"
 	"github.com/gotk3/gotk3/gdk"
 	"github.com/gotk3/gotk3/glib"
 	"github.com/gotk3/gotk3/gtk"
+	"github.com/pi-apps-go/pi-apps/pkg/api"
 )
 
 // AppListItem represents a single item in the app list

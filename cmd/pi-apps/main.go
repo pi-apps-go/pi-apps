@@ -7,8 +7,8 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/botspot/pi-apps/pkg/api"
-	"github.com/botspot/pi-apps/pkg/builder"
+	"github.com/pi-apps-go/pi-apps/pkg/api"
+	"github.com/pi-apps-go/pi-apps/pkg/builder"
 )
 
 func main() {
