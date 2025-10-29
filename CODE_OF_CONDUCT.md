@@ -2,17 +2,17 @@
 
 ## Our Pledge
 
-In the interest of fostering an open, welcoming, and productive community, we, the maintainers and contributors of Pi-Apps, pledge to make participation in our project a harassment-free experience for anyone.
+In the interest of fostering an open, welcoming, and productive community, we, the maintainers and contributors of Pi-Apps Go, pledge to make participation in our project a harassment-free experience for anyone.
 
 ## Our Standards
 
-Pi-Apps is a collection of app installation scripts (mostly open source projects, but also include proprietary apps) that aims to make software installation easier on Raspberry Pi and other compatible devices.
+Pi-Apps Go is a collection of app installation scripts (mostly open source projects, but also include proprietary apps) that aims to make software installation easier on anything from Raspberry Pi to x86_64 laptops and other compatible devices.
 
 This is like the quote of this project where it says:
-> Let's be honest: Linux is harder to master than Windows. Sometimes it's not user-friendly, and following an outdated tutorial may break your Raspberry Pi's operating system.
-> There is no centralized software repository, except for the apt repositories which lack many desktop applications.
-> Surely there is a better way! **There is.**
-> Introducing Pi-Apps, a well-maintained collection of app installation-scripts that you can run with **one click**.
+> Installing software on Linux is easy... until it isn't.  
+> Many popular apps just don't appear in the `apt` repositories, and it's very easy for inexperienced users to mess up their OS trying to install such apps manually.  
+> **We're trying to solve this problem.**  
+> Introducing Pi-Apps Go, a well-maintained collection of scripts that automatically install hard-to-install apps no matter if you are running a typical x86_64 laptop or a obscure RISC-V SBC. See the full list [here](https://pi-apps.io/wiki/getting-started/apps-list/).  
 
 To maintain the quality and usability of this project, we expect all participants to adhere to the following standards:
 
@@ -56,7 +56,7 @@ To maintain the quality and usability of this project, we expect all participant
 1. **Test your changes**: Make sure your PR actually works as intended. (if the app installation is not working initially, then additional commits are expected to fix the issue before it can be merged, since the contributors can make mistakes like any unnoticed issues that don't seem to affect the installation but break at another function like updating the app are allowed to be fixed in a later PR)
 2. **Describe your changes**: Include a detailed description of what your PR accomplishes. (like a detailed description of the the added app, what it does, and how it works)
 3. **Keep PRs focused**: One PR should address one specific issue or add one feature.
-4. **Follow existing code style**: Maintain consistency with the project's coding style. (don't be like the PR [#2545](https://github.com/Botspot/pi-apps/pull/2545) that was ignoring the structure of app installation scripts)
+4. **Follow existing code style**: Maintain consistency with the project's coding style. (don't be like the PR [#2545](https://github.com/Botspot/pi-apps/pull/2545) in the original Pi-Apps project that was ignoring the structure of app installation scripts)
 5. **Document your code**: Add comments to explain complex logic.
 6. **Reference related issues**: If your PR addresses an existing issue, reference it.
 7. **Be willing to make changes**: If reviewers suggest changes, be open to revising your PR.
@@ -89,7 +89,7 @@ Community Impact Guidelines were inspired by [Mozilla's code of conduct enforcem
 
 ## Examples of Past Violations
 
-To help clarify our standards, here are some examples of past violations:
+To help clarify our standards, here are some examples of past violations that happened in the original Pi-Apps project:
 
 1. **Spam Issues**: In issues [#2736](https://github.com/Botspot/pi-apps/issues/2736), [#2735](https://github.com/Botspot/pi-apps/issues/2735), and [#523](https://github.com/Botspot/pi-apps/issues/523), users posted irrelevant content (a link that was not related to anything useful), external links without context (a dummy link that clones a repo but does not provide any context and does nothing it itself, aka being a bit of a joke), or nonsensical information that did not contribute to the project. These resulted in the users being banned.
 
@@ -106,4 +106,4 @@ Remember that everyone was new once - we aim to help you contribute effectively 
 
 ---
 
-By participating in the Pi-Apps project, you agree to abide by this Code of Conduct. Thank you for helping make Pi-Apps a welcoming and productive community for all. 
+By participating in the Pi-Apps project, you agree to abide by this Code of Conduct. Thank you for helping make Pi-Apps Go a welcoming and productive community for all. 
