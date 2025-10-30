@@ -17,9 +17,11 @@ require (
 	golang.org/x/term v0.36.0
 	golang.org/x/text v0.30.0
 	golang.org/x/time v0.14.0
+	gitlab.alpinelinux.org/alpine/go v0.10.1
 )
 
 require (
+	github.com/MakeNowJust/heredoc/v2 v2.0.1 // indirect
 	github.com/ProtonMail/go-crypto v1.3.0 // indirect
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
 	github.com/charmbracelet/colorprofile v0.3.1 // indirect
@@ -44,4 +46,5 @@ require (
 	golang.org/x/image v0.28.0 // indirect
 	golang.org/x/net v0.41.0 // indirect
 	golang.org/x/sys v0.37.0 // indirect
+	gopkg.in/ini.v1 v1.67.0 // indirect
 )

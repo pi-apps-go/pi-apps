@@ -56,8 +56,11 @@ Original Pi-Apps serves **over 1,000,000 people** and hosts [over 200 apps](http
 **Pi-Apps Go is very new and is a work in progress.** Please expect some features to be missing/broken and [report](https://github.com/pi-apps-go/pi-apps/issues/new) any issues you encounter.
 
 Currently it's unsuitable for use outside of developers due to being unstable, this will change soon.
+
 Current stage: **Development**
+
 Beta testing stage: **in around late 2025 - early 2026 or eariler** 
+
 Stable stage: **around early 2026 or eariler**
 
 ## Install Pi-Apps Go
@@ -71,7 +74,9 @@ wget -qO- https://raw.githubusercontent.com/pi-apps-go/pi-apps/main/install | ba
 #### Raspberry Pi <img src="https://pi-apps.io/img/other-icons/raspberrypi-icon.svg" height="14"> (2/3/Zero 2 W/4/5)
 - <img src="https://pi-apps.io/img/other-icons/raspberrypi-icon.svg" height="14"> [**Raspberry Pi OS**](https://www.raspberrypi.com/software/operating-systems/) (32-bit/64-bit) (Bookworm/Trixie): <span style="color:var(--success-dark);">fully supported</span>
 - <img src="https://pi-apps.io/img/other-icons/ubuntu-icon.svg" height="14"> [**Ubuntu**](https://ubuntu.com/download/raspberry-pi) (Jammy/Noble): <span style="color:var(--success-dark);">fully supported</span>
-- <img src="https://archlinux.org/static/favicon.png" height="14"> [Arch Linux](https://archlinuxarm.org) (requires Arch Linux support plugin during installation): <span style="color:var(--warn-dark);">Support is in progress</span>
+- <img src="https://archlinux.org/static/favicon.png" height="14"> [Arch Linux](https://archlinuxarm.org): <span style="color:var(--warn-dark);">Support is in progress</span>
+- <img src="https://alpinelinux.org/alpine-logo.ico" height="14"> [Alpine Linux](https://alpinelinux.org): <span style="color:var(--warn-dark);">Support is in progress</span>
+- <img src="https://chimera-linux.org/assets/icons/favicon48.png" height="14"> [Chimera Linux](https://chimera-linux.org): <span style="color:var(--warn-dark);">Support is in progress</span>
 #### Nintendo Switch <img src=https://pi-apps.io/img/other-icons/switch-icon.svg height="14">
 - <img src=https://pi-apps.io/img/other-icons/switchroot-icon.png height="14"> [**Switchroot L4T Ubuntu Noble (24.04)**](https://wiki.switchroot.org/wiki/linux/l4t-ubuntu-noble-installation-guide): <span style="color:var(--success-dark);">fully supported</span>
 - <img src=https://pi-apps.io/img/other-icons/switchroot-icon.png height="14"> [**Switchroot L4T Ubuntu Jammy (22.04)**](https://wiki.switchroot.org/wiki/linux/l4t-ubuntu-jammy-installation-guide): <span style="color:var(--success-dark);">fully supported</span>
@@ -85,33 +90,33 @@ wget -qO- https://raw.githubusercontent.com/pi-apps-go/pi-apps/main/install | ba
 - <img src="https://pi-apps.io/img/other-icons/debian-icon.svg" height="14"> [Debian Bookworm/Trixie](https://www.debian.org/distrib/) (Official Releases from Debian **ONLY**): <span style="color:var(--warn-dark);">Not actively tested but all available apps should work</span>
 - <img src="https://pi-apps.io/img/other-icons/ubuntu-icon.svg" height="14"> [Ubuntu Jammy/Noble](https://ubuntu.com/download/desktop) (Official Releases from Canonical **ONLY**): <span style="color:var(--warn-dark);">Not actively tested but all available apps should work</span>
 - <img src="https://archlinux.org/static/favicon.png" height="14"> [Arch Linux](https://archlinuxarm.org) (Official Releases **ONLY**, requires Arch Linux support plugin during installation): <span style="color:var(--warn-dark);">Support is in progress</span>
+- <img src="https://alpinelinux.org/alpine-logo.ico" height="14"> [Alpine Linux](https://alpinelinux.org): <span style="color:var(--warn-dark);">Support is in progress</span>
+- <img src="https://chimera-linux.org/assets/icons/favicon48.png" height="14"> [Chimera Linux](https://chimera-linux.org): <span style="color:var(--warn-dark);">Support is in progress</span>
 
 # Supported devices for the future:
 #### [**Pine64**](https://www.pine64.org/), [**Orange Pi**](http://www.orangepi.org/), [**Radxa**](https://rockpi.org/), [**Banana Pi**](https://banana-pi.org/), [**Milk-V**](https://milkv.io/), [**SiFive**](https://www.sifive.com/), [**StarFive**](https://www.starfivetech.com/) and other **RISC-V** Devices
 - <img src="https://pi-apps.io/img/other-icons/debian-icon.svg" height="14"> [Debian Trixie](https://www.debian.org/distrib/) (Official Releases from Debian **ONLY**): <span style="color:var(--warn-dark);">Support is planned for the future, currently unsupported</span>
 - <img src="https://pi-apps.io/img/other-icons/ubuntu-icon.svg" height="14"> [Ubuntu Noble](https://ubuntu.com/download/risc-v) (Official Releases from Canonical **ONLY**): <span style="color:var(--warn-dark);">Support is planned for the future, currently unsupported</span>
-- <img src="https://archlinux.org/static/favicon.png" height="14"> [Arch Linux](https://archriscv.felixc.at/) (requires Arch Linux support plugin during installation): <span style="color:var(--warn-dark);">Support is planned for the future, currently unsupported</span>
+- <img src="https://archlinux.org/static/favicon.png" height="14"> [Arch Linux](https://archriscv.felixc.at/): <span style="color:var(--warn-dark);">Support is planned for the future, currently unsupported</span>
 #### Generic **x86_64** devices
-- <img src="https://pi-apps.io/img/other-icons/raspberrypi-icon.svg" height="14"> [Raspberry Pi Desktop](https://www.raspberrypi.com/software/operating-systems/) (Trixie): <span style="color:var(--success-dark);">Support is in progress</span>
 - <img src="https://pi-apps.io/img/other-icons/debian-icon.svg" height="14"> [Debian Bookworm/Trixie](https://www.debian.org/distrib/) (Official Releases from Debian **ONLY**): <span style="color:var(--warn-dark);">Support is in progress</span>
 - <img src="https://pi-apps.io/img/other-icons/ubuntu-icon.svg" height="14"> [Ubuntu Jammy/Noble](https://ubuntu.com/download/desktop) (Official Releases from Canonical **ONLY**): <span style="color:var(--warn-dark);">Support is in progress</span>
-- <img src="https://archlinux.org/static/favicon.png" height="14"> [Arch Linux](https://archlinux.org) (requires Arch Linux support plugin during installation): <span style="color:var(--warn-dark);">Support is in progress</span>
+- <img src="https://archlinux.org/static/favicon.png" height="14"> [Arch Linux](https://archlinux.org): <span style="color:var(--warn-dark);">Support is in progress</span>
+- <img src="https://alpinelinux.org/alpine-logo.ico" height="14"> [Alpine Linux](https://alpinelinux.org): <span style="color:var(--warn-dark);">Support is in progress</span>
+- <img src="https://chimera-linux.org/assets/icons/favicon48.png" height="14"> [Chimera Linux](https://chimera-linux.org): <span style="color:var(--warn-dark);">Support is in progress</span>
 
 # Supported operating systems for the future:
 #### Nintendo Switch <img src=https://pi-apps.io/img/other-icons/switch-icon.svg height="14">
-- <img src=https://pi-apps.io/img/other-icons/switchroot-icon.png height="14"> [Switchroot L4T Fedora 41](https://wiki.switchroot.org/wiki/linux/l4t-fedora-installation-guide-1) (will require RHEL-like support plugin during installation): <span style="color:var(--success-dark);">Support is planned for the future, currently unsupported</span>
+- <img src=https://pi-apps.io/img/other-icons/switchroot-icon.png height="14"> [Switchroot L4T Fedora 41](https://wiki.switchroot.org/wiki/linux/l4t-fedora-installation-guide-1): <span style="color:var(--success-dark);">Support is planned for the future, currently unsupported</span>
 
 #### Everything else:
 
 #### dnf based:
-- <img src="https://fedoraproject.org/favicon.ico" height="14"> [Fedora](https://fedoraproject.org) (will require RHEL-like support plugin during installation): <span style="color:var(--warn-dark);">Support is planned for the future, currently unsupported</span>
-- <img src="https://redhat.com/favicon.ico" height="14"> [RHEL](https://redhat.com/rhel/) (will require RHEL-like support plugin during installation): <span style="color:var(--warn-dark);">Support is planned for the future, currently unsupported</span>
-- <img src="https://rockylinux.org/favicon.png" height="14"> [Rocky Linux](https://rockylinux.org) (will require RHEL-like support plugin during installation): <span style="color:var(--warn-dark);">Support is planned for the future, currently unsupported</span>
-- <img src="https://almalinux.org/fav/favicon.ico" height="14"> [AlmaLinux](https://almalinux.org) (will require RHEL-like support plugin during installation): <span style="color:var(--warn-dark);">Support is planned for the future, currently unsupported</span>
-- <img src="https://centos.org/assets/icons/favicon.svg" height="14"> [CentOS Stream](https://centos.org) (will require RHEL-like support plugin during installation): <span style="color:var(--warn-dark);">Support is planned for the future, currently unsupported</span>
-
-#### apk based (not to be confused with the .apk format for applications on Android)
-- <img src="https://alpinelinux.org/alpine-logo.ico" height="14"> [Alpine Linux](https://alpinelinux.org) (will require Alpine Linux support plugin during installation): <span style="color:var(--warn-dark);">Support is planned for the future, currently unsupported</span>
+- <img src="https://fedoraproject.org/favicon.ico" height="14"> [Fedora](https://fedoraproject.org): <span style="color:var(--warn-dark);">Support is planned for the future, currently unsupported</span>
+- <img src="https://redhat.com/favicon.ico" height="14"> [RHEL](https://redhat.com/rhel/): <span style="color:var(--warn-dark);">Support is planned for the future, currently unsupported</span>
+- <img src="https://rockylinux.org/favicon.png" height="14"> [Rocky Linux](https://rockylinux.org): <span style="color:var(--warn-dark);">Support is planned for the future, currently unsupported</span>
+- <img src="https://almalinux.org/fav/favicon.ico" height="14"> [AlmaLinux](https://almalinux.org): <span style="color:var(--warn-dark);">Support is planned for the future, currently unsupported</span>
+- <img src="https://centos.org/assets/icons/favicon.svg" height="14"> [CentOS Stream](https://centos.org): <span style="color:var(--warn-dark);">Support is planned for the future, currently unsupported</span>
 
 ### Unsupported systems:
 - Raspberry Pi Pico (2): <span style="color:var(--danger-dark);">These devices are microcontrollers and cannot run linux.
