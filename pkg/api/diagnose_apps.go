@@ -89,10 +89,10 @@ func GetLogfile(appName string) string {
 			continue
 		}
 
-		// Look for files matching the pattern "-appname.log" (equivalent to grep '\-'"${app}"'\.log')
-		pattern := fmt.Sprintf("-%s.log", appName)
-		// Make sure the file name ends with the pattern (not just contains it)
-		if strings.HasSuffix(fileName, pattern) {
+		// Look for files matching the pattern "action-appname-status-timestamp.log"
+		// The pattern should be: contains "-appname-" and ends with ".log"
+		pattern := fmt.Sprintf("-%s-", appName)
+		if strings.Contains(fileName, pattern) && strings.HasSuffix(fileName, ".log") {
 			filePath := filepath.Join(logsDir, fileName)
 			fileInfo, err := os.Stat(filePath)
 			if err == nil {
@@ -140,7 +140,7 @@ func CheckCanSendErrorReport(app, action, errorType string) (bool, string) {
 		return false, fmt.Sprintf("Error checking app type: %v", err)
 	}
 	if appType == "package" {
-		return false, "Error report cannot be sent because this \"app\" is really just a shortcut to install a Debian package. It's not a problem that Pi-Apps can fix."
+		return false, PackageAppNoErrorReporting
 	}
 
 	// Check 2: Check error type - cannot send reports for system, internet, or package errors

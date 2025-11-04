@@ -314,7 +314,14 @@ func InstallApp(appName string) error {
 	// Handle app installation based on app type
 	switch appType {
 	case "package":
-		return installPackageApp(appName)
+		err := installPackageApp(appName)
+		if err != nil {
+			// Print help message for package-based apps (similar to script-based apps)
+			fmt.Printf("\033[40m\033[93m\033[5m◢◣\033[25m\033[39m\033[49m\033[93mNeed help? Copy the \033[1mENTIRE\033[0m\033[49m\033[93m terminal output or take a screenshot.\n")
+			fmt.Printf("Please ask on Github: \033[94m\033[4mhttps://github.com/pi-apps-go/pi-apps/issues/new/choose\033[24m\033[93m\n")
+			fmt.Printf("Or on Discord: \033[94m\033[4mhttps://discord.gg/RXSTvaUvuu\033[0m\n")
+		}
+		return err
 	case "standard":
 		err := installScriptApp(appName)
 		return err
@@ -352,7 +359,14 @@ func UninstallApp(appName string) error {
 	// Handle app uninstallation based on app type
 	switch appType {
 	case "package":
-		return uninstallPackageApp(appName)
+		err := uninstallPackageApp(appName)
+		if err != nil {
+			// Print help message for package-based apps (similar to script-based apps)
+			fmt.Printf("\033[40m\033[93m\033[5m◢◣\033[25m\033[39m\033[49m\033[93mNeed help? Copy the \033[1mENTIRE\033[0m\033[49m\033[93m terminal output or take a screenshot.\n")
+			fmt.Printf("Please ask on Github: \033[94m\033[4mhttps://github.com/pi-apps-go/pi-apps/issues/new/choose\033[24m\033[93m\n")
+			fmt.Printf("Or on Discord: \033[94m\033[4mhttps://discord.gg/RXSTvaUvuu\033[0m\n")
+		}
+		return err
 	case "standard":
 		return uninstallScriptApp(appName)
 	case "flatpak_package":
@@ -391,9 +405,20 @@ func UpdateApp(appName string) error {
 		// For package-based apps, this is essentially a reinstall
 		err = uninstallPackageApp(appName)
 		if err != nil {
+			// Print help message for package-based apps
+			fmt.Printf("\033[40m\033[93m\033[5m◢◣\033[25m\033[39m\033[49m\033[93mNeed help? Copy the \033[1mENTIRE\033[0m\033[49m\033[93m terminal output or take a screenshot.\n")
+			fmt.Printf("Please ask on Github: \033[94m\033[4mhttps://github.com/pi-apps-go/pi-apps/issues/new/choose\033[24m\033[93m\n")
+			fmt.Printf("Or on Discord: \033[94m\033[4mhttps://discord.gg/RXSTvaUvuu\033[0m\n")
 			return fmt.Errorf("failed to uninstall app during update: %v", err)
 		}
-		return installPackageApp(appName)
+		err = installPackageApp(appName)
+		if err != nil {
+			// Print help message for package-based apps
+			fmt.Printf("\033[40m\033[93m\033[5m◢◣\033[25m\033[39m\033[49m\033[93mNeed help? Copy the \033[1mENTIRE\033[0m\033[49m\033[93m terminal output or take a screenshot.\n")
+			fmt.Printf("Please ask on Github: \033[94m\033[4mhttps://github.com/pi-apps-go/pi-apps/issues/new/choose\033[24m\033[93m\n")
+			fmt.Printf("Or on Discord: \033[94m\033[4mhttps://discord.gg/RXSTvaUvuu\033[0m\n")
+		}
+		return err
 	case "standard":
 		// For script-based apps, run the update script if it exists, otherwise reinstall
 		updateScriptPath := filepath.Join(getPiAppsDir(), "apps", appName, "update")

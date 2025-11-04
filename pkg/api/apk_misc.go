@@ -22,10 +22,12 @@ package api
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/gotk3/gotk3/glib"
 	"github.com/gotk3/gotk3/gtk"
@@ -36,6 +38,7 @@ var (
 	MissingInitMessage        = T("Congratulations, Linux tinkerer, you broke your system. The init package can not be found, which means you have removed the default Alpine sources from your system.\nAll APK based application installs will fail. Unless you have a backup of your /etc/apk/repositories /etc/apk/repositories.d /usr/lib/apk/repositories.d you will need to reinstall your OS.")
 	PackageManager            = "apk"
 	PackageAppErrorMessage    = T("As this is an APK error, consider Googling the errors or asking for help in Alpine Linux forums.")
+	PackageAppNoErrorReporting = T("Error report cannot be sent because this \"app\" is really just a shortcut to install an Alpine Linux package. It's not a problem that Pi-Apps can fix.")
 	AdoptiumInstallerMessage  = T("Install Adoptium Java repository - installs latest LTS OpenJDK instead")
 	LessAptMessage            = T("Format apk output for readability")
 	AptLockWaitMessage        = T("Wait for APK lock")
@@ -509,67 +512,260 @@ func EnableModule(moduleName string) error {
 
 // installPackageApp installs a package-based app
 func installPackageApp(appName string) error {
+<<<<<<< HEAD
 	StatusTf("Installing \033[1m%s\033[22m...", appName)
+=======
+	piAppsDir := getPiAppsDir()
 
-	packageListPath := filepath.Join(getPiAppsDir(), "apps", appName, "packages")
+	// Set up logging
+	logDir := filepath.Join(piAppsDir, "logs")
+	os.MkdirAll(logDir, 0755)
+	logFilename := fmt.Sprintf("install-%s-incomplete-%d.log", appName, time.Now().Unix())
+	logPath := filepath.Join(logDir, logFilename)
+
+	// Remove any existing incomplete log file
+	if _, err := os.Stat(logPath); err == nil {
+		os.Remove(logPath)
+	}
+
+	// Create log file
+	logFile, err := os.Create(logPath)
+	if err != nil {
+		return fmt.Errorf("failed to create log file: %w", err)
+	}
+	defer logFile.Close()
+
+	// Write to log file (plain text) and stdout (colored)
+	fmt.Fprintf(logFile, "%s Installing %s...\n\n", time.Now().Format("2006-01-02 15:04:05"), appName)
+	Status(fmt.Sprintf("Installing \033[1m%s\033[22m...", appName))
+>>>>>>> c8b15e0acda7e6d84acfd14b03d15a330d9ca337
+
+	packageListPath := filepath.Join(piAppsDir, "apps", appName, "packages")
 
 	// Read packages list
 	packageListBytes, err := os.ReadFile(packageListPath)
 	if err != nil {
+<<<<<<< HEAD
 		return fmt.Errorf(T("failed to read packages list: %v"), err)
+=======
+		fmt.Fprintf(logFile, "Failed to read packages list: %v\n", err)
+		return fmt.Errorf("failed to read packages list: %v", err)
+>>>>>>> c8b15e0acda7e6d84acfd14b03d15a330d9ca337
 	}
 
 	packageList := strings.TrimSpace(string(packageListBytes))
 	packages := strings.Fields(packageList)
 
 	if len(packages) == 0 {
+<<<<<<< HEAD
 		return fmt.Errorf(T("no packages specified in %s"), packageListPath)
+=======
+		fmt.Fprintf(logFile, "No packages specified in %s\n", packageListPath)
+		return fmt.Errorf("no packages specified in %s", packageListPath)
+>>>>>>> c8b15e0acda7e6d84acfd14b03d15a330d9ca337
 	}
 
-	// Install packages with sudo
-	cmd := exec.Command("sudo", append([]string{"apk", "add", "--no-interactive"}, packages...)...)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	fmt.Fprintf(logFile, "Will install these packages: %s\n", strings.Join(packages, " "))
 
-	err = cmd.Run()
+	// Create ANSI-stripping writer for log file
+	ansiStripLogWriter := NewAnsiStripWriter(logFile)
+
+	// Save original stdout/stderr
+	originalStdout := os.Stdout
+	originalStderr := os.Stderr
+
+	// Create pipes for capturing output
+	stdoutReader, stdoutWriter, _ := os.Pipe()
+	stderrReader, stderrWriter, _ := os.Pipe()
+
+	// Redirect os.Stdout and os.Stderr to pipe writers
+	os.Stdout = stdoutWriter
+	os.Stderr = stderrWriter
+
+	// Create channels to signal completion
+	var stdoutDone, stderrDone = make(chan bool), make(chan bool)
+
+	// Copy output to both log file and original stdout/stderr
+	go func() {
+		io.Copy(io.MultiWriter(ansiStripLogWriter, originalStdout), stdoutReader)
+		stdoutDone <- true
+	}()
+	go func() {
+		io.Copy(io.MultiWriter(ansiStripLogWriter, originalStderr), stderrReader)
+		stderrDone <- true
+	}()
+
+	// Use InstallPackages which has proper error detection
+	err = InstallPackages(appName, packages...)
+
+	// Close writers to signal end of output
+	stdoutWriter.Close()
+	stderrWriter.Close()
+
+	// Wait for all output to be copied
+	<-stdoutDone
+	<-stderrDone
+
+	// Restore original stdout/stderr
+	os.Stdout = originalStdout
+	os.Stderr = originalStderr
+
 	if err != nil {
+<<<<<<< HEAD
 		return fmt.Errorf(T("failed to install packages: %v"), err)
 	}
 
 	StatusGreenTf("\033[1m%s\033[22m installed successfully", appName)
+=======
+		// Write failure to log file
+		fmt.Fprintf(logFile, "\nFailed to install the packages!\n")
+		fmt.Fprintf(logFile, "Error: %v\n", err)
+
+		// Format log file
+		FormatLogfile(logPath)
+
+		// Rename log file to indicate failure
+		newLogPath := strings.Replace(logPath, "-incomplete-", "-fail-", 1)
+		os.Rename(logPath, newLogPath)
+
+		return fmt.Errorf("failed to install packages: %v", err)
+	}
+
+	// Success - write to log
+	fmt.Fprintf(logFile, "\n%s installed successfully\n", appName)
+	Status(fmt.Sprintf("\033[1m%s\033[22m installed successfully", appName))
+
+	// Format log file
+	FormatLogfile(logPath)
+
+	// Rename log file to indicate success
+	newLogPath := strings.Replace(logPath, "-incomplete-", "-success-", 1)
+	os.Rename(logPath, newLogPath)
+
+>>>>>>> c8b15e0acda7e6d84acfd14b03d15a330d9ca337
 	return nil
 }
 
 // uninstallPackageApp uninstalls a package-based app
 func uninstallPackageApp(appName string) error {
+<<<<<<< HEAD
 	StatusTf("Uninstalling \033[1m%s\033[22m...", appName)
+=======
+	piAppsDir := getPiAppsDir()
 
-	packageListPath := filepath.Join(getPiAppsDir(), "apps", appName, "packages")
+	// Set up logging
+	logDir := filepath.Join(piAppsDir, "logs")
+	os.MkdirAll(logDir, 0755)
+	logFilename := fmt.Sprintf("uninstall-%s-incomplete-%d.log", appName, time.Now().Unix())
+	logPath := filepath.Join(logDir, logFilename)
+
+	// Remove any existing incomplete log file
+	if _, err := os.Stat(logPath); err == nil {
+		os.Remove(logPath)
+	}
+
+	// Create log file
+	logFile, err := os.Create(logPath)
+	if err != nil {
+		return fmt.Errorf("failed to create log file: %w", err)
+	}
+	defer logFile.Close()
+
+	// Write to log file (plain text) and stdout (colored)
+	fmt.Fprintf(logFile, "%s Uninstalling %s...\n\n", time.Now().Format("2006-01-02 15:04:05"), appName)
+	Status(fmt.Sprintf("Uninstalling \033[1m%s\033[22m...", appName))
+>>>>>>> c8b15e0acda7e6d84acfd14b03d15a330d9ca337
+
+	packageListPath := filepath.Join(piAppsDir, "apps", appName, "packages")
 
 	// Read packages list
 	packageListBytes, err := os.ReadFile(packageListPath)
 	if err != nil {
+<<<<<<< HEAD
 		return fmt.Errorf(T("failed to read packages list: %v"), err)
+=======
+		fmt.Fprintf(logFile, "Failed to read packages list: %v\n", err)
+		return fmt.Errorf("failed to read packages list: %v", err)
+>>>>>>> c8b15e0acda7e6d84acfd14b03d15a330d9ca337
 	}
 
 	packageList := strings.TrimSpace(string(packageListBytes))
 	packages := strings.Fields(packageList)
 
 	if len(packages) == 0 {
+<<<<<<< HEAD
 		return fmt.Errorf(T("no packages specified in %s"), packageListPath)
+=======
+		fmt.Fprintf(logFile, "No packages specified in %s\n", packageListPath)
+		return fmt.Errorf("no packages specified in %s", packageListPath)
+>>>>>>> c8b15e0acda7e6d84acfd14b03d15a330d9ca337
 	}
 
-	// Uninstall packages with sudo
+	fmt.Fprintf(logFile, "Will uninstall these packages: %s\n", strings.Join(packages, " "))
+
+	// For package-based apps, we just try to delete the packages directly
 	cmd := exec.Command("sudo", append([]string{"apk", "del", "--no-interactive"}, packages...)...)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+
+	// Create ANSI-stripping writer for log file
+	ansiStripLogWriter := NewAnsiStripWriter(logFile)
+
+	var outputBuffer strings.Builder
+	multiWriter := io.MultiWriter(ansiStripLogWriter, os.Stdout, &outputBuffer)
+	cmd.Stdout = multiWriter
+	cmd.Stderr = multiWriter
 
 	err = cmd.Run()
+
+	// Check for errors in output even if exit code is 0
+	output := outputBuffer.String()
+	if strings.Contains(output, "ERROR:") {
+		// Write failure to log file
+		fmt.Fprintf(logFile, "\nFailed to uninstall the packages!\n")
+		fmt.Fprintf(logFile, "APK reported errors\n")
+
+		// Format log file
+		FormatLogfile(logPath)
+
+		// Rename log file to indicate failure
+		newLogPath := strings.Replace(logPath, "-incomplete-", "-fail-", 1)
+		os.Rename(logPath, newLogPath)
+
+		return fmt.Errorf("failed to uninstall packages: APK reported errors")
+	}
+
 	if err != nil {
+<<<<<<< HEAD
 		return fmt.Errorf(T("failed to uninstall packages: %v"), err)
 	}
 
 	StatusGreenTf("\033[1m%s\033[22m uninstalled successfully", appName)
+=======
+		// Write failure to log file
+		fmt.Fprintf(logFile, "\nFailed to uninstall the packages!\n")
+		fmt.Fprintf(logFile, "Error: %v\n", err)
+
+		// Format log file
+		FormatLogfile(logPath)
+
+		// Rename log file to indicate failure
+		newLogPath := strings.Replace(logPath, "-incomplete-", "-fail-", 1)
+		os.Rename(logPath, newLogPath)
+
+		return fmt.Errorf("failed to uninstall packages: %v", err)
+	}
+
+	// Success - write to log
+	fmt.Fprintf(logFile, "\n%s uninstalled successfully\n", appName)
+	Status(fmt.Sprintf("\033[1m%s\033[22m uninstalled successfully", appName))
+
+	// Format log file
+	FormatLogfile(logPath)
+
+	// Rename log file to indicate success
+	newLogPath := strings.Replace(logPath, "-incomplete-", "-success-", 1)
+	os.Rename(logPath, newLogPath)
+
+>>>>>>> c8b15e0acda7e6d84acfd14b03d15a330d9ca337
 	return nil
 }
 

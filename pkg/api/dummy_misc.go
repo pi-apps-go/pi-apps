@@ -32,14 +32,15 @@ import (
 
 // variables for dummy related messages
 var (
-	MissingInitMessage        = T("Congratulations, Linux tinkerer, you broke your system. The init package can not be found, which means you have removed the default <distro> sources from your system.\nAll <package manager> based application installs will fail. Unless you have a backup of your <required files> you will need to reinstall your OS.")
-	PackageManager            = "dummy"
-	PackageAppErrorMessage    = T("As this is an <package manager> error, consider Googling the errors.")
-	AdoptiumInstallerMessage  = T("Install Adoptium Java repository - ignored, not supported by dummy")
-	LessAptMessage            = T("Format <package manager> output for readability")
-	AptLockWaitMessage        = T("Wait for <package manager> lock")
-	UbuntuPPAInstallerMessage = T("Install Ubuntu PPA - ignored, not supported by dummy")
-	DebianPPAInstallerMessage = T("Install Debian PPA - ignored, not supported by dummy")
+	MissingInitMessage         = T("Congratulations, Linux tinkerer, you broke your system. The init package can not be found, which means you have removed the default <distro> sources from your system.\nAll <package manager> based application installs will fail. Unless you have a backup of your <required files> you will need to reinstall your OS.")
+	PackageManager             = "dummy"
+	PackageAppErrorMessage     = T("As this is an <package manager> error, consider Googling the errors.")
+	PackageAppNoErrorReporting = T("Error report cannot be sent because this \"app\" is really just a shortcut to install a <distro> package. It's not a problem that Pi-Apps can fix.")
+	AdoptiumInstallerMessage   = T("Install Adoptium Java repository - ignored, not supported by dummy")
+	LessAptMessage             = T("Format <package manager> output for readability")
+	AptLockWaitMessage         = T("Wait for <package manager> lock")
+	UbuntuPPAInstallerMessage  = T("Install Ubuntu PPA - ignored, not supported by dummy")
+	DebianPPAInstallerMessage  = T("Install Debian PPA - ignored, not supported by dummy")
 )
 
 // checkShellcheck checks if shellcheck is installed and installs it if it isn't

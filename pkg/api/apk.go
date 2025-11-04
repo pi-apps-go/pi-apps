@@ -40,6 +40,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -661,48 +662,66 @@ func InstallPackages(app string, args ...string) error {
 
 	// Capture all output for error analysis
 	var outputBuffer strings.Builder
+	var bufferMutex sync.Mutex
+	var wg sync.WaitGroup
 
 	// Read and display stdout
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		scanner := bufio.NewScanner(stdout)
 		for scanner.Scan() {
 			line := scanner.Text()
+			bufferMutex.Lock()
 			outputBuffer.WriteString(line + "\n")
+			bufferMutex.Unlock()
 			fmt.Println(line)
 		}
 	}()
 
 	// Read and display stderr
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		scanner := bufio.NewScanner(stderr)
 		for scanner.Scan() {
 			line := scanner.Text()
+			bufferMutex.Lock()
 			outputBuffer.WriteString(line + "\n")
+			bufferMutex.Unlock()
 			fmt.Fprintln(os.Stderr, line)
 		}
 	}()
 
 	// Wait for the command to complete
 	err = cmd.Wait()
+	fmt.Fprintln(os.Stderr, "[DEBUG] cmd.Wait() completed, err:", err)
+
+	// Wait for output readers to finish
+	wg.Wait()
+	fmt.Fprintln(os.Stderr, "[DEBUG] wg.Wait() completed")
 
 	Status(T("APK finished."))
 
-	// Check for errors
-	if err != nil {
-		combinedOutput := outputBuffer.String()
+	combinedOutput := outputBuffer.String()
+	fmt.Fprintln(os.Stderr, "[DEBUG] Output buffer length:", len(combinedOutput))
 
-		// Extract error lines from APK output
-		// APK uses "ERROR:" prefix for errors
-		var errorLines []string
-		for _, line := range strings.Split(combinedOutput, "\n") {
-			line = strings.TrimSpace(line)
-			if strings.HasPrefix(line, "ERROR:") ||
-				strings.Contains(line, "fetch") && strings.Contains(line, "error") ||
-				strings.Contains(line, "unable to select packages") {
-				errorLines = append(errorLines, line)
-			}
+	// Extract error lines from APK output
+	// APK uses "ERROR:" prefix for errors
+	// Check for errors even if exit code is 0, as APK sometimes returns 0 on failure
+	var errorLines []string
+	for _, line := range strings.Split(combinedOutput, "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "ERROR:") ||
+			strings.Contains(line, "fetch") && strings.Contains(line, "error") ||
+			strings.Contains(line, "unable to select packages") {
+			errorLines = append(errorLines, line)
 		}
+	}
+	fmt.Fprintln(os.Stderr, "[DEBUG] Error lines found:", len(errorLines))
 
+	// Check for errors - either from exit code or from error messages in output
+	if err != nil || len(errorLines) > 0 {
 		// Handle error cases
 		errorStr := strings.Join(errorLines, "\n")
 
@@ -844,23 +863,33 @@ func PurgePackages(app string, isUpdate bool) error {
 
 	// Capture all output for error analysis
 	var outputBuffer strings.Builder
+	var bufferMutex sync.Mutex
+	var wg sync.WaitGroup
 
 	// Read and display stdout
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		scanner := bufio.NewScanner(stdout)
 		for scanner.Scan() {
 			line := scanner.Text()
+			bufferMutex.Lock()
 			outputBuffer.WriteString(line + "\n")
+			bufferMutex.Unlock()
 			fmt.Println(line)
 		}
 	}()
 
 	// Read and display stderr
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		scanner := bufio.NewScanner(stderr)
 		for scanner.Scan() {
 			line := scanner.Text()
+			bufferMutex.Lock()
 			outputBuffer.WriteString(line + "\n")
+			bufferMutex.Unlock()
 			fmt.Fprintln(os.Stderr, line)
 		}
 	}()
@@ -868,23 +897,27 @@ func PurgePackages(app string, isUpdate bool) error {
 	// Wait for the command to complete
 	err = cmd.Wait()
 
+	// Wait for output readers to finish
+	wg.Wait()
+
 	Status(T("APK finished."))
 
-	// Check for errors
-	if err != nil {
-		combinedOutput := outputBuffer.String()
+	combinedOutput := outputBuffer.String()
 
-		// Extract error lines from APK output
-		var errorLines []string
-		for _, line := range strings.Split(combinedOutput, "\n") {
-			line = strings.TrimSpace(line)
-			if strings.HasPrefix(line, "ERROR:") ||
-				strings.Contains(line, "unable to select packages") ||
-				strings.Contains(line, "World entry") && strings.Contains(line, "not found") {
-				errorLines = append(errorLines, line)
-			}
+	// Extract error lines from APK output
+	// Check for errors even if exit code is 0, as APK sometimes returns 0 on failure
+	var errorLines []string
+	for _, line := range strings.Split(combinedOutput, "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "ERROR:") ||
+			strings.Contains(line, "unable to select packages") ||
+			strings.Contains(line, "World entry") && strings.Contains(line, "not found") {
+			errorLines = append(errorLines, line)
 		}
+	}
 
+	// Check for errors - either from exit code or from error messages in output
+	if err != nil || len(errorLines) > 0 {
 		// Handle error cases
 		errorStr := strings.Join(errorLines, "\n")
 

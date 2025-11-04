@@ -807,3 +807,5 @@ func LogDiagnose(logfilePath string, allowWrite bool) (*ErrorDiagnosis, error) {
 	// Always return nil error (equivalent to bash's "return 0") for consistent behavior
 	return diagnosis, nil
 }
+
+
