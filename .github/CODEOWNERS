@@ -1,14 +1,14 @@
 # Code owners for Pi-Apps Go
 
 # All code except for the apps folder and certain files are owned by the Pi-Apps Go team
-/pkg/ @pi-apps-go/pi-apps-go-team
-/cmd/ @pi-apps-go/pi-apps-go-team
-/locales/ @pi-apps-go/pi-apps-go-team
-api @pi-apps-go/pi-apps-go-team
-install @pi-apps-go/pi-apps-go-team
-uninstall @pi-apps-go/pi-apps-go-team
+/pkg/* @pi-apps-go/pi-apps-go-team
+/cmd/* @pi-apps-go/pi-apps-go-team
+/locales/* @pi-apps-go/pi-apps-go-team
+/api @pi-apps-go/pi-apps-go-team
+/install @pi-apps-go/pi-apps-go-team
+/uninstall @pi-apps-go/pi-apps-go-team
 
 
 # icons and files in etc are based off of the original bash implementation, so they are owned by the original Pi-Apps owners
-/icons/ @Botspot @theofficialgman
-/etc/ @Botspot @theofficialgman
+/icons/* @Botspot @theofficialgman
+/etc/* @Botspot @theofficialgman
