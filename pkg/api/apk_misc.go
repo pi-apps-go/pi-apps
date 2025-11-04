@@ -33,9 +33,14 @@ import (
 
 // variables for APK related messages
 var (
-	MissingInitMessage     = T("Congratulations, Linux tinkerer, you broke your system. The init package can not be found, which means you have removed the default Alpine sources from your system.\nAll APK based application installs will fail. Unless you have a backup of your /etc/apk/repositories you will need to reinstall your OS.")
-	PackageManager         = "apk"
-	PackageAppErrorMessage = T("As this is an APK error, consider Googling the errors or asking for help in Alpine Linux forums.")
+	MissingInitMessage        = T("Congratulations, Linux tinkerer, you broke your system. The init package can not be found, which means you have removed the default Alpine sources from your system.\nAll APK based application installs will fail. Unless you have a backup of your /etc/apk/repositories /etc/apk/repositories.d /usr/lib/apk/repositories.d you will need to reinstall your OS.")
+	PackageManager            = "apk"
+	PackageAppErrorMessage    = T("As this is an APK error, consider Googling the errors or asking for help in Alpine Linux forums.")
+	AdoptiumInstallerMessage  = T("Install Adoptium Java repository - installs latest LTS OpenJDK instead")
+	LessAptMessage            = T("Format apk output for readability")
+	AptLockWaitMessage        = T("Wait for APK lock")
+	UbuntuPPAInstallerMessage = T("Install Ubuntu PPA - ignored, not supported by APK")
+	DebianPPAInstallerMessage = T("Install Debian PPA - ignored, not supported by APK")
 )
 
 // checkShellcheck checks if shellcheck is installed and installs it if it isn't
@@ -51,7 +56,7 @@ func checkShellcheck() error {
 	if !commandExists("shellcheck") {
 		// Ask if they want to install shellcheck
 		dialog := gtk.MessageDialogNew(nil, gtk.DIALOG_MODAL, gtk.MESSAGE_QUESTION, gtk.BUTTONS_YES_NO,
-			"Shellcheck is not installed, but it's useful for finding errors in shell scripts. Install it now?")
+			T("Shellcheck is not installed, but it's useful for finding errors in shell scripts. Install it now?"))
 		response := dialog.Run()
 		dialog.Destroy()
 
@@ -152,7 +157,7 @@ func PipxInstall(packages ...string) error {
 	if version >= "3.7" {
 		// Check if pipx is available in APK repositories first
 		if PackageAvailable("pipx", "") {
-			fmt.Println(T("Installing pipx from APK repositories..."))
+			StatusT("Installing pipx from APK repositories...")
 			cmd := exec.Command("sudo", "apk", "add", "pipx")
 			cmd.Stdout = os.Stdout
 			cmd.Stderr = os.Stderr
@@ -161,7 +166,7 @@ func PipxInstall(packages ...string) error {
 			}
 		} else {
 			// Fallback to pip installation
-			fmt.Println(T("Installing pipx with pip..."))
+			StatusT("Installing pipx with pip...")
 			cmd := exec.Command("sudo", "-H", "python3", "-m", "pip", "install", "--upgrade", "pipx", "--break-system-packages")
 			cmd.Stdout = os.Stdout
 			cmd.Stderr = os.Stderr
@@ -174,14 +179,14 @@ func PipxInstall(packages ...string) error {
 	}
 
 	// Verify pipx installation
-	fmt.Println(T("Verifying pipx installation..."))
+	StatusT("Verifying pipx installation...")
 	checkCmd := exec.Command("which", "pipx")
 	if err := checkCmd.Run(); err != nil {
 		return fmt.Errorf("%s", T("pipx installation failed: command not found after installation"))
 	}
 
 	// Install the requested packages
-	fmt.Printf(T("Installing %s with pipx...\n"), strings.Join(packages, ", "))
+	StatusTf("Installing %s with pipx...", strings.Join(packages, ", "))
 
 	installCmd := exec.Command("sudo", "-E", "bash", "-c",
 		fmt.Sprintf("PIPX_HOME=/usr/local/pipx PIPX_BIN_DIR=/usr/local/bin pipx install %s",
@@ -202,7 +207,7 @@ func PipxInstall(packages ...string) error {
 	upgradeCmd.Stdout = os.Stdout
 	upgradeCmd.Stderr = os.Stderr
 
-	fmt.Printf(T("Successfully installed %s with pipx\n"), strings.Join(packages, ", "))
+	StatusGreenTf("Successfully installed %s with pipx", strings.Join(packages, ", "))
 	return nil
 }
 
@@ -219,7 +224,7 @@ func PipxUninstall(packages ...string) error {
 	}
 
 	// Uninstall the requested packages
-	fmt.Printf(T("Uninstalling %s with pipx...\n"), strings.Join(packages, ", "))
+	StatusTf("Uninstalling %s with pipx...", strings.Join(packages, ", "))
 
 	cmd := exec.Command("sudo", "-E", "bash", "-c",
 		fmt.Sprintf("PIPX_HOME=/usr/local/pipx PIPX_BIN_DIR=/usr/local/bin pipx uninstall %s",
@@ -301,7 +306,7 @@ func checkMissingRepositories(osInfo *SystemOSInfo) (string, error) {
 
 	// If no repositories are found at all, that's a problem
 	if len(allRepos) == 0 {
-		return "No APK repositories are configured. Please check /etc/apk/repositories or /etc/apk/repositories.d/", nil
+		return T("No APK repositories are configured. Please check /etc/apk/repositories or /etc/apk/repositories.d/ or /usr/lib/apk/repositories.d/"), nil
 	}
 
 	// Check for standard repositories based on distribution
@@ -333,7 +338,7 @@ func checkMissingRepositories(osInfo *SystemOSInfo) (string, error) {
 
 	// If no standard repositories are found, warn the user
 	if !hasStandardRepo {
-		return "Warning: No standard APK repositories detected. System updates may not work correctly.", nil
+		return T("Warning: No standard APK repositories detected. System updates may not work correctly."), nil
 	}
 
 	return "", nil
@@ -363,17 +368,17 @@ func checkBrokenPackages() (string, error) {
 		auditOutput, _ := auditCmd.CombinedOutput()
 
 		var message strings.Builder
-		message.WriteString("APK has detected broken or missing packages on your system.\n")
-		message.WriteString("You can try to fix them by running:\n")
+		message.WriteString(T("APK has detected broken or missing packages on your system.\n"))
+		message.WriteString(T("You can try to fix them by running:\n"))
 		message.WriteString("  sudo apk fix\n\n")
 
 		if len(outputStr) > 0 {
-			message.WriteString("APK fix output:\n")
+			message.WriteString(T("APK fix output:\n"))
 			message.WriteString(outputStr)
 		}
 
 		if len(auditOutput) > 0 {
-			message.WriteString("\nAPK audit output:\n")
+			message.WriteString(T("\nAPK audit output:\n"))
 			message.WriteString(string(auditOutput))
 		}
 
@@ -412,9 +417,9 @@ func checkBrokenPackages() (string, error) {
 
 		if len(issues) > 0 {
 			var message strings.Builder
-			message.WriteString("APK audit has detected missing files from installed packages:\n\n")
+			message.WriteString(T("APK audit has detected missing files from installed packages:\n\n"))
 			message.WriteString(strings.Join(issues, "\n"))
-			message.WriteString("\n\nYou can try to fix them by running:\n")
+			message.WriteString(T("\n\nYou can try to fix them by running:\n"))
 			message.WriteString("  sudo apk fix --reinstall\n")
 			return message.String(), nil
 		}
@@ -451,10 +456,10 @@ func EnableModule(moduleName string) error {
 			cmd.Stdout = os.Stdout
 			cmd.Stderr = os.Stderr
 			if err := cmd.Run(); err != nil {
-				return fmt.Errorf("kmod is not installed and cannot be installed: %w", err)
+				return fmt.Errorf(T("kmod is not installed and cannot be installed: %w"), err)
 			}
 		} else {
-			return fmt.Errorf("kmod is not installed: command not found")
+			return fmt.Errorf(T("kmod is not installed: command not found"))
 		}
 	}
 
@@ -477,10 +482,10 @@ func EnableModule(moduleName string) error {
 			if kernelErr == nil {
 				kernelModulePath := fmt.Sprintf("/lib/modules/%s", strings.TrimSpace(string(kernelVersion)))
 				if _, statErr := os.Stat(kernelModulePath); os.IsNotExist(statErr) {
-					return fmt.Errorf("failed to load module '%s' because you upgraded the kernel and have not rebooted yet. Please reboot to load the new kernel, then try again", moduleName)
+					return fmt.Errorf(T("failed to load module '%s' because you upgraded the kernel and have not rebooted yet. Please reboot to load the new kernel, then try again"), moduleName)
 				}
 			}
-			return fmt.Errorf("failed to load module '%s': %s", moduleName, string(output))
+			return fmt.Errorf(T("failed to load module '%s': %s"), moduleName, string(output))
 		}
 	}
 
@@ -494,7 +499,7 @@ func EnableModule(moduleName string) error {
 			cmd := exec.Command("sudo", "tee", moduleConfPath)
 			cmd.Stdin = strings.NewReader(content)
 			if err := cmd.Run(); err != nil {
-				return fmt.Errorf("failed to create module load configuration: %w", err)
+				return fmt.Errorf(T("failed to create module load configuration: %w"), err)
 			}
 		}
 	}
@@ -504,21 +509,21 @@ func EnableModule(moduleName string) error {
 
 // installPackageApp installs a package-based app
 func installPackageApp(appName string) error {
-	Status(fmt.Sprintf("Installing \033[1m%s\033[22m...", appName))
+	StatusTf("Installing \033[1m%s\033[22m...", appName)
 
 	packageListPath := filepath.Join(getPiAppsDir(), "apps", appName, "packages")
 
 	// Read packages list
 	packageListBytes, err := os.ReadFile(packageListPath)
 	if err != nil {
-		return fmt.Errorf("failed to read packages list: %v", err)
+		return fmt.Errorf(T("failed to read packages list: %v"), err)
 	}
 
 	packageList := strings.TrimSpace(string(packageListBytes))
 	packages := strings.Fields(packageList)
 
 	if len(packages) == 0 {
-		return fmt.Errorf("no packages specified in %s", packageListPath)
+		return fmt.Errorf(T("no packages specified in %s"), packageListPath)
 	}
 
 	// Install packages with sudo
@@ -528,30 +533,30 @@ func installPackageApp(appName string) error {
 
 	err = cmd.Run()
 	if err != nil {
-		return fmt.Errorf("failed to install packages: %v", err)
+		return fmt.Errorf(T("failed to install packages: %v"), err)
 	}
 
-	Status(fmt.Sprintf("\033[1m%s\033[22m installed successfully", appName))
+	StatusGreenTf("\033[1m%s\033[22m installed successfully", appName)
 	return nil
 }
 
 // uninstallPackageApp uninstalls a package-based app
 func uninstallPackageApp(appName string) error {
-	Status(fmt.Sprintf("Uninstalling \033[1m%s\033[22m...", appName))
+	StatusTf("Uninstalling \033[1m%s\033[22m...", appName)
 
 	packageListPath := filepath.Join(getPiAppsDir(), "apps", appName, "packages")
 
 	// Read packages list
 	packageListBytes, err := os.ReadFile(packageListPath)
 	if err != nil {
-		return fmt.Errorf("failed to read packages list: %v", err)
+		return fmt.Errorf(T("failed to read packages list: %v"), err)
 	}
 
 	packageList := strings.TrimSpace(string(packageListBytes))
 	packages := strings.Fields(packageList)
 
 	if len(packages) == 0 {
-		return fmt.Errorf("no packages specified in %s", packageListPath)
+		return fmt.Errorf(T("no packages specified in %s"), packageListPath)
 	}
 
 	// Uninstall packages with sudo
@@ -561,10 +566,10 @@ func uninstallPackageApp(appName string) error {
 
 	err = cmd.Run()
 	if err != nil {
-		return fmt.Errorf("failed to uninstall packages: %v", err)
+		return fmt.Errorf(T("failed to uninstall packages: %v"), err)
 	}
 
-	Status(fmt.Sprintf("\033[1m%s\033[22m uninstalled successfully", appName))
+	StatusGreenTf("\033[1m%s\033[22m uninstalled successfully", appName)
 	return nil
 }
 
@@ -577,7 +582,7 @@ func installPackageAppDependencies(dependencies ...string) error {
 
 	err := cmd.Run()
 	if err != nil {
-		return fmt.Errorf("failed to install dependencies: %v", err)
+		return fmt.Errorf(T("failed to install dependencies: %v"), err)
 	}
 
 	return nil
@@ -592,7 +597,7 @@ func uninstallPackageAppDependencies(dependencies ...string) error {
 
 	err := cmd.Run()
 	if err != nil {
-		return fmt.Errorf("failed to uninstall dependencies: %v", err)
+		return fmt.Errorf(T("failed to uninstall dependencies: %v"), err)
 	}
 
 	return nil

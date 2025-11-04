@@ -1009,7 +1009,7 @@ func addQueueItemToPixbufListStore(listStore *gtk.ListStore, item QueueItem, use
 func addDonationItemsToPixbufListStore(listStore *gtk.ListStore) {
 	const targetAppHeight = 64 // Define target height for donation icons (was 24, now matches large app icon)
 
-	botspotMessage := "to Botspot (Pi-Apps founder, college student, abandoned by family recently, needs help)"
+	botspotMessage := "to Botspot (Pi-Apps founder)"
 	gmanMessage := "to theofficialgman (notable Pi-Apps contributor)"
 
 	// Create empty pixbufs for blank columns

@@ -1078,7 +1078,7 @@ func showBasicsDialog(currentName, currentType string) (string, string, string, 
 		}
 		typeCombo.AppendText("standard - Use scripts to install the app")
 		// TODO: Change this below message depending on the package manager being used.
-		typeCombo.AppendText(fmt.Sprintf("package - Will install %s package(s)", PackageManager))
+		typeCombo.AppendText(Tf("package - Will install %s package(s)", PackageManager))
 		typeCombo.AppendText("flatpak_package - Will install flatpak package(s)")
 		typeCombo.SetActive(0) // Default to standard
 		grid.Attach(typeCombo, 1, 1, 1, 1)

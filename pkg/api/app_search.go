@@ -192,7 +192,7 @@ func AppSearch(query string, searchFiles ...string) ([]string, error) {
 				// Read and check the file for the query
 				found, err := fileContainsText(filePath, query)
 				if err != nil {
-					Debug(fmt.Sprintf("Error searching in %s: %v", filePath, err))
+					DebugTf("Error searching in %s: %v", filePath, err)
 					continue
 				}
 
@@ -618,7 +618,7 @@ func showSearchResults(directory string, results []string, query string) string 
 		// Create row box
 		rowBox, err := gtk.BoxNew(gtk.ORIENTATION_HORIZONTAL, 10)
 		if err != nil {
-			Debug(fmt.Sprintf("Error creating row box: %v", err))
+			DebugTf("Error creating row box: %v", err)
 			continue
 		}
 		rowBox.SetMarginStart(10)
@@ -637,7 +637,7 @@ func showSearchResults(directory string, results []string, query string) string 
 		// Add app name
 		appLabel, err := gtk.LabelNew(app)
 		if err != nil {
-			Debug(fmt.Sprintf("Error creating app label: %v", err))
+			DebugTf("Error creating app label: %v", err)
 			continue
 		}
 		rowBox.PackStart(appLabel, false, false, 0)
@@ -645,7 +645,7 @@ func showSearchResults(directory string, results []string, query string) string 
 		// Add spacer
 		spacer, err := gtk.BoxNew(gtk.ORIENTATION_HORIZONTAL, 0)
 		if err != nil {
-			Debug(fmt.Sprintf("Error creating spacer: %v", err))
+			DebugTf("Error creating spacer: %v", err)
 			continue
 		}
 		rowBox.PackStart(spacer, true, true, 0)
@@ -653,7 +653,7 @@ func showSearchResults(directory string, results []string, query string) string 
 		// Add "in" label
 		inLabel, err := gtk.LabelNew("in")
 		if err != nil {
-			Debug(fmt.Sprintf("Error creating 'in' label: %v", err))
+			DebugTf("Error creating 'in' label: %v", err)
 			continue
 		}
 		inLabel.SetSizeRequest(20, -1)
@@ -670,7 +670,7 @@ func showSearchResults(directory string, results []string, query string) string 
 		// Add category name
 		categoryLabel, err := gtk.LabelNew(category)
 		if err != nil {
-			Debug(fmt.Sprintf("Error creating category label: %v", err))
+			DebugTf("Error creating category label: %v", err)
 			continue
 		}
 		rowBox.PackStart(categoryLabel, false, false, 0)
@@ -678,7 +678,7 @@ func showSearchResults(directory string, results []string, query string) string 
 		// Create list box row and add the box to it
 		row, err := gtk.ListBoxRowNew()
 		if err != nil {
-			Debug(fmt.Sprintf("Error creating list box row: %v", err))
+			DebugTf("Error creating list box row: %v", err)
 			continue
 		}
 		row.Add(rowBox)
@@ -726,12 +726,12 @@ func showSearchResults(directory string, results []string, query string) string 
 func getAppDescription(directory, app string) string {
 	descFile := filepath.Join(directory, "apps", app, "description")
 	if !FileExists(descFile) {
-		return "Description unavailable"
+		return T("Description unavailable")
 	}
 
 	file, err := os.Open(descFile)
 	if err != nil {
-		return "Description unavailable"
+		return T("Description unavailable")
 	}
 	defer file.Close()
 
@@ -740,7 +740,7 @@ func getAppDescription(directory, app string) string {
 		return scanner.Text()
 	}
 
-	return "Description unavailable"
+	return T("Description unavailable")
 }
 
 // DialogError displays an error dialog with the given message

@@ -340,7 +340,7 @@ func RefreshAppList() error {
 	}
 
 	// We don't wait for the command to complete, as it's running in the background
-	Debug("Preload daemon started to refresh app list")
+	DebugT("Preload daemon started to refresh app list")
 
 	return nil
 }

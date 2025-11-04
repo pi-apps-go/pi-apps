@@ -22,7 +22,6 @@ package api
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -438,7 +437,7 @@ func RunCommand(command string, args ...string) int {
 		if exitError, ok := err.(*exec.ExitError); ok {
 			return exitError.ExitCode()
 		}
-		log.Printf("Failed to execute command: %v", err)
+		ErrorNoExitT("Failed to execute command: %v", err)
 		return 1
 	}
 

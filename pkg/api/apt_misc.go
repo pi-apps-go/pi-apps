@@ -36,9 +36,14 @@ import (
 
 // variables for APT related messages
 var (
-	MissingInitMessage     = T("Congratulations, Linux tinkerer, you broke your system. The init package can not be found, which means you have removed the default debian sources from your system.\nAll apt based application installs will fail. Unless you have a backup of your /etc/apt/sources.list /etc/apt/sources.list.d you will need to reinstall your OS.")
-	PackageManager         = "apt"
-	PackageAppErrorMessage = T("As this is an APT error, consider Googling the errors or asking for help in the <a href=\"https://forums.raspberrypi.com\">Raspberry Pi Forums</a>.")
+	MissingInitMessage        = T("Congratulations, Linux tinkerer, you broke your system. The init package can not be found, which means you have removed the default debian sources from your system.\nAll apt based application installs will fail. Unless you have a backup of your /etc/apt/sources.list /etc/apt/sources.list.d you will need to reinstall your OS.")
+	PackageManager            = "apt"
+	PackageAppErrorMessage    = T("As this is an APT error, consider Googling the errors or asking for help in the <a href=\"https://forums.raspberrypi.com\">Raspberry Pi Forums</a>.")
+	AdoptiumInstallerMessage  = T("Install Adoptium Java Debian repository")
+	LessAptMessage            = T("Format apt output for readability")
+	AptLockWaitMessage        = T("Wait for APT lock")
+	UbuntuPPAInstallerMessage = T("Install Ubuntu PPA")
+	DebianPPAInstallerMessage = T("Install Debian PPA")
 )
 
 // checkShellcheck checks if shellcheck is installed and installs it if it isn't
@@ -671,7 +676,7 @@ func installPackageApp(appName string) error {
 	packages := strings.Fields(packageList)
 
 	// Install packages with sudo
-	cmd := exec.Command("sudo", append([]string{"apt-get", "install", "-y"}, packages...)...)
+	cmd := exec.Command("sudo", append([]string{"apt-get", "install", "-y", "--no-install-recommends"}, packages...)...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
@@ -723,7 +728,7 @@ func uninstallPackageApp(appName string) error {
 // installPackageAppDependencies installs the dependencies for a package-based app without pi-apps having to create a new virtual package
 func installPackageAppDependencies(dependencies ...string) error {
 	// Install packages with sudo
-	cmd := exec.Command("sudo", append([]string{"apt-get", "install", "-yf"}, dependencies...)...)
+	cmd := exec.Command("sudo", append([]string{"apt-get", "install", "-yf", "--no-install-recommends"}, dependencies...)...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 

@@ -121,28 +121,28 @@ func RemoveDeprecatedApp(app, removalArch, message string) error {
 	case removalArch != "" && appDirExists && arch == removalArch && appStatus == "installed":
 		shouldPrompt = true
 		if message != "" {
-			text = fmt.Sprintf("Pi-Apps has deprecated %s for %s-bit OSs which you currently have installed.\n\n%s\n\nWould you like to uninstall it now or leave it installed? You will NOT be able to uninstall %s with Pi-Apps later.", app, removalArch, message, app)
+			text = Tf("Pi-Apps has deprecated %s for %s-bit OSs which you currently have installed.\n\n%s\n\nWould you like to uninstall it now or leave it installed? You will NOT be able to uninstall %s with Pi-Apps later.", app, removalArch, message, app)
 		} else {
-			text = fmt.Sprintf("Pi-Apps has deprecated %s for %s-bit OSs which you currently have installed.\nWould you like to uninstall it now or leave it installed? You will NOT be able to uninstall %s with Pi-Apps later.", app, removalArch, app)
+			text = Tf("Pi-Apps has deprecated %s for %s-bit OSs which you currently have installed.\nWould you like to uninstall it now or leave it installed? You will NOT be able to uninstall %s with Pi-Apps later.", app, removalArch, app)
 		}
 	case removalArch == "" && appDirExists && appStatus == "installed":
 		shouldPrompt = true
 		if message != "" {
-			text = fmt.Sprintf("Pi-Apps has deprecated %s which you currently have installed.\n\n%s\n\nWould you like to uninstall it now or leave it installed? You will NOT be able to uninstall %s with Pi-Apps later.", app, message, app)
+			text = Tf("Pi-Apps has deprecated %s which you currently have installed.\n\n%s\n\nWould you like to uninstall it now or leave it installed? You will NOT be able to uninstall %s with Pi-Apps later.", app, message, app)
 		} else {
-			text = fmt.Sprintf("Pi-Apps has deprecated %s which you currently have installed.\nWould you like to uninstall it now or leave it installed? You will NOT be able to uninstall %s with Pi-Apps later.", app, app)
+			text = Tf("Pi-Apps has deprecated %s which you currently have installed.\nWould you like to uninstall it now or leave it installed? You will NOT be able to uninstall %s with Pi-Apps later.", app, app)
 		}
 	}
 
 	// If we should prompt, show the dialog and process response
 	if shouldPrompt {
-		output, err := UserInputFunc(text, "Uninstall now", "Leave installed")
+		output, err := UserInputFunc(text, T("Uninstall now"), T("Leave installed"))
 		if err != nil {
 			return fmt.Errorf("remove_deprecated_app: failed to get user input: %w", err)
 		}
 
 		// If user chose to uninstall, run the uninstall command
-		if output == "Uninstall now" {
+		if output == T("Uninstall now") {
 			manageBinary, baseArgs := getManageBinary(directory)
 			args := append(baseArgs, "-uninstall", app)
 			uninstallCmd := exec.Command(manageBinary, args...)

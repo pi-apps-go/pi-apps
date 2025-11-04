@@ -203,6 +203,22 @@ func ErrorNoExitT(msgid string, args ...interface{}) {
 	fmt.Fprintln(os.Stderr, "\033[91m"+translated+"\033[0m")
 }
 
+// DebugT displays a translated debug message when debug mode is enabled
+func DebugT(msg string) {
+	if piAppsDebug {
+		// The original bash script just does a simple echo without any color
+		fmt.Println(T(msg))
+	}
+}
+
+// DebugTf translates a formatted debug message when debug mode is enabled
+func DebugTf(format string, args ...any) {
+	if piAppsDebug {
+		translated := T(format)
+		fmt.Println(fmt.Sprintf(translated, args...))
+	}
+}
+
 // Helper functions for locale detection and management
 
 func detectLocale() string {

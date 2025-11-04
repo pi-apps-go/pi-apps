@@ -18,6 +18,13 @@ if command -v apt >/dev/null; then
   PKG_UPDATE="sudo apt update"
   PKG_INSTALL="sudo apt install"
   PKG_INSTALL_FLAGS="-y -f --no-install-recommends"
+elif command -v apk >/dev/null; then
+  #PKG_MANAGER="apk"
+  #PKG_UPDATE="sudo apk update"
+  #PKG_INSTALL="sudo apk add"
+  #PKG_INSTALL_FLAGS="--no-interactive"
+  # for now, throw error if not apt
+  error "While Pi-Apps Go supports Alpine Linux, currently the installer only supports APT-based package managers. This will change soon."
 elif command -v pacman >/dev/null; then
   #PKG_MANAGER="pacman"
   #PKG_UPDATE="sudo pacman -Sy"
@@ -47,7 +54,7 @@ elif command -v zypper >/dev/null; then
   # for now, throw error if not apt
   error "Pi-Apps Go is currently not supported on openSUSE. Please use a supported distribution."
 else
-  error "No supported package manager found. Supported package managers: apt, pacman, dnf, yum, zypper"
+  error "No supported package manager found. Supported package managers: apt, apk, pacman, dnf, yum, zypper"
 fi
 
 #Ensure running supported processors
@@ -83,14 +90,14 @@ else
 fi
 
 if ! dpkg -s $dependencies &>/dev/null ;then
-  sudo apt install $dependencies -y -f --no-install-recommends || error "Pi-Apps Go dependencies failed to install and so the Pi-Apps Go install has been aborted. Before Pi-Apps Go can be installed you must solve any errors above."
+  sudo apt-get -o DPkg::Lock::Timeout=-1 install $dependencies -y -f --no-install-recommends || error "Pi-Apps Go dependencies failed to install and so the Pi-Apps Go install has been aborted. Before Pi-Apps Go can be installed you must solve any errors above."
 fi
 
-# Check if Go is installed and version is at least 1.23
+# Check if Go is installed and version is at least 1.24
 if ! command -v go &>/dev/null; then
   echo "Go is not installed. Installing Go..."
   # Download and install Go
-  GO_VERSION="1.24.4"
+  GO_VERSION="1.25.3"
   ARCH=$(uname -m)
   case $ARCH in
     x86_64) GO_ARCH="amd64" ;;
@@ -121,10 +128,10 @@ else
     MAJOR=$(echo "$GO_VERSION_NUM" | cut -d. -f1)
     MINOR=$(echo "$GO_VERSION_NUM" | cut -d. -f2)
     
-    if [ "$MAJOR" -lt 1 ] || ([ "$MAJOR" -eq 1 ] && [ "$MINOR" -lt 23 ]); then
-      echo "Go version $GO_VERSION_NUM is too old (need 1.23+). Updating Go..."
+    if [ "$MAJOR" -lt 1 ] || ([ "$MAJOR" -eq 1 ] && [ "$MINOR" -lt 24 ]); then
+      echo "Go version $GO_VERSION_NUM is too old (need 1.24+). Updating Go..."
       # Download and install newer Go
-      GO_VERSION="1.24.4"
+      GO_VERSION="1.25.3"
       ARCH=$(uname -m)
       case $ARCH in
         x86_64) GO_ARCH="amd64" ;;
@@ -148,7 +155,7 @@ else
       
       cd "$HOME"
     else
-      echo "Go version $GO_VERSION_NUM is sufficient (1.23+ required), but you should update to the latest version."
+      echo "Go version $GO_VERSION_NUM is sufficient (1.24+ required), but you should update to the latest version."
     fi
   else
     error "Go is installed but 'go version' command failed, before Pi-Apps Go can be installed you must fix your Go installation."

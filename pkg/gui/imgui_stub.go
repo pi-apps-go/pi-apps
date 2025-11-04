@@ -17,6 +17,8 @@
 // Module: imgui_stub.go
 // Description: Stub implementation of the ImGui GUI for systems that don't have ImGui support for Pi-Apps Go.
 
+//go:build !imgui
+
 package gui
 
 import "fmt"
