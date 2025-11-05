@@ -35,15 +35,15 @@ import (
 
 // variables for APK related messages
 var (
-	MissingInitMessage        = T("Congratulations, Linux tinkerer, you broke your system. The init package can not be found, which means you have removed the default Alpine sources from your system.\nAll APK based application installs will fail. Unless you have a backup of your /etc/apk/repositories /etc/apk/repositories.d /usr/lib/apk/repositories.d you will need to reinstall your OS.")
-	PackageManager            = "apk"
-	PackageAppErrorMessage    = T("As this is an APK error, consider Googling the errors or asking for help in Alpine Linux forums.")
+	MissingInitMessage         = T("Congratulations, Linux tinkerer, you broke your system. The init package can not be found, which means you have removed the default Alpine sources from your system.\nAll APK based application installs will fail. Unless you have a backup of your /etc/apk/repositories /etc/apk/repositories.d /usr/lib/apk/repositories.d you will need to reinstall your OS.")
+	PackageManager             = "apk"
+	PackageAppErrorMessage     = T("As this is an APK error, consider Googling the errors or asking for help in Alpine Linux forums.")
 	PackageAppNoErrorReporting = T("Error report cannot be sent because this \"app\" is really just a shortcut to install an Alpine Linux package. It's not a problem that Pi-Apps can fix.")
-	AdoptiumInstallerMessage  = T("Install Adoptium Java repository - installs latest LTS OpenJDK instead")
-	LessAptMessage            = T("Format apk output for readability")
-	AptLockWaitMessage        = T("Wait for APK lock")
-	UbuntuPPAInstallerMessage = T("Install Ubuntu PPA - ignored, not supported by APK")
-	DebianPPAInstallerMessage = T("Install Debian PPA - ignored, not supported by APK")
+	AdoptiumInstallerMessage   = T("Install Adoptium Java repository - installs latest LTS OpenJDK instead")
+	LessAptMessage             = T("Format apk output for readability")
+	AptLockWaitMessage         = T("Wait for APK lock")
+	UbuntuPPAInstallerMessage  = T("Install Ubuntu PPA - ignored, not supported by APK")
+	DebianPPAInstallerMessage  = T("Install Debian PPA - ignored, not supported by APK")
 )
 
 // checkShellcheck checks if shellcheck is installed and installs it if it isn't
@@ -512,9 +512,6 @@ func EnableModule(moduleName string) error {
 
 // installPackageApp installs a package-based app
 func installPackageApp(appName string) error {
-<<<<<<< HEAD
-	StatusTf("Installing \033[1m%s\033[22m...", appName)
-=======
 	piAppsDir := getPiAppsDir()
 
 	// Set up logging
@@ -538,31 +535,22 @@ func installPackageApp(appName string) error {
 	// Write to log file (plain text) and stdout (colored)
 	fmt.Fprintf(logFile, "%s Installing %s...\n\n", time.Now().Format("2006-01-02 15:04:05"), appName)
 	Status(fmt.Sprintf("Installing \033[1m%s\033[22m...", appName))
->>>>>>> c8b15e0acda7e6d84acfd14b03d15a330d9ca337
 
 	packageListPath := filepath.Join(piAppsDir, "apps", appName, "packages")
 
 	// Read packages list
 	packageListBytes, err := os.ReadFile(packageListPath)
 	if err != nil {
-<<<<<<< HEAD
-		return fmt.Errorf(T("failed to read packages list: %v"), err)
-=======
 		fmt.Fprintf(logFile, "Failed to read packages list: %v\n", err)
 		return fmt.Errorf("failed to read packages list: %v", err)
->>>>>>> c8b15e0acda7e6d84acfd14b03d15a330d9ca337
 	}
 
 	packageList := strings.TrimSpace(string(packageListBytes))
 	packages := strings.Fields(packageList)
 
 	if len(packages) == 0 {
-<<<<<<< HEAD
-		return fmt.Errorf(T("no packages specified in %s"), packageListPath)
-=======
 		fmt.Fprintf(logFile, "No packages specified in %s\n", packageListPath)
 		return fmt.Errorf("no packages specified in %s", packageListPath)
->>>>>>> c8b15e0acda7e6d84acfd14b03d15a330d9ca337
 	}
 
 	fmt.Fprintf(logFile, "Will install these packages: %s\n", strings.Join(packages, " "))
@@ -611,12 +599,6 @@ func installPackageApp(appName string) error {
 	os.Stderr = originalStderr
 
 	if err != nil {
-<<<<<<< HEAD
-		return fmt.Errorf(T("failed to install packages: %v"), err)
-	}
-
-	StatusGreenTf("\033[1m%s\033[22m installed successfully", appName)
-=======
 		// Write failure to log file
 		fmt.Fprintf(logFile, "\nFailed to install the packages!\n")
 		fmt.Fprintf(logFile, "Error: %v\n", err)
@@ -642,15 +624,11 @@ func installPackageApp(appName string) error {
 	newLogPath := strings.Replace(logPath, "-incomplete-", "-success-", 1)
 	os.Rename(logPath, newLogPath)
 
->>>>>>> c8b15e0acda7e6d84acfd14b03d15a330d9ca337
 	return nil
 }
 
 // uninstallPackageApp uninstalls a package-based app
 func uninstallPackageApp(appName string) error {
-<<<<<<< HEAD
-	StatusTf("Uninstalling \033[1m%s\033[22m...", appName)
-=======
 	piAppsDir := getPiAppsDir()
 
 	// Set up logging
@@ -674,31 +652,22 @@ func uninstallPackageApp(appName string) error {
 	// Write to log file (plain text) and stdout (colored)
 	fmt.Fprintf(logFile, "%s Uninstalling %s...\n\n", time.Now().Format("2006-01-02 15:04:05"), appName)
 	Status(fmt.Sprintf("Uninstalling \033[1m%s\033[22m...", appName))
->>>>>>> c8b15e0acda7e6d84acfd14b03d15a330d9ca337
 
 	packageListPath := filepath.Join(piAppsDir, "apps", appName, "packages")
 
 	// Read packages list
 	packageListBytes, err := os.ReadFile(packageListPath)
 	if err != nil {
-<<<<<<< HEAD
-		return fmt.Errorf(T("failed to read packages list: %v"), err)
-=======
 		fmt.Fprintf(logFile, "Failed to read packages list: %v\n", err)
 		return fmt.Errorf("failed to read packages list: %v", err)
->>>>>>> c8b15e0acda7e6d84acfd14b03d15a330d9ca337
 	}
 
 	packageList := strings.TrimSpace(string(packageListBytes))
 	packages := strings.Fields(packageList)
 
 	if len(packages) == 0 {
-<<<<<<< HEAD
-		return fmt.Errorf(T("no packages specified in %s"), packageListPath)
-=======
 		fmt.Fprintf(logFile, "No packages specified in %s\n", packageListPath)
 		return fmt.Errorf("no packages specified in %s", packageListPath)
->>>>>>> c8b15e0acda7e6d84acfd14b03d15a330d9ca337
 	}
 
 	fmt.Fprintf(logFile, "Will uninstall these packages: %s\n", strings.Join(packages, " "))
@@ -734,12 +703,6 @@ func uninstallPackageApp(appName string) error {
 	}
 
 	if err != nil {
-<<<<<<< HEAD
-		return fmt.Errorf(T("failed to uninstall packages: %v"), err)
-	}
-
-	StatusGreenTf("\033[1m%s\033[22m uninstalled successfully", appName)
-=======
 		// Write failure to log file
 		fmt.Fprintf(logFile, "\nFailed to uninstall the packages!\n")
 		fmt.Fprintf(logFile, "Error: %v\n", err)
@@ -765,7 +728,6 @@ func uninstallPackageApp(appName string) error {
 	newLogPath := strings.Replace(logPath, "-incomplete-", "-success-", 1)
 	os.Rename(logPath, newLogPath)
 
->>>>>>> c8b15e0acda7e6d84acfd14b03d15a330d9ca337
 	return nil
 }
 

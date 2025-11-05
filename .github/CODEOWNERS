@@ -10,5 +10,6 @@
 
 
 # icons and files in etc are based off of the original bash implementation, so they are owned by the original Pi-Apps owners
-/icons/* @Botspot @theofficialgman
-/etc/* @Botspot @theofficialgman
+# these file owners require write access to the Pi-Apps Go repo to not flag those entries as errors but as Botspot nor theofficialgman contribututed to this rewrite, they are commented here
+# /icons/* @Botspot @theofficialgman
+# /etc/* @Botspot @theofficialgman
