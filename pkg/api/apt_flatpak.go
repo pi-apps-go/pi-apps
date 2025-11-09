@@ -40,19 +40,19 @@ func FlatpakInstall(app string) error {
 
 	// Check if flatpak is installed
 	if _, err := exec.LookPath("flatpak"); err != nil {
-		Error(fmt.Sprintf("flatpak_install(): Could not install %s because flatpak is not installed", app))
+		ErrorTf("flatpak_install(): Could not install %s because flatpak is not installed", app)
 		return fmt.Errorf("flatpak_install(): Could not install %s because flatpak is not installed", app)
 	}
 
 	// Check if flatpak version is new enough
 	isNewEnough := PackageIsNewEnough("flatpak", "1.14.4")
 	if !isNewEnough {
-		Status("Flatpak version is older than required. Upgrading...")
+		StatusT("Flatpak version is older than required. Upgrading...")
 
 		// Upgrade flatpak based on OS distribution
 		osCodename := VERSION_CODENAME
 		if osCodename == "" {
-			Error("failed to determine OS codename: OS codename is empty")
+			ErrorT("failed to determine OS codename: OS codename is empty")
 			return fmt.Errorf("failed to determine OS codename: OS codename is empty")
 		}
 

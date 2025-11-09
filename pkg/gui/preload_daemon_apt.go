@@ -69,7 +69,7 @@ func (d *PreloadDaemon) Start(ctx context.Context) error {
 	defer d.mu.Unlock()
 
 	if d.running {
-		logger.Error("daemon is already running")
+		logger.Error(api.T("daemon is already running"))
 		return fmt.Errorf("daemon is already running")
 	}
 
@@ -87,7 +87,7 @@ func (d *PreloadDaemon) Stop() error {
 	defer d.mu.Unlock()
 
 	if !d.running {
-		logger.Warn("daemon is not running")
+		logger.Warn(api.T("daemon is not running"))
 		return fmt.Errorf("daemon is not running")
 	}
 
@@ -120,10 +120,10 @@ func (d *PreloadDaemon) run(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
-			logger.Info("Preload daemon stopped due to context cancellation")
+			logger.Info(api.T("Preload daemon stopped due to context cancellation"))
 			return
 		case <-d.stopChan:
-			logger.Info("Preload daemon stopped")
+			logger.Info(api.T("Preload daemon stopped"))
 			return
 		case <-ticker.C:
 			d.refreshAll()
@@ -138,7 +138,7 @@ func (d *PreloadDaemon) refreshAll() {
 
 	// Check and refresh package app status first
 	if err := d.refreshPackageAppStatus(); err != nil {
-		logger.Warn(fmt.Sprintf("failed to refresh package app status: %v\n", err))
+		logger.Warn(api.Tf("failed to refresh package app status: %v\n", err))
 	}
 
 	// Get timestamp checker for main directories
@@ -149,37 +149,37 @@ func (d *PreloadDaemon) refreshAll() {
 	daemonTimestampFile := filepath.Join(d.directory, "data", "preload", "timestamps-preload-daemon")
 	savedTimestamps, err := os.ReadFile(daemonTimestampFile)
 	if err == nil && string(savedTimestamps) == timestamps {
-		logger.Info("Preload-daemon skipped; nothing was changed")
+		logger.Info(api.T("Preload-daemon skipped; nothing was changed"))
 		return
 	}
 
-	logger.Info("Preload-daemon running...")
+	logger.Info(api.T("Preload-daemon running..."))
 
 	// Get list of folders to preload
 	folders, err := d.getFoldersToPreload()
 	if err != nil {
-		logger.Error(fmt.Sprintf("Error getting folders to preload: %v\n", err))
+		logger.Error(api.Tf("Error getting folders to preload: %v\n", err))
 		return
 	}
 
 	// Preload each folder
 	for _, folder := range folders {
 		if err := d.preloadFolder(folder); err != nil {
-			logger.Warn(fmt.Sprintf("Warning: failed to preload folder '%s': %v\n", folder, err))
+			logger.Warn(api.Tf("failed to preload folder '%s': %v\n", folder, err))
 		}
 	}
 
 	// Save the current timestamps
 	preloadDir := filepath.Join(d.directory, "data", "preload")
 	if err := os.MkdirAll(preloadDir, 0755); err != nil {
-		logger.Warn(fmt.Sprintf("failed to create preload directory: %v\n", err))
+		logger.Warn(api.Tf("failed to create preload directory: %v\n", err))
 	} else {
 		if err := os.WriteFile(daemonTimestampFile, []byte(timestamps), 0644); err != nil {
-			logger.Warn(fmt.Sprintf("failed to save daemon timestamps: %v\n", err))
+			logger.Warn(api.Tf("failed to save daemon timestamps: %v\n", err))
 		}
 	}
 
-	logger.Info("Preload-daemon done")
+	logger.Info(api.T("Preload-daemon done"))
 }
 
 // refreshPackageAppStatus refreshes package app status if dpkg status has changed
@@ -202,17 +202,17 @@ func (d *PreloadDaemon) refreshPackageAppStatus() error {
 		return nil
 	}
 
-	logger.Info("Refreshing pkgapp_status...")
+	logger.Info(api.T("Refreshing pkgapp_status..."))
 
 	// Save new timestamp
 	preloadDir := filepath.Join(d.directory, "data", "preload")
 	if err := os.MkdirAll(preloadDir, 0755); err != nil {
-		logger.Error(fmt.Sprintf("failed to create preload directory: %v\n", err))
+		logger.Error(api.Tf("failed to create preload directory: %v\n", err))
 		return fmt.Errorf("failed to create preload directory: %w", err)
 	}
 
 	if err := os.WriteFile(timestampFile, []byte(currentTime), 0644); err != nil {
-		logger.Error(fmt.Sprintf("failed to save dpkg timestamp: %v\n", err))
+		logger.Error(api.Tf("failed to save dpkg timestamp: %v\n", err))
 		return fmt.Errorf("failed to save dpkg timestamp: %w", err)
 	}
 
@@ -230,7 +230,7 @@ func (d *PreloadDaemon) getFoldersToPreload() ([]string, error) {
 	// Get categories from category files
 	categories, err := api.ReadCategoryFiles(d.directory)
 	if err != nil {
-		logger.Error(fmt.Sprintf("failed to read category files: %v\n", err))
+		logger.Error(api.Tf("failed to read category files: %v\n", err))
 		return nil, fmt.Errorf("failed to read category files: %w", err)
 	}
 
@@ -265,20 +265,20 @@ func (d *PreloadDaemon) preloadFolder(folder string) error {
 	// Skip timestamp checking - we want to force regeneration
 	list, err := generateAppList(config)
 	if err != nil {
-		logger.Error(fmt.Sprintf("failed to generate app list for '%s': %v\n", folder, err))
+		logger.Error(api.Tf("failed to generate app list for '%s': %v\n", folder, err))
 		return fmt.Errorf("failed to generate app list for '%s': %w", folder, err)
 	}
 
 	// Save the generated list
 	if err := saveCachedList(config, list); err != nil {
-		logger.Error(fmt.Sprintf("failed to save cached list for '%s': %v\n", folder, err))
+		logger.Error(api.Tf("failed to save cached list for '%s': %v\n", folder, err))
 		return fmt.Errorf("failed to save cached list for '%s': %w", folder, err)
 	}
 
 	// Save timestamps
 	tc := NewTimeStampChecker(d.directory)
 	if err := tc.SaveTimestamps(folder); err != nil {
-		logger.Error(fmt.Sprintf("failed to save timestamps for '%s': %v\n", folder, err))
+		logger.Error(api.Tf("failed to save timestamps for '%s': %v\n", folder, err))
 		return fmt.Errorf("failed to save timestamps for '%s': %w", folder, err)
 	}
 
@@ -294,13 +294,13 @@ func (d *PreloadDaemon) RefreshSpecificCategory(category string) error {
 func (d *PreloadDaemon) RefreshAllCategories() error {
 	folders, err := d.getFoldersToPreload()
 	if err != nil {
-		logger.Error(fmt.Sprintf("failed to get folders to preload: %v\n", err))
+		logger.Error(api.Tf("failed to get folders to preload: %v\n", err))
 		return fmt.Errorf("failed to get folders to preload: %w", err)
 	}
 
 	for _, folder := range folders {
 		if err := d.preloadFolder(folder); err != nil {
-			logger.Error(fmt.Sprintf("failed to refresh category '%s': %v\n", folder, err))
+			logger.Error(api.Tf("failed to refresh category '%s': %v\n", folder, err))
 			return fmt.Errorf("failed to refresh category '%s': %w", folder, err)
 		}
 	}
@@ -313,7 +313,7 @@ func StartPreloadDaemon(directory string) (*PreloadDaemon, error) {
 	if directory == "" {
 		directory = os.Getenv("PI_APPS_DIR")
 		if directory == "" {
-			logger.Error("PI_APPS_DIR environment variable not set")
+			logger.Error(api.T("PI_APPS_DIR environment variable not set"))
 			return nil, fmt.Errorf("PI_APPS_DIR environment variable not set")
 		}
 	}
@@ -327,7 +327,7 @@ func StartPreloadDaemon(directory string) (*PreloadDaemon, error) {
 	ctx := context.Background()
 
 	if err := daemon.Start(ctx); err != nil {
-		logger.Error(fmt.Sprintf("failed to start preload daemon: %v\n", err))
+		logger.Error(api.Tf("failed to start preload daemon: %v\n", err))
 		return nil, fmt.Errorf("failed to start preload daemon: %w", err)
 	}
 

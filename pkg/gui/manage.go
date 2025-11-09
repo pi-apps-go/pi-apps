@@ -31,6 +31,7 @@ import (
 	"github.com/gotk3/gotk3/gdk"
 	"github.com/gotk3/gotk3/glib"
 	"github.com/gotk3/gotk3/gtk"
+	"github.com/pi-apps-go/pi-apps/pkg/api"
 	"github.com/toqueteos/webbrowser"
 	"golang.org/x/term"
 )
@@ -85,7 +86,7 @@ func ensureGTKInitialized() bool {
 
 		// Initialize application name
 		glib.SetPrgname("Pi-Apps")
-		glib.SetApplicationName("Pi-Apps (user dialog for managing apps)")
+		glib.SetApplicationName(api.T("Pi-Apps (user dialog for managing apps)"))
 		// Initialize GTK
 		gtk.Init(nil)
 		gtkInitialized = true
@@ -138,13 +139,13 @@ func runGtkDialog(dialog *gtk.Dialog) (gtk.ResponseType, error) {
 func ValidateAppsGUI(queue []QueueItem) ([]QueueItem, error) {
 	// If we can't use GTK, return the queue as is with a message
 	if !canUseGTK() {
-		fmt.Println("Cannot use GUI for validation. Continuing with operations...")
+		fmt.Println(api.T("Cannot use GUI for validation. Continuing with operations..."))
 		return queue, nil
 	}
 
 	// Make sure GTK is initialized
 	if !ensureGTKInitialized() {
-		fmt.Println("Cannot use GUI for validation. Continuing with operations...")
+		fmt.Println(api.T("Cannot use GUI for validation. Continuing with operations..."))
 		return queue, nil
 	}
 
@@ -162,7 +163,7 @@ func ValidateAppsGUI(queue []QueueItem) ([]QueueItem, error) {
 		if item.Action != "install" && item.Action != "uninstall" &&
 			item.Action != "update" && item.Action != "refresh" &&
 			item.Action != "update-file" {
-			showErrorDialog(fmt.Sprintf("Invalid action: <b>%s</b>", item.Action))
+			showErrorDialog(api.Tf("Invalid action: <b>%s</b>", item.Action))
 			continue
 		}
 
@@ -183,7 +184,7 @@ func ValidateAppsGUI(queue []QueueItem) ([]QueueItem, error) {
 		}
 
 		if _, err := os.Stat(appDirPath); os.IsNotExist(err) {
-			showErrorDialog(fmt.Sprintf("Invalid app \"<b>%s</b>\". Cannot %s it.",
+			showErrorDialog(api.Tf("Invalid app \"<b>%s</b>\". Cannot %s it.",
 				item.AppName, item.Action))
 			continue
 		}
@@ -193,13 +194,13 @@ func ValidateAppsGUI(queue []QueueItem) ([]QueueItem, error) {
 		switch {
 		case appStatus == "installed" && item.Action == "install":
 			// App is already installed, inform user and skip
-			showErrorDialog(fmt.Sprintf("<b>%s</b> is already installed. Skipping redundant installation.", item.AppName))
-			fmt.Printf("Skipping redundant installation of %s (already installed).\n", item.AppName)
+			showErrorDialog(api.Tf("<b>%s</b> is already installed. Skipping redundant installation.", item.AppName))
+			fmt.Println(api.Tf("Skipping redundant installation of %s (already installed).\n", item.AppName))
 			continue
 		case appStatus == "uninstalled" && item.Action == "uninstall":
 			// App is already uninstalled, inform user and skip
-			showErrorDialog(fmt.Sprintf("<b>%s</b> is already uninstalled. Skipping redundant uninstallation.", item.AppName))
-			fmt.Printf("Skipping redundant uninstallation of %s (already uninstalled).\n", item.AppName)
+			showErrorDialog(api.Tf("<b>%s</b> is already uninstalled. Skipping redundant uninstallation.", item.AppName))
+			fmt.Println(api.Tf("Skipping redundant uninstallation of %s (already uninstalled).\n", item.AppName))
 			continue
 		}
 		// Note: corrupted apps are allowed to be both installed and uninstalled
@@ -268,7 +269,7 @@ func ProgressMonitorWithOptions(queue []QueueItem, daemonMode bool) error {
 	if err != nil {
 		return err
 	}
-	win.SetTitle("Monitor Progress")
+	win.SetTitle(api.T("Monitor Progress"))
 	win.SetDefaultSize(480, 400)
 	win.SetPosition(gtk.WIN_POS_CENTER)
 	win.SetBorderWidth(5) // Reduced border width
@@ -440,7 +441,7 @@ func ProgressMonitorWithOptions(queue []QueueItem, daemonMode bool) error {
 					for i := range currentQueue {
 						if currentQueue[i].Status == "in-progress" || currentQueue[i].Status == "waiting" {
 							currentQueue[i].Status = "failure"
-							currentQueue[i].ErrorMessage = "Installation process appears to have failed (timeout)"
+							currentQueue[i].ErrorMessage = api.T("Installation process appears to have failed (timeout)")
 						}
 					}
 				}
@@ -529,7 +530,7 @@ func ShowSummaryDialog(completedQueue []QueueItem) error {
 	if err != nil {
 		return err
 	}
-	win.SetTitle("Actions Complete")
+	win.SetTitle(api.T("Actions Complete"))
 	win.SetDefaultSize(520, 350) // Increased height and width to accommodate larger icons
 	win.SetPosition(gtk.WIN_POS_CENTER)
 	win.SetBorderWidth(10) // Increased border width
@@ -553,7 +554,7 @@ func ShowSummaryDialog(completedQueue []QueueItem) error {
 	if err != nil {
 		return err
 	}
-	label.SetMarkup("<span size='large'><b>Thank you for using Pi-Apps!</b></span> The following apps completed:")
+	label.SetMarkup(api.T("<span size='large'><b>Thank you for using Pi-Apps Go!</b></span> The following apps completed:"))
 	label.SetHAlign(gtk.ALIGN_START)
 	box.PackStart(label, false, false, 5) // Increased padding
 
@@ -725,7 +726,9 @@ func ShowSummaryDialog(completedQueue []QueueItem) error {
 			return
 		}
 
-		if strings.Contains(strVal, "Botspot") {
+		if strings.Contains(strVal, "matu6968") {
+			openURL("https://github.com/sponsors/matu6968")
+		} else if strings.Contains(strVal, "Botspot") {
 			openURL("https://github.com/sponsors/botspot")
 		} else if strings.Contains(strVal, "theofficialgman") {
 			openURL("https://github.com/sponsors/theofficialgman")
@@ -763,9 +766,9 @@ func ShowBrokenPackagesDialog() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	dialog.SetTitle("Broken Local Packages Repo Detected")
-	dialog.AddButton("Cancel", gtk.RESPONSE_CANCEL)
-	dialog.AddButton("Repair", gtk.RESPONSE_OK)
+	dialog.SetTitle(api.T("Broken Local Packages Repo Detected"))
+	dialog.AddButton(api.T("Cancel"), gtk.RESPONSE_CANCEL)
+	dialog.AddButton(api.T("Repair"), gtk.RESPONSE_OK)
 
 	// Set dialog properties
 	dialog.SetDefaultSize(400, 150)
@@ -789,7 +792,7 @@ func ShowBrokenPackagesDialog() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	label.SetMarkup("Please enter your <b>user password</b>\nso pi-apps can attempt a repair:")
+	label.SetMarkup(api.T("Please enter your <b>user password</b>\nso pi-apps can attempt a repair:"))
 	contentArea.Add(label)
 
 	// Add password entry
@@ -860,12 +863,12 @@ func addQueueItemToPixbufListStore(listStore *gtk.ListStore, item QueueItem, use
 	if !exists {
 		// If status is unknown, default to waiting icon
 		statusIconName = StatusIconMapping["waiting"]
-		fmt.Printf("Warning: unknown status '%s' for app %s, using waiting icon\n", item.Status, item.AppName)
+		api.WarningTf("unknown status '%s' for app %s, using waiting icon", item.Status, item.AppName)
 	}
 	statusIconPath := getIconPath(statusIconName)
 	statusPixbuf, err := gdk.PixbufNewFromFile(statusIconPath)
 	if err != nil {
-		fmt.Printf("Error loading status icon %s: %v\n", statusIconPath, err)
+		api.ErrorNoExitTf("Error loading status icon %s: %v", statusIconPath, err)
 		statusPixbuf, _ = gdk.PixbufNew(gdk.COLORSPACE_RGB, true, 8, targetStatusActionHeight, targetStatusActionHeight)
 	} else if statusPixbuf != nil {
 		// Scale based on height, preserving aspect ratio
@@ -879,7 +882,7 @@ func addQueueItemToPixbufListStore(listStore *gtk.ListStore, item QueueItem, use
 
 			scaledPixbuf, scaleErr := statusPixbuf.ScaleSimple(newWidth, targetStatusActionHeight, gdk.INTERP_BILINEAR)
 			if scaleErr != nil {
-				fmt.Printf("Error scaling status icon: %v\n", scaleErr)
+				api.ErrorNoExitTf("Error scaling status icon: %v", scaleErr)
 				statusPixbuf, _ = gdk.PixbufNew(gdk.COLORSPACE_RGB, true, 8, targetStatusActionHeight, targetStatusActionHeight)
 			} else {
 				statusPixbuf = scaledPixbuf
@@ -892,12 +895,12 @@ func addQueueItemToPixbufListStore(listStore *gtk.ListStore, item QueueItem, use
 	if !exists {
 		// If action is unknown, default to install icon
 		actionIconName = ActionIconMapping["install"]
-		fmt.Printf("Warning: unknown action '%s' for app %s, using install icon\n", item.Action, item.AppName)
+		api.WarningTf("unknown action '%s' for app %s, using install icon", item.Action, item.AppName)
 	}
 	actionIconPath := getIconPath(actionIconName)
 	actionPixbuf, err := gdk.PixbufNewFromFile(actionIconPath)
 	if err != nil {
-		fmt.Printf("Error loading action icon %s: %v\n", actionIconPath, err)
+		api.ErrorNoExitTf("Error loading action icon %s: %v", actionIconPath, err)
 		actionPixbuf, _ = gdk.PixbufNew(gdk.COLORSPACE_RGB, true, 8, targetStatusActionHeight, targetStatusActionHeight)
 	} else if actionPixbuf != nil {
 		// Scale based on height, preserving aspect ratio
@@ -911,7 +914,7 @@ func addQueueItemToPixbufListStore(listStore *gtk.ListStore, item QueueItem, use
 
 			scaledPixbuf, scaleErr := actionPixbuf.ScaleSimple(newWidth, targetStatusActionHeight, gdk.INTERP_BILINEAR)
 			if scaleErr != nil {
-				fmt.Printf("Error scaling action icon: %v\n", scaleErr)
+				api.ErrorNoExitTf("Error scaling action icon: %v", scaleErr)
 				actionPixbuf, _ = gdk.PixbufNew(gdk.COLORSPACE_RGB, true, 8, targetStatusActionHeight, targetStatusActionHeight)
 			} else {
 				actionPixbuf = scaledPixbuf
@@ -942,7 +945,7 @@ func addQueueItemToPixbufListStore(listStore *gtk.ListStore, item QueueItem, use
 
 	appPixbuf, err := gdk.PixbufNewFromFile(appIconPath)
 	if err != nil {
-		fmt.Printf("Error loading app icon %s: %v\n", appIconPath, err)
+		api.ErrorNoExitTf("Error loading app icon %s: %v", appIconPath, err)
 		appPixbuf, _ = gdk.PixbufNew(gdk.COLORSPACE_RGB, true, 8, appIconTargetHeight, appIconTargetHeight)
 	} else if appPixbuf != nil {
 		// Scale based on height, preserving aspect ratio
@@ -956,7 +959,7 @@ func addQueueItemToPixbufListStore(listStore *gtk.ListStore, item QueueItem, use
 
 			scaledPixbuf, scaleErr := appPixbuf.ScaleSimple(newWidth, appIconTargetHeight, gdk.INTERP_BILINEAR)
 			if scaleErr != nil {
-				fmt.Printf("Error scaling app icon: %v\n", scaleErr)
+				api.ErrorNoExitTf("Error scaling app icon: %v", scaleErr)
 				appPixbuf, _ = gdk.PixbufNew(gdk.COLORSPACE_RGB, true, 8, appIconTargetHeight, appIconTargetHeight)
 			} else {
 				appPixbuf = scaledPixbuf
@@ -967,17 +970,17 @@ func addQueueItemToPixbufListStore(listStore *gtk.ListStore, item QueueItem, use
 	var actionText string
 	switch item.Status {
 	case "waiting":
-		actionText = fmt.Sprintf("Will %s", item.Action)
+		actionText = api.Tf("Will %s", item.Action)
 	case "in-progress":
-		actionText = fmt.Sprintf("%sing...", capitalize(item.Action))
+		actionText = api.Tf("%sing...", capitalize(item.Action))
 	case "success":
-		actionText = fmt.Sprintf("%sed", capitalize(item.Action))
+		actionText = api.Tf("%sed", capitalize(item.Action))
 	case "failure":
 		// For failures, show the action that failed
-		actionText = fmt.Sprintf("<span foreground='red'>%s failed</span>", capitalize(item.Action))
+		actionText = api.Tf("<span foreground='red'>%s failed</span>", capitalize(item.Action))
 	case "diagnosed":
 		// For diagnosed items, show that they were diagnosed
-		actionText = fmt.Sprintf("<span foreground='orange'>%s failed (diagnosed)</span>", capitalize(item.Action))
+		actionText = api.Tf("<span foreground='orange'>%s failed (diagnosed)</span>", capitalize(item.Action))
 	case "daemon-complete":
 		// For daemon completion, don't add this item to the display
 		return
@@ -1009,8 +1012,9 @@ func addQueueItemToPixbufListStore(listStore *gtk.ListStore, item QueueItem, use
 func addDonationItemsToPixbufListStore(listStore *gtk.ListStore) {
 	const targetAppHeight = 64 // Define target height for donation icons (was 24, now matches large app icon)
 
-	botspotMessage := "to Botspot (Pi-Apps founder)"
-	gmanMessage := "to theofficialgman (notable Pi-Apps contributor)"
+	botspotMessage := api.T("to Botspot (Pi-Apps founder)")
+	gmanMessage := api.T("to theofficialgman (notable Pi-Apps contributor)")
+	piAppsMessage := api.T("to Pi-Apps Go developers (matu6968)")
 
 	// Create empty pixbufs for blank columns
 	emptyPixbuf, _ := gdk.PixbufNew(gdk.COLORSPACE_RGB, true, 8, 1, 1)
@@ -1020,7 +1024,7 @@ func addDonationItemsToPixbufListStore(listStore *gtk.ListStore) {
 	botspotIconPath := getIconPath("icons/botspot.png")
 	botspotPixbuf, err := gdk.PixbufNewFromFile(botspotIconPath)
 	if err != nil {
-		fmt.Printf("Error loading Botspot icon: %v\n", err)
+		api.ErrorNoExitTf("Error loading Botspot icon: %v", err)
 		botspotPixbuf, _ = gdk.PixbufNew(gdk.COLORSPACE_RGB, true, 8, targetAppHeight, targetAppHeight)
 	} else if botspotPixbuf != nil {
 		// Scale based on height, preserving aspect ratio
@@ -1034,7 +1038,7 @@ func addDonationItemsToPixbufListStore(listStore *gtk.ListStore) {
 
 			scaledPixbuf, scaleErr := botspotPixbuf.ScaleSimple(newWidth, targetAppHeight, gdk.INTERP_BILINEAR)
 			if scaleErr != nil {
-				fmt.Printf("Error scaling Botspot icon: %v\n", scaleErr)
+				api.ErrorNoExitTf("Error scaling Botspot icon: %v", scaleErr)
 				botspotPixbuf, _ = gdk.PixbufNew(gdk.COLORSPACE_RGB, true, 8, targetAppHeight, targetAppHeight)
 			} else {
 				botspotPixbuf = scaledPixbuf
@@ -1047,7 +1051,7 @@ func addDonationItemsToPixbufListStore(listStore *gtk.ListStore) {
 		[]interface{}{
 			emptyPixbuf,
 			emptyPixbuf,
-			"<u><b>Donate</b></u>",
+			api.T("<u><b>Donate</b></u>"),
 			botspotPixbuf,
 			botspotMessage,
 		},
@@ -1085,9 +1089,47 @@ func addDonationItemsToPixbufListStore(listStore *gtk.ListStore) {
 		[]interface{}{
 			emptyPixbuf,
 			emptyPixbuf,
-			"<u><b>Donate</b></u>",
+			api.T("<u><b>Donate</b></u>"),
 			gmanPixbuf,
 			gmanMessage,
+		},
+	)
+
+	// --- Pi-Apps Go developers Icon ---
+	iter = listStore.Append()
+	piAppsGoIconPath := getIconPath("icons/pi-apps-go-org.png")
+	piAppsGoPixbuf, err := gdk.PixbufNewFromFile(piAppsGoIconPath)
+	if err != nil {
+		api.ErrorNoExitTf("Error loading Pi-Apps Go developers icon: %v", err)
+		piAppsGoPixbuf, _ = gdk.PixbufNew(gdk.COLORSPACE_RGB, true, 8, targetAppHeight, targetAppHeight)
+	} else if piAppsGoPixbuf != nil {
+		// Scale based on height, preserving aspect ratio
+		origWidth := piAppsGoPixbuf.GetWidth()
+		origHeight := piAppsGoPixbuf.GetHeight()
+		if origHeight != targetAppHeight {
+			newWidth := int(float64(targetAppHeight) * float64(origWidth) / float64(origHeight))
+			if newWidth == 0 {
+				newWidth = 1
+			} // Prevent zero width
+
+			scaledPixbuf, scaleErr := piAppsGoPixbuf.ScaleSimple(newWidth, targetAppHeight, gdk.INTERP_BILINEAR)
+			if scaleErr != nil {
+				api.ErrorNoExitTf("Error scaling Pi-Apps Go developers icon: %v", scaleErr)
+				piAppsGoPixbuf, _ = gdk.PixbufNew(gdk.COLORSPACE_RGB, true, 8, targetAppHeight, targetAppHeight)
+			} else {
+				piAppsGoPixbuf = scaledPixbuf
+			}
+		}
+	}
+
+	listStore.Set(iter,
+		[]int{0, 1, 2, 3, 4},
+		[]interface{}{
+			emptyPixbuf,
+			emptyPixbuf,
+			api.T("<u><b>Donate</b></u>"),
+			piAppsGoPixbuf,
+			piAppsMessage,
 		},
 	)
 }
@@ -1096,13 +1138,13 @@ func addDonationItemsToPixbufListStore(listStore *gtk.ListStore) {
 func showErrorDialog(message string) {
 	// If we can't use GTK, print error to console
 	if !canUseGTK() {
-		fmt.Printf("\nERROR: %s\n", message)
+		api.ErrorNoExitTf("ERROR: %s", message)
 		return
 	}
 
 	// Make sure GTK is initialized
 	if !ensureGTKInitialized() {
-		fmt.Printf("\nERROR: %s\n", message)
+		api.ErrorNoExitTf("ERROR: %s", message)
 		return
 	}
 
@@ -1110,10 +1152,10 @@ func showErrorDialog(message string) {
 	if err != nil {
 		return
 	}
-	dialog.SetTitle("Error")
+	dialog.SetTitle(api.T("Error"))
 
 	// Add OK button
-	dialog.AddButton("OK", gtk.RESPONSE_OK)
+	dialog.AddButton(api.T("OK"), gtk.RESPONSE_OK)
 
 	// Get content area
 	contentArea, err := dialog.GetContentArea()
@@ -1141,13 +1183,13 @@ func showErrorDialog(message string) {
 func ShowErrorDialogWithRetry(appName, action, message string) bool {
 	// If we can't use GTK, print error to console and return false
 	if !canUseGTK() {
-		fmt.Printf("\nERROR: %s\n", message)
+		api.ErrorNoExitTf("ERROR: %s", message)
 		return false
 	}
 
 	// Make sure GTK is initialized
 	if !ensureGTKInitialized() {
-		fmt.Printf("\nERROR: %s\n", message)
+		api.ErrorNoExitTf("ERROR: %s", message)
 		return false
 	}
 
@@ -1155,11 +1197,11 @@ func ShowErrorDialogWithRetry(appName, action, message string) bool {
 	if err != nil {
 		return false
 	}
-	dialog.SetTitle("Error")
+	dialog.SetTitle(api.T("Error"))
 
 	// Add buttons
-	dialog.AddButton("Skip", gtk.RESPONSE_CANCEL)
-	dialog.AddButton("Retry", gtk.RESPONSE_OK)
+	dialog.AddButton(api.T("Skip"), gtk.RESPONSE_CANCEL)
+	dialog.AddButton(api.T("Retry"), gtk.RESPONSE_OK)
 
 	// Get content area
 	contentArea, err := dialog.GetContentArea()
@@ -1178,7 +1220,7 @@ func ShowErrorDialogWithRetry(appName, action, message string) bool {
 	// Format the error message with app name and action
 	// Use glib.MarkupEscapeText to properly escape the message content
 	escapedMessage := glib.MarkupEscapeText(message)
-	formattedMessage := fmt.Sprintf("Failed to %s <b>%s</b>:\n%s", action, appName, escapedMessage)
+	formattedMessage := api.Tf("Failed to %s <b>%s</b>:\n%s", action, appName, escapedMessage)
 	label.SetMarkup(formattedMessage) // Use SetMarkup for rich text formatting
 	contentArea.Add(label)
 
@@ -1217,11 +1259,11 @@ func showConfirmDialog(message string) bool {
 	if err != nil {
 		return false
 	}
-	dialog.SetTitle("Quick question")
+	dialog.SetTitle(api.T("Quick question"))
 
 	// Add buttons
-	dialog.AddButton("No", gtk.RESPONSE_NO)
-	dialog.AddButton("Yes", gtk.RESPONSE_YES)
+	dialog.AddButton(api.T("No"), gtk.RESPONSE_NO)
+	dialog.AddButton(api.T("Yes"), gtk.RESPONSE_YES)
 
 	// Get content area
 	contentArea, err := dialog.GetContentArea()
@@ -1250,11 +1292,16 @@ func showConfirmDialog(message string) bool {
 	return response == gtk.RESPONSE_YES
 }
 
+// test only
+func ShowUpdateConfirmDialog(appName, scriptName string) bool {
+	return showUpdateConfirmDialog(appName, scriptName)
+}
+
 // showUpdateConfirmDialog shows a dialog asking if user wants to install newest version
 func showUpdateConfirmDialog(appName, scriptName string) bool {
 	// If we can't use GTK, ask for confirmation on command line
 	if !canUseGTK() {
-		message := fmt.Sprintf(
+		message := api.Tf(
 			"\nHold up...\n%s's %s script does not match the online version. "+
 				"Either you are about to install an outdated version, or you've made changes to the script yourself.\n\n"+
 				"Would you like to install the newest official version of %s? (y/n): ",
@@ -1273,7 +1320,7 @@ func showUpdateConfirmDialog(appName, scriptName string) bool {
 	}
 
 	// Create message with markup for bold text
-	message := fmt.Sprintf(
+	message := api.Tf(
 		"Hold up...\n<b>%s</b>'s %s script does not match the online version. "+
 			"Either you are about to install an outdated version, or you've made changes to the script yourself.\n\n"+
 			"<b>Would you like to install the newest official version of %s?</b>",
@@ -1284,11 +1331,11 @@ func showUpdateConfirmDialog(appName, scriptName string) bool {
 	if err != nil {
 		return false
 	}
-	dialog.SetTitle("Quick question")
+	dialog.SetTitle(api.T("Quick question"))
 
 	// Add buttons
-	dialog.AddButton("I know what I am doing, Install current version", gtk.RESPONSE_NO)
-	dialog.AddButton("Yes, Install newest official version", gtk.RESPONSE_YES)
+	dialog.AddButton(api.T("I know what I am doing, Install current version"), gtk.RESPONSE_NO)
+	dialog.AddButton(api.T("Yes, Install newest official version"), gtk.RESPONSE_YES)
 
 	// Get content area
 	contentArea, err := dialog.GetContentArea()
@@ -1355,18 +1402,6 @@ func getPiAppsDir() string {
 		}
 	}
 	return piAppsDir
-}
-
-// isAppInstalled checks if an app is installed
-func isAppInstalled(appName string) bool {
-	statusFile := filepath.Join(getPiAppsDir(), "data", "status", appName)
-	content, err := os.ReadFile(statusFile)
-	if err != nil {
-		return false
-	}
-
-	status := strings.TrimSpace(string(content))
-	return status == "installed"
 }
 
 // getAppStatus returns the current status of an app (installed, uninstalled, corrupted, etc.)
@@ -1458,8 +1493,8 @@ func openURL(url string) error {
 
 // progressMonitorCLI provides a simple CLI-based progress monitor
 func progressMonitorCLI(queue []QueueItem) error {
-	fmt.Println("\n=== Progress Monitor ===")
-	fmt.Println("The following operations will be performed:")
+	fmt.Println(api.T("\n=== Progress Monitor ==="))
+	fmt.Println(api.T("The following operations will be performed:"))
 
 	for _, item := range queue {
 		fmt.Printf("%s %s: %s\n",
@@ -1468,24 +1503,24 @@ func progressMonitorCLI(queue []QueueItem) error {
 			strings.ToUpper(item.Status))
 	}
 
-	fmt.Println("\nPress Ctrl+C to cancel")
+	fmt.Println(api.T("\nPress Ctrl+C to cancel"))
 	return nil
 }
 
 // showSummaryDialogCLI shows a summary of completed actions in CLI
 func showSummaryDialogCLI(completedQueue []QueueItem) error {
-	fmt.Println("\n=== Operations Complete ===")
-	fmt.Println("Thank you for using Pi-Apps! The following actions completed:")
+	fmt.Println(api.T("\n=== Operations Complete ==="))
+	fmt.Println(api.T("Thank you for using Pi-Apps! The following actions completed:"))
 
 	for _, item := range completedQueue {
 		var actionText string
 		switch item.Status {
 		case "success":
-			actionText = fmt.Sprintf("%sed successfully", capitalize(item.Action))
+			actionText = api.Tf("%sed successfully", capitalize(item.Action))
 		case "failure":
-			actionText = fmt.Sprintf("%s failed", capitalize(item.Action))
+			actionText = api.Tf("%s failed", capitalize(item.Action))
 		default:
-			actionText = fmt.Sprintf("%s status: %s", capitalize(item.Action), item.Status)
+			actionText = api.Tf("%s status: %s", capitalize(item.Action), item.Status)
 		}
 
 		// Fix "updateed" text
@@ -1494,18 +1529,19 @@ func showSummaryDialogCLI(completedQueue []QueueItem) error {
 		fmt.Printf("%s: %s\n", item.AppName, actionText)
 	}
 
-	fmt.Println("\nDonations:")
-	fmt.Println("- Botspot (Pi-Apps founder): https://github.com/sponsors/botspot")
-	fmt.Println("- theofficialgman (Pi-Apps contributor): https://github.com/sponsors/theofficialgman")
+	fmt.Println(api.T("\nDonations:"))
+	fmt.Println(api.Tf("- Botspot (Pi-Apps founder): https://github.com/sponsors/botspot"))
+	fmt.Println(api.Tf("- theofficialgman (Pi-Apps contributor): https://github.com/sponsors/theofficialgman"))
+	fmt.Println(api.Tf("- Pi-Apps Go developers: https://github.com/sponsors/matu6968"))
 
 	return nil
 }
 
 // showBrokenPackagesDialogCLI asks for sudo password in CLI
 func showBrokenPackagesDialogCLI() (string, error) {
-	fmt.Println("\n=== Broken Local Packages Repo Detected ===")
-	fmt.Println("Please enter your user password to repair:")
-	fmt.Println("Password will not be visible as you type.")
+	fmt.Println(api.T("\n=== Broken Local Packages Repo Detected ==="))
+	fmt.Println(api.T("Please enter your user password to repair:"))
+	fmt.Println(api.T("Password will not be visible as you type."))
 
 	// Use secure password input
 	passwordBytes, err := term.ReadPassword(int(os.Stdin.Fd()))
@@ -1525,11 +1561,15 @@ func showBrokenPackagesDialogCLI() (string, error) {
 // DisplayUnsupportedSystemWarning shows a formatted warning message for unsupported systems
 func DisplayUnsupportedSystemWarning(message string, useGUI bool) {
 	// Add ANSI color codes to match the original Bash implementation
-	warningPrefix := "\033[93m\033[5m◢◣\033[25m\033[0m \033[93mWARNING:\033[0m \033[93mYOUR SYSTEM IS UNSUPPORTED:\033[0m\n"
+	warningString := api.T("WARNING:")
+	warningMessage := api.T("YOUR SYSTEM IS UNSUPPORTED:")
+	warningPrefix := fmt.Sprintf("\033[93m\033[5m◢◣\033[25m\033[0m \033[93m%s\033[0m \033[93m%s\033[0m\n", warningString, warningMessage)
 	// Also format the message in yellow like in the original
-	formattedMessage := "\033[93m" + message + "\033[0m\n"
-	disabledMsg := "\033[103m\033[30mThe ability to send error reports has been disabled.\033[39m\033[49m\n"
-	waitingMsg := "\033[103m\033[30mWaiting 10 seconds... (To cancel, press Ctrl+C or close this terminal)\033[39m\033[49m\n"
+	formattedMessage := fmt.Sprintf("\033[93m%s\033[0m\n", message)
+	disabledMessage := api.T("The ability to send error reports has been disabled.")
+	disabledMsg := fmt.Sprintf("\033[103m\033[30m%s\033[39m\033[49m\n", disabledMessage)
+	waitingSecondsMsg := api.T("Waiting 10 seconds... (To cancel, press Ctrl+C or close this terminal)")
+	waitingMsg := fmt.Sprintf("\033[103m\033[30m%s\033[39m\033[49m\n", waitingSecondsMsg)
 
 	// Write colored messages to stdout (terminal)
 	fmt.Printf("%s%s%s%s", warningPrefix, formattedMessage, disabledMsg, waitingMsg)
@@ -1537,7 +1577,7 @@ func DisplayUnsupportedSystemWarning(message string, useGUI bool) {
 	// Only show GUI dialog if explicitly requested
 	if useGUI && canUseGTK() && ensureGTKInitialized() {
 		// Create formatted message for GUI dialog
-		dialogMessage := fmt.Sprintf("YOUR SYSTEM IS UNSUPPORTED:\n\n<b>%s</b>\n\nPi-Apps will disable the sending of any error reports until you have resolved the issue above.\nYour mileage may vary with using Pi-Apps in this state. Expect the majority of apps to be broken.", message)
+		dialogMessage := api.Tf("YOUR SYSTEM IS UNSUPPORTED:\n\n<b>%s</b>\n\nPi-Apps Go will disable the sending of any error reports until you have resolved the issue above.\nYour mileage may vary with using Pi-Apps in this state. Expect the majority of apps to be broken.", message)
 
 		showErrorDialog(dialogMessage)
 	}
@@ -1583,13 +1623,3 @@ func readQueueFromStatusFile(statusFile string) ([]QueueItem, error) {
 
 	return queue, scanner.Err()
 }
-
-// canUseGTK is already defined elsewhere in the package, so we've removed it
-
-// max returns the maximum of two integers
-//func max(a, b int) int {
-//	if a > b {
-//		return a
-//	}
-//	return b
-//}

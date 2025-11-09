@@ -56,7 +56,7 @@ func ShlinkLink(app, trigger string) error {
 		// Check if analytics are enabled
 		directory := os.Getenv("PI_APPS_DIR")
 		if directory == "" {
-			Error("ShlinkLink(): PI_APPS_DIR environment variable not set")
+			ErrorT("ShlinkLink(): PI_APPS_DIR environment variable not set")
 			return
 		}
 
@@ -90,7 +90,7 @@ func ShlinkLink(app, trigger string) error {
 		}
 		req, err := http.NewRequest("GET", url, nil)
 		if err != nil {
-			Debug(fmt.Sprintf("ShlinkLink: Error creating request: %v", err))
+			DebugTf("ShlinkLink: Error creating request: %v", err)
 			return
 		}
 
@@ -99,7 +99,7 @@ func ShlinkLink(app, trigger string) error {
 
 		resp, err := client.Do(req)
 		if err != nil {
-			Debug(fmt.Sprintf("ShlinkLink: Error making request: %v", err))
+			DebugTf("ShlinkLink: Error making request: %v", err)
 			return
 		}
 		defer resp.Body.Close()

@@ -164,7 +164,7 @@ func RefreshPkgAppStatus(appName string, packageName string) error {
 		// If pkgs is empty, this means no packages are available
 		if pkgs == "" {
 			// Mark the app as hidden
-			Debug(fmt.Sprintf("Marking %s as hidden", appName))
+			DebugTf("Marking %s as hidden", appName)
 			err := RunCategoryEdit(appName, "hidden")
 			if err != nil {
 				return fmt.Errorf("error marking app as hidden: %w", err)
@@ -188,7 +188,7 @@ func RefreshPkgAppStatus(appName string, packageName string) error {
 	if installed {
 		// If the package is installed, mark the app as installed
 		if status != "installed" {
-			Debug(fmt.Sprintf("Marking %s as installed", appName))
+			DebugTf("Marking %s as installed", appName)
 			statusDir := filepath.Join(directory, "data", "status")
 			if err := os.MkdirAll(statusDir, 0755); err != nil {
 				return fmt.Errorf("error creating status directory: %w", err)
@@ -208,7 +208,7 @@ func RefreshPkgAppStatus(appName string, packageName string) error {
 	} else {
 		// The package is not installed but available
 		if status != "uninstalled" {
-			Debug(fmt.Sprintf("Marking %s as uninstalled", appName))
+			DebugTf("Marking %s as uninstalled", appName)
 			// Remove the status file to mark it as uninstalled
 			statusFile := filepath.Join(directory, "data", "status", appName)
 			_ = os.Remove(statusFile) // Ignore error if file doesn't exist
@@ -233,12 +233,12 @@ func RefreshPkgAppStatus(appName string, packageName string) error {
 				line := scanner.Text()
 				if line == fmt.Sprintf("%s|hidden", appName) {
 					// App is hidden but should be unhidden
-					Debug(fmt.Sprintf("Unhiding %s as its packages are now available", appName))
+					DebugTf("Unhiding %s as its packages are now available", appName)
 
 					// Get the original category from categories file
 					cat, err := getOriginalCategory(directory, appName)
 					if err != nil {
-						Debug(fmt.Sprintf("Error getting original category: %v", err))
+						DebugTf("Error getting original category: %v", err)
 						cat = "Other" // Default to "Other" if there's an error
 					}
 

@@ -553,8 +553,8 @@ func AptUpdate(args ...string) error {
 		}
 
 		errorMessage := strings.Join(errorLines, "\n")
-		fmt.Fprint(os.Stderr, T("\033[91mFailed to run \033[4msudo apt update\033[0m\033[39m!\n"))
-		fmt.Fprintf(os.Stderr, T("APT reported these errors:\n\033[91m%s\033[39m\n"), errorMessage)
+		fmt.Fprintf(os.Stderr, "\033[91m%s \033[4msudo apt update\033[0m\033[39m!\n", T("Failed to run"))
+		fmt.Fprintf(os.Stderr, "%s\n\033[91m%s\033[39m\n", T("APT reported these errors:"), errorMessage)
 
 		// Print the full output for diagnosis
 		fmt.Fprintln(os.Stderr, completeOutput)
@@ -1117,7 +1117,7 @@ Package: %s
 				return fmt.Errorf(T("apt exited with error code %d and no error output"), cmd.ProcessState.ExitCode())
 			} else {
 				fmt.Printf("\033[91m%s\033[39m\n", T("Failed to install the packages!"))
-				fmt.Printf(T("The APT reported these errors:\n\033[91m%s\033[39m\n"), errorStr)
+				fmt.Printf("%s\n\033[91m%s\033[39m\n", T("The APT reported these errors:"), errorStr)
 
 				// Debug output for local repository issues
 				if usingLocalPackages && !FileExists("/tmp/pi-apps-local-packages/Packages") {
@@ -1400,7 +1400,7 @@ func PurgePackages(app string, isUpdate bool) error {
 			errorStr := strings.Join(errorLines, "\n")
 
 			fmt.Printf("\033[91m%s\033[39m\n", T("Failed to uninstall the packages!"))
-			fmt.Printf(T("The APT reported these errors:\n\033[91m%s\033[39m\n"), errorStr)
+			fmt.Printf("%s\n\033[91m%s\033[39m\n", T("The APT reported these errors:"), errorStr)
 			fmt.Println(combinedOutput)
 
 			return fmt.Errorf("apt reported errors: %s", errorStr)
@@ -1542,7 +1542,7 @@ func PurgePackages(app string, isUpdate bool) error {
 				errorStr := strings.Join(errorLines, "\n")
 
 				fmt.Printf("\033[91m%s\033[39m\n", T("Failed to uninstall the packages!"))
-				fmt.Printf(T("The APT reported these errors:\n\033[91m%s\033[39m\n"), errorStr)
+				fmt.Printf("%s\n\033[91m%s\033[39m\n", T("The APT reported these errors:"), errorStr)
 				fmt.Println(combinedOutput)
 
 				return fmt.Errorf("apt reported errors: %s", errorStr)

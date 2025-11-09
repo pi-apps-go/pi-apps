@@ -5,7 +5,6 @@ go 1.24.0
 require (
 	github.com/AllenDang/cimgui-go v1.4.0
 	github.com/ProtonMail/gopenpgp/v3 v3.3.0
-	github.com/cavaliergopher/grab/v3 v3.0.1
 	github.com/charmbracelet/log v0.4.2
 	github.com/davidbyttow/govips/v2 v2.16.0
 	github.com/gorilla/mux v1.8.1
@@ -13,11 +12,12 @@ require (
 	github.com/joho/godotenv v1.5.1
 	github.com/kbinani/screenshot v0.0.0-20250624051815-089614a94018
 	github.com/leonelquinteros/gotext v1.7.2
+	github.com/schollz/progressbar/v3 v3.18.0
 	github.com/toqueteos/webbrowser v1.2.1
+	gitlab.alpinelinux.org/alpine/go v0.10.1
 	golang.org/x/term v0.36.0
 	golang.org/x/text v0.30.0
 	golang.org/x/time v0.14.0
-	gitlab.alpinelinux.org/alpine/go v0.10.1
 )
 
 require (
@@ -38,6 +38,7 @@ require (
 	github.com/lxn/win v0.0.0-20210218163916-a377121e959e // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mattn/go-runewidth v0.0.16 // indirect
+	github.com/mitchellh/colorstring v0.0.0-20190213212951-d06e56a500db // indirect
 	github.com/muesli/termenv v0.16.0 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect

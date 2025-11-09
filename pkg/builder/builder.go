@@ -14,6 +14,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 // Package builder provides build-time plugin system for Pi-Apps Go
+// This is a work in progress, things must be adapted to keep the same functionality
 package builder
 
 import (
@@ -155,8 +156,8 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/botspot/pi-apps/pkg/api"
-	"github.com/botspot/pi-apps/pkg/builder"
+	"github.com/pi-apps-go/pi-apps/pkg/api"
+	"github.com/pi-apps-go/pi-apps/pkg/builder"
 %s
 )
 
@@ -313,7 +314,7 @@ func (b *Builder) initGoModule(ctx context.Context, tmpDir string) error {
 
 	// Add pi-apps dependency using local replacement
 	// Since we're in development, use the local pi-apps module
-	cmd = exec.CommandContext(ctx, "go", "mod", "edit", "-require", "github.com/botspot/pi-apps@v0.0.0-20241230000000-000000000000")
+	cmd = exec.CommandContext(ctx, "go", "mod", "edit", "-require", "github.com/pi-apps-go/pi-apps@latest")
 	cmd.Dir = tmpDir
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("failed to add pi-apps dependency: %w", err)
@@ -325,7 +326,7 @@ func (b *Builder) initGoModule(ctx context.Context, tmpDir string) error {
 		return fmt.Errorf("failed to get working directory: %w", err)
 	}
 
-	cmd = exec.CommandContext(ctx, "go", "mod", "edit", "-replace", fmt.Sprintf("github.com/botspot/pi-apps=%s", workDir))
+	cmd = exec.CommandContext(ctx, "go", "mod", "edit", "-replace", fmt.Sprintf("github.com/pi-apps-go/pi-apps=%s", workDir))
 	cmd.Dir = tmpDir
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("failed to add pi-apps replacement: %w", err)

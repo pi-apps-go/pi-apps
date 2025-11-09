@@ -22,15 +22,16 @@ package api
 
 import (
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
-	"time"
 
-	"github.com/cavaliergopher/grab/v3"
+	"github.com/schollz/progressbar/v3"
 )
 
 // Debug mode flag
@@ -346,35 +347,47 @@ func DownloadFile(url, destination string) error {
 		return fmt.Errorf("failed to create directory %s: %w", dir, err)
 	}
 
-	// Create a client
-	client := grab.NewClient()
-	req, err := grab.NewRequest(destination, url)
-	if err != nil {
-		return fmt.Errorf("failed to create request: %w", err)
-	}
-
-	// Start the download
+	// Issue the HTTP request
 	StatusT("Downloading %s", url)
-	resp := client.Do(req)
-
-	// Monitor the download progress
-	t := time.NewTicker(500 * time.Millisecond)
-	defer t.Stop()
-
-	for {
-		select {
-		case <-t.C:
-			progress := resp.Progress()
-			fmt.Printf("%.2f%%\n", progress*100)
-		case <-resp.Done:
-			// Download is complete
-			if err := resp.Err(); err != nil {
-				return fmt.Errorf("download failed: %w", err)
-			}
-			StatusGreenT("Download completed: %s", destination)
-			return nil
-		}
+	resp, err := http.Get(url)
+	if err != nil {
+		return fmt.Errorf("failed to initiate download: %w", err)
 	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("failed to download file: HTTP %d", resp.StatusCode)
+	}
+
+	// Open the destination file
+	out, err := os.Create(destination)
+	if err != nil {
+		return fmt.Errorf("failed to create file: %w", err)
+	}
+	defer out.Close()
+
+	// Setup the progress bar
+	var bar *progressbar.ProgressBar
+	if resp.ContentLength > 0 {
+		bar = progressbar.DefaultBytes(
+			resp.ContentLength,
+			Tf("downloading %s", filepath.Base(destination)),
+		)
+	} else {
+		// Unknown length: show spinner style
+		bar = progressbar.DefaultBytes(
+			-1,
+			Tf("downloading %s", filepath.Base(destination)),
+		)
+	}
+
+	// Copy with progress bar
+	if _, err := io.Copy(io.MultiWriter(out, bar), resp.Body); err != nil {
+		return fmt.Errorf("download failed: %w", err)
+	}
+
+	StatusGreenT("Download completed: %s", destination)
+	return nil
 }
 
 // FileExists checks if a file exists

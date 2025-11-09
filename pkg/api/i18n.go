@@ -211,6 +211,55 @@ func DebugT(msg string) {
 	}
 }
 
+// StatusTf displays a formatted translated status message in cyan
+func StatusTf(format string, args ...interface{}) {
+	if len(args) > 0 && fmt.Sprintf("%v", args[0]) != "" {
+		translated := T(format)
+		fmt.Fprintln(os.Stderr, "\033[96m"+fmt.Sprintf(translated, args...)+"\033[0m")
+	} else {
+		translated := T(format)
+		fmt.Fprintln(os.Stderr, "\033[96m"+translated+"\033[0m")
+	}
+}
+
+// StatusGreenTf announces the success of a major action in green with translation
+func StatusGreenTf(format string, args ...interface{}) {
+	translated := T(format)
+	if len(args) > 0 {
+		translated = fmt.Sprintf(translated, args...)
+	}
+	fmt.Fprintln(os.Stderr, "\033[92m"+translated+"\033[0m")
+}
+
+// WarningTf displays a formatted translated warning message in yellow with a flashing icon
+func WarningTf(format string, args ...interface{}) {
+	translated := T(format)
+	if len(args) > 0 {
+		translated = fmt.Sprintf(translated, args...)
+	}
+	warningPrefix := T("WARNING:")
+	fmt.Fprintln(os.Stderr, "\033[93m\033[5m◢◣\033[25m "+warningPrefix+" "+translated+"\033[0m")
+}
+
+// ErrorTf displays a formatted translated error message in red and exits the program
+func ErrorTf(format string, args ...interface{}) {
+	translated := T(format)
+	if len(args) > 0 {
+		translated = fmt.Sprintf(translated, args...)
+	}
+	fmt.Fprintln(os.Stderr, "\033[91m"+translated+"\033[0m")
+	os.Exit(1)
+}
+
+// ErrorNoExitTf displays a formatted translated error message in red but does not exit the program
+func ErrorNoExitTf(format string, args ...interface{}) {
+	translated := T(format)
+	if len(args) > 0 {
+		translated = fmt.Sprintf(translated, args...)
+	}
+	fmt.Fprintln(os.Stderr, "\033[91m"+translated+"\033[0m")
+}
+
 // DebugTf translates a formatted debug message when debug mode is enabled
 func DebugTf(format string, args ...any) {
 	if piAppsDebug {

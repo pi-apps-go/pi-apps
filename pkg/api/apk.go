@@ -386,8 +386,11 @@ func AptUpdate(args ...string) error {
 
 	if err := cmd.Run(); err != nil {
 		// Prepare and print enhanced error message similar to apt.go
-		fmt.Fprint(os.Stderr, T("\033[91mFailed to run \033[4msudo apk update\033[0m\033[39m!\n"))
-		fmt.Fprintf(os.Stderr, T("APK reported these errors:\n\033[91m%s\033[39m\n"), err.Error())
+		errorMessageTitle := T("Failed to run")
+		errorMessageCommand := "sudo apk update"
+		errorMessageErrors := T("APK reported these errors:")
+		fmt.Fprint(os.Stderr, fmt.Sprintf("\033[91m%s \033[4m%s\033[0m\033[39m!\n", errorMessageTitle, errorMessageCommand))
+		fmt.Fprintf(os.Stderr, fmt.Sprintf("%s\n\033[91m%s\033[39m\n", errorMessageErrors, err.Error()))
 		return fmt.Errorf("apk update failed: %w", err)
 	}
 
@@ -477,7 +480,7 @@ func InstallPackages(app string, args ...string) error {
 	var packages []string
 	usingLocalPackages := false
 
-	StatusT(Tf("Will install these packages: %s", strings.Join(args, " ")))
+	StatusTf("Will install these packages: %s", strings.Join(args, " "))
 
 	// Remove the local repo, just in case the last operation left it in an unrecoverable state
 	if err := RepoRm(); err != nil {
@@ -547,7 +550,7 @@ func InstallPackages(app string, args ...string) error {
 					}
 				}
 
-				Warning(fmt.Sprintf("Package download failed. (Attempt %d of 3)", attempt))
+				WarningTf("Package download failed. (Attempt %d of 3)", attempt)
 				os.Remove(filename) // Clean up failed download
 			}
 
@@ -557,7 +560,7 @@ func InstallPackages(app string, args ...string) error {
 
 			// Add to repository
 			if err := RepoAdd(filename); err != nil {
-				return fmt.Errorf("failed to add downloaded package to repository: %w", err)
+				return fmt.Errorf(T("failed to add downloaded package to repository: %w"), err)
 			}
 
 			usingLocalPackages = true
@@ -580,13 +583,13 @@ func InstallPackages(app string, args ...string) error {
 
 		} else if strings.Contains(pkg, "*") {
 			// Handle wildcards - expand using apk search
-			Status(fmt.Sprintf("Expanding wildcard in '%s'...", pkg))
+			StatusTf("Expanding wildcard in '%s'...", pkg)
 
 			searchPattern := strings.ReplaceAll(pkg, "*", "")
 			cmd := exec.Command("apk", "search", searchPattern)
 			output, err := cmd.Output()
 			if err != nil {
-				return fmt.Errorf("failed to search for packages with pattern %s: %w", pkg, err)
+				return fmt.Errorf(T("failed to search for packages with pattern %s: %w"), pkg, err)
 			}
 
 			// Extract package names from search results
@@ -607,7 +610,7 @@ func InstallPackages(app string, args ...string) error {
 			if len(expandedPkgs) > 0 {
 				packages = append(packages, expandedPkgs...)
 			} else {
-				return fmt.Errorf(T("no packages found matching pattern: %s"), pkg)
+				return fmt.Errorf(T("no packages found matching pattern: %s"), pkg, err)
 			}
 		} else {
 			// Regular package name
@@ -618,21 +621,21 @@ func InstallPackages(app string, args ...string) error {
 	// Initialize local repository if needed
 	if usingLocalPackages {
 		if err := RepoRefresh(); err != nil {
-			return fmt.Errorf("failed to refresh local repository: %w", err)
+			return fmt.Errorf(T("failed to refresh local repository: %w"), err)
 		}
 
 		// Update APK indexes to include our local repo
 		// Use --allow-untrusted flag since local packages won't be signed
 		if err := AptUpdate("--allow-untrusted"); err != nil {
-			return fmt.Errorf("failed to update APK indexes: %w", err)
+			return fmt.Errorf(T("failed to update APK indexes: %w"), err)
 		}
 	}
 
-	StatusT(Tf("Installing packages: %s", strings.Join(packages, " ")))
+	StatusTf("Installing packages: %s", strings.Join(packages, " "))
 
 	// Wait for APK locks
 	if err := AptLockWait(); err != nil {
-		return fmt.Errorf("failed to wait for APK locks: %w", err)
+		return fmt.Errorf(T("failed to wait for APK locks: %w"), err)
 	}
 
 	// Install packages with APK - use pipes to capture and filter output
@@ -648,16 +651,16 @@ func InstallPackages(app string, args ...string) error {
 	// Set up pipes for stdout and stderr
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		return fmt.Errorf("failed to create stdout pipe: %w", err)
+		return fmt.Errorf(T("failed to create stdout pipe: %w"), err)
 	}
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
-		return fmt.Errorf("failed to create stderr pipe: %w", err)
+		return fmt.Errorf(T("failed to create stderr pipe: %w"), err)
 	}
 
 	// Start the command
 	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("failed to start apk add command: %w", err)
+		return fmt.Errorf(T("failed to start apk add command: %w"), err)
 	}
 
 	// Capture all output for error analysis
@@ -701,7 +704,7 @@ func InstallPackages(app string, args ...string) error {
 	wg.Wait()
 	fmt.Fprintln(os.Stderr, "[DEBUG] wg.Wait() completed")
 
-	Status(T("APK finished."))
+	StatusTf("APK finished.")
 
 	combinedOutput := outputBuffer.String()
 	fmt.Fprintln(os.Stderr, "[DEBUG] Output buffer length:", len(combinedOutput))
@@ -727,7 +730,7 @@ func InstallPackages(app string, args ...string) error {
 
 		if len(errorLines) > 0 {
 			fmt.Printf("\033[91m%s\033[39m\n", T("Failed to install the packages!"))
-			fmt.Printf(T("APK reported these errors:\n\033[91m%s\033[39m\n"), errorStr)
+			fmt.Printf(T("%s\n\033[91m%s\033[39m\n"), T("APK reported these errors:"), errorStr)
 		} else {
 			fmt.Printf("\033[91m%s\033[39m\n", T("Failed to install the packages!"))
 			fmt.Printf(T("APK exited with error code %d\n"), cmd.ProcessState.ExitCode())
@@ -750,16 +753,16 @@ func InstallPackages(app string, args ...string) error {
 
 	trackingDir := filepath.Join(piAppsDir, "data", "installed-packages")
 	if err := os.MkdirAll(trackingDir, 0755); err != nil {
-		Warning(fmt.Sprintf("Failed to create tracking directory: %v", err))
+		WarningTf("Failed to create tracking directory: %v", err)
 	} else {
 		trackingFile := filepath.Join(trackingDir, app)
 		content := strings.Join(packages, "\n")
 		if err := os.WriteFile(trackingFile, []byte(content), 0644); err != nil {
-			Warning(fmt.Sprintf("Failed to write tracking file: %v", err))
+			WarningTf("Failed to write tracking file: %v", err)
 		}
 	}
 
-	StatusGreenT(T("Package installation complete."))
+	StatusGreenT("Package installation complete.")
 	return nil
 }
 
@@ -769,7 +772,7 @@ func PurgePackages(app string, isUpdate bool) error {
 		return fmt.Errorf("purge_packages function can only be used by apps to install packages (the app variable was not set)")
 	}
 
-	Status(Tf("Allowing packages required by the %s app to be uninstalled", app))
+	StatusTf("Allowing packages required by the %s app to be uninstalled", app)
 
 	// Get PI_APPS_DIR
 	piAppsDir := os.Getenv("PI_APPS_DIR")
@@ -782,7 +785,7 @@ func PurgePackages(app string, isUpdate bool) error {
 
 	if !FileExists(trackingFile) {
 		// No tracking file, nothing to purge
-		StatusT(T("No packages tracking file found. Nothing to purge."))
+		StatusT("No packages tracking file found. Nothing to purge.")
 		StatusGreenT("All packages have been purged successfully.")
 		return nil
 	}
@@ -803,7 +806,7 @@ func PurgePackages(app string, isUpdate bool) error {
 	}
 
 	if pkgList == "" {
-		StatusT(T("Package tracking file is empty. Nothing to do."))
+		StatusT("Package tracking file is empty. Nothing to do.")
 		// Remove the tracking file
 		os.Remove(trackingFile)
 		StatusGreenT("All packages have been purged successfully.")
@@ -814,7 +817,7 @@ func PurgePackages(app string, isUpdate bool) error {
 	packages := strings.Split(pkgList, " ")
 
 	fmt.Print(Tf("These packages were: %s\n", strings.Join(packages, ", ")))
-	StatusT(Tf("Purging packages..."))
+	StatusT("Purging packages...")
 
 	// Filter out packages that aren't actually installed
 	// APK will error if we try to delete a package that doesn't exist
@@ -829,7 +832,7 @@ func PurgePackages(app string, isUpdate bool) error {
 	}
 
 	if len(installedPackages) == 0 {
-		StatusT(T("No packages are currently installed. Nothing to do."))
+		StatusT("No packages are currently installed. Nothing to do.")
 		// Remove the tracking file
 		os.Remove(trackingFile)
 		StatusGreenT("All packages have been purged successfully.")
@@ -900,7 +903,7 @@ func PurgePackages(app string, isUpdate bool) error {
 	// Wait for output readers to finish
 	wg.Wait()
 
-	Status(T("APK finished."))
+	StatusT("APK finished.")
 
 	combinedOutput := outputBuffer.String()
 
@@ -923,7 +926,7 @@ func PurgePackages(app string, isUpdate bool) error {
 
 		if len(errorLines) > 0 {
 			fmt.Printf("\033[91m%s\033[39m\n", T("Failed to uninstall the packages!"))
-			fmt.Printf(T("APK reported these errors:\n\033[91m%s\033[39m\n"), errorStr)
+			fmt.Printf("%s\n\033[91m%s\033[39m\n", T("APK reported these errors:"), errorStr)
 		} else {
 			fmt.Printf("\033[91m%s\033[39m\n", T("Failed to uninstall the packages!"))
 			fmt.Printf(T("APK exited with error code %d\n"), cmd.ProcessState.ExitCode())
@@ -939,7 +942,7 @@ func PurgePackages(app string, isUpdate bool) error {
 
 	// Remove the tracking file
 	if err := os.Remove(trackingFile); err != nil {
-		Warning(fmt.Sprintf("Failed to remove tracking file: %v", err))
+		WarningTf("Failed to remove tracking file: %v", err)
 	}
 
 	StatusGreenT("All packages have been purged successfully.")
@@ -1100,20 +1103,20 @@ func AddExternalRepo(reponame, pubkeyurl, uris, suites, components string, addit
 
 	// If pubkeyurl is provided, download and install the public key
 	if pubkeyurl != "" {
-		fmt.Println("add_external_repo: checking 3rd party pubkeyurl validity")
+		fmt.Println(T("add_external_repo: checking 3rd party pubkeyurl validity"))
 		resp, err := http.Get(pubkeyurl)
 		if err != nil {
-			return fmt.Errorf("add_external_repo: failed to reach pubkeyurl: %w", err)
+			return fmt.Errorf(T("add_external_repo: failed to reach pubkeyurl: %w"), err)
 		}
 		defer resp.Body.Close()
 		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-			return fmt.Errorf("add_external_repo: pubkeyurl returned status code %d", resp.StatusCode)
+			return fmt.Errorf(T("add_external_repo: pubkeyurl returned status code %d"), resp.StatusCode)
 		}
 
 		// Download the public key
 		keyData, err := io.ReadAll(resp.Body)
 		if err != nil {
-			return fmt.Errorf("add_external_repo: failed to read key data: %w", err)
+			return fmt.Errorf(T("add_external_repo: failed to read key data: %w"), err)
 		}
 
 		// APK keys go in /etc/apk/keys/
@@ -1129,26 +1132,26 @@ func AddExternalRepo(reponame, pubkeyurl, uris, suites, components string, addit
 		if _, err := os.Stat(keyDir); os.IsNotExist(err) {
 			cmd := exec.Command("sudo", "mkdir", "-p", keyDir)
 			if err := cmd.Run(); err != nil {
-				return fmt.Errorf("add_external_repo: failed to create keys directory: %w", err)
+				return fmt.Errorf(T("add_external_repo: failed to create keys directory: %w"), err)
 			}
 		}
 
 		// Write the key to a temporary file
 		tempFile, err := os.CreateTemp("", "apk-key")
 		if err != nil {
-			return fmt.Errorf("add_external_repo: failed to create temporary file: %w", err)
+			return fmt.Errorf(T("add_external_repo: failed to create temporary file: %w"), err)
 		}
 		defer os.Remove(tempFile.Name())
 
 		if _, err := tempFile.Write(keyData); err != nil {
-			return fmt.Errorf("add_external_repo: failed to write key data: %w", err)
+			return fmt.Errorf(T("add_external_repo: failed to write key data: %w"), err)
 		}
 		tempFile.Close()
 
 		// Move the key to the keys directory
 		cmd := exec.Command("sudo", "cp", tempFile.Name(), keyFile)
 		if err := cmd.Run(); err != nil {
-			return fmt.Errorf("add_external_repo: failed to install key: %w", err)
+			return fmt.Errorf(T("add_external_repo: failed to install key: %w"), err)
 		}
 	}
 
@@ -1156,12 +1159,12 @@ func AddExternalRepo(reponame, pubkeyurl, uris, suites, components string, addit
 	// Read existing repositories
 	reposContent, err := os.ReadFile("/etc/apk/repositories")
 	if err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("add_external_repo: failed to read /etc/apk/repositories: %w", err)
+		return fmt.Errorf(T("add_external_repo: failed to read /etc/apk/repositories: %w"), err)
 	}
 
 	// Check if repository already exists
 	if strings.Contains(string(reposContent), uris) {
-		fmt.Printf("Repository %s already exists in /etc/apk/repositories\n", uris)
+		fmt.Printf(T("Repository %s already exists in /etc/apk/repositories\n"), uris)
 		return nil
 	}
 
@@ -1172,7 +1175,7 @@ func AddExternalRepo(reponame, pubkeyurl, uris, suites, components string, addit
 	// Create a temporary file with the updated content
 	tempFile, err := os.CreateTemp("", "apk-repos")
 	if err != nil {
-		return fmt.Errorf("add_external_repo: failed to create temporary file: %w", err)
+		return fmt.Errorf(T("add_external_repo: failed to create temporary file: %w"), err)
 	}
 	defer os.Remove(tempFile.Name())
 
@@ -1192,7 +1195,7 @@ func AddExternalRepo(reponame, pubkeyurl, uris, suites, components string, addit
 	// Move to /etc/apk/repositories
 	cmd := exec.Command("sudo", "cp", tempFile.Name(), "/etc/apk/repositories")
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("add_external_repo: failed to update /etc/apk/repositories: %w", err)
+		return fmt.Errorf(T("add_external_repo: failed to update /etc/apk/repositories: %w"), err)
 	}
 
 	return nil
@@ -1284,7 +1287,7 @@ func AdoptiumInstaller() error {
 	// Alpine Linux provides OpenJDK in its official repositories
 	// Check which JDK versions are available and install the latest LTS
 
-	Status("Checking available OpenJDK versions in Alpine repositories...")
+	StatusT("Checking available OpenJDK versions in Alpine repositories...")
 
 	// Common OpenJDK packages in Alpine: openjdk8, openjdk11, openjdk17, openjdk21
 	// Try to find the latest available LTS version
@@ -1302,7 +1305,7 @@ func AdoptiumInstaller() error {
 		return fmt.Errorf("no OpenJDK package found in Alpine repositories")
 	}
 
-	Status(fmt.Sprintf("Installing %s from Alpine repositories (Adoptium/Temurin not available for APK systems)...", availableJDK))
+	StatusTf("Installing %s from Alpine repositories (Adoptium/Temurin not available for APK systems)...", availableJDK)
 
 	// Install the JDK
 	cmd := exec.Command("sudo", "apk", "add", "--no-cache", availableJDK)
@@ -1313,7 +1316,7 @@ func AdoptiumInstaller() error {
 		return fmt.Errorf("failed to install %s: %w", availableJDK, err)
 	}
 
-	StatusGreen(fmt.Sprintf("%s installed successfully", availableJDK))
+	StatusGreenTf("%s installed successfully", availableJDK)
 
 	// Optionally set JAVA_HOME
 	// Find the java installation directory
@@ -1323,7 +1326,7 @@ func AdoptiumInstaller() error {
 		// Alpine typically installs Java in /usr/lib/jvm/
 		javaHomeHint := "/usr/lib/jvm/default-jvm"
 		if _, err := os.Stat(javaHomeHint); err == nil {
-			Status(fmt.Sprintf("Java installed. JAVA_HOME can be set to: %s", javaHomeHint))
+			StatusTf("Java installed. JAVA_HOME can be set to: %s", javaHomeHint)
 		}
 	}
 

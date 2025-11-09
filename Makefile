@@ -20,10 +20,8 @@ endif
 
 all: build
 
-build: build-api build-pi-apps build-manage build-settings build-updater build-gui build-xpi-apps
-build-debug: build-api-debug build-pi-apps-debug build-manage-debug build-settings-debug build-updater-debug build-gui-debug build-xpi-apps-debug
-build-with-xlunch: build-api build-pi-apps build-manage build-settings build-updater build-gui-with-xlunch build-xpi-apps
-build-with-xlunch-debug: build-api-debug build-pi-apps-debug build-manage-debug build-settings-debug build-updater-debug build-gui-with-xlunch-debug build-xpi-apps-debug
+build: build-api build-pi-apps build-manage build-settings build-updater build-gui build-xgotext
+build-debug: build-api-debug build-pi-apps-debug build-manage-debug build-settings-debug build-updater-debug build-gui-debug build-xgotext-debug
 build-with-multi-call: build-multi-call-pi-apps
 build-with-multi-call-debug: build-multi-call-pi-apps-debug
 
@@ -63,11 +61,18 @@ build-updater:
 build-updater-debug:
 	go build -o bin/updater -ldflags "$(LDFLAGS)" -tags=$(PKG_MGR) ./cmd/updater
 
+# xpi-apps utility is currently disabled from being built due to it not being feature complete
 build-xpi-apps:
 	go build -o bin/xpi-apps -ldflags "$(LDFLAGS) -w -s" -trimpath -tags=$(PKG_MGR) ./cmd/xpi-apps
 
 build-xpi-apps-debug:
 	go build -o bin/xpi-apps -ldflags "$(LDFLAGS)" -tags=$(PKG_MGR) ./cmd/xpi-apps
+
+build-xgotext:
+	go build -o bin/xgotext -ldflags "$(LDFLAGS) -w -s" -trimpath -tags=$(PKG_MGR) ./cmd/xgotext
+
+build-xgotext-debug:
+	go build -o bin/xgotext -ldflags "$(LDFLAGS)" -tags=$(PKG_MGR) ./cmd/xgotext
 
 # Note: error-report-server is not meant to be compiled by a user and is not included during compiling unless you are hosting the error report server yourself.
 build-error-report-server:
@@ -93,8 +98,9 @@ install: build
 	install -m 755 bin/updater updater
 	install -m 755 bin/gui gui
 	install -m 755 bin/xpi-apps xpi-apps
+	install -m 755 bin/xgotext xgotext
 	sudo install -m 755 bin/pi-apps $(BINDIR)/pi-apps
-	sudo install -m 755 bin/xpi-apps $(BINDIR)/xpi-apps
+	#sudo install -m 755 bin/xpi-apps $(BINDIR)/xpi-apps
 	#install -m 755 bash-go-api $(BINDIR)/api
 	
 install-debug: build-debug
@@ -104,8 +110,9 @@ install-debug: build-debug
 	install -m 755 bin/updater updater
 	install -m 755 bin/gui gui
 	install -m 755 bin/xpi-apps xpi-apps
+	install -m 755 bin/xgotext xgotext
 	sudo install -m 755 bin/pi-apps $(BINDIR)/pi-apps
-	sudo install -m 755 bin/xpi-apps $(BINDIR)/xpi-apps
+	#sudo install -m 755 bin/xpi-apps $(BINDIR)/xpi-apps
 	#install -m 755 bash-go-api $(BINDIR)/api
 
 install-with-multi-call: clean build-with-multi-call build-pi-apps

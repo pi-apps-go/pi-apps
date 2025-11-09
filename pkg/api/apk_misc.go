@@ -50,7 +50,7 @@ var (
 func checkShellcheck() error {
 	// Initialize application name
 	glib.SetPrgname("Pi-Apps-Settings")
-	glib.SetApplicationName("Pi-Apps Settings (app creation wizard)")
+	glib.SetApplicationName(T("Pi-Apps Settings (app creation wizard)"))
 
 	// Initialize GTK
 	gtk.Init(nil)
@@ -541,7 +541,7 @@ func installPackageApp(appName string) error {
 	// Read packages list
 	packageListBytes, err := os.ReadFile(packageListPath)
 	if err != nil {
-		fmt.Fprintf(logFile, "Failed to read packages list: %v\n", err)
+		fmt.Fprintf(logFile, "%s %v\n", T("Failed to read packages list:"), err)
 		return fmt.Errorf("failed to read packages list: %v", err)
 	}
 
@@ -549,11 +549,11 @@ func installPackageApp(appName string) error {
 	packages := strings.Fields(packageList)
 
 	if len(packages) == 0 {
-		fmt.Fprintf(logFile, "No packages specified in %s\n", packageListPath)
+		fmt.Fprintf(logFile, "%s %s\n", T("No packages specified in"), packageListPath)
 		return fmt.Errorf("no packages specified in %s", packageListPath)
 	}
 
-	fmt.Fprintf(logFile, "Will install these packages: %s\n", strings.Join(packages, " "))
+	fmt.Fprintf(logFile, "%s %s\n", T("Will install these packages:"), strings.Join(packages, " "))
 
 	// Create ANSI-stripping writer for log file
 	ansiStripLogWriter := NewAnsiStripWriter(logFile)
@@ -600,8 +600,8 @@ func installPackageApp(appName string) error {
 
 	if err != nil {
 		// Write failure to log file
-		fmt.Fprintf(logFile, "\nFailed to install the packages!\n")
-		fmt.Fprintf(logFile, "Error: %v\n", err)
+		fmt.Fprintf(logFile, "\n%s\n", T("Failed to install the packages!"))
+		fmt.Fprintf(logFile, "%s %v\n", T("Error:"), err)
 
 		// Format log file
 		FormatLogfile(logPath)
@@ -615,7 +615,7 @@ func installPackageApp(appName string) error {
 
 	// Success - write to log
 	fmt.Fprintf(logFile, "\n%s installed successfully\n", appName)
-	Status(fmt.Sprintf("\033[1m%s\033[22m installed successfully", appName))
+	StatusGreen(fmt.Sprintf("\033[1m%s\033[22m %s", appName, T("installed successfully")))
 
 	// Format log file
 	FormatLogfile(logPath)
@@ -650,15 +650,15 @@ func uninstallPackageApp(appName string) error {
 	defer logFile.Close()
 
 	// Write to log file (plain text) and stdout (colored)
-	fmt.Fprintf(logFile, "%s Uninstalling %s...\n\n", time.Now().Format("2006-01-02 15:04:05"), appName)
-	Status(fmt.Sprintf("Uninstalling \033[1m%s\033[22m...", appName))
+	fmt.Fprintf(logFile, "%s %s %s...\n\n", time.Now().Format("2006-01-02 15:04:05"), T("Uninstalling"), appName)
+	Status(fmt.Sprintf("%s \033[1m%s\033[22m...", T("Uninstalling"), appName))
 
 	packageListPath := filepath.Join(piAppsDir, "apps", appName, "packages")
 
 	// Read packages list
 	packageListBytes, err := os.ReadFile(packageListPath)
 	if err != nil {
-		fmt.Fprintf(logFile, "Failed to read packages list: %v\n", err)
+		fmt.Fprintf(logFile, "%s %v\n", T("Failed to read packages list:"), err)
 		return fmt.Errorf("failed to read packages list: %v", err)
 	}
 
@@ -666,11 +666,11 @@ func uninstallPackageApp(appName string) error {
 	packages := strings.Fields(packageList)
 
 	if len(packages) == 0 {
-		fmt.Fprintf(logFile, "No packages specified in %s\n", packageListPath)
+		fmt.Fprintf(logFile, "%s %s\n", T("No packages specified in"), packageListPath)
 		return fmt.Errorf("no packages specified in %s", packageListPath)
 	}
 
-	fmt.Fprintf(logFile, "Will uninstall these packages: %s\n", strings.Join(packages, " "))
+	fmt.Fprintf(logFile, "%s %s\n", T("Will uninstall these packages:"), strings.Join(packages, " "))
 
 	// For package-based apps, we just try to delete the packages directly
 	cmd := exec.Command("sudo", append([]string{"apk", "del", "--no-interactive"}, packages...)...)

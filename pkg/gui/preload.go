@@ -157,7 +157,7 @@ func (tc *TimeStampChecker) HasChanged(prefix string) (bool, error) {
 func (tc *TimeStampChecker) SaveTimestamps(prefix string) error {
 	preloadDir := filepath.Join(tc.Directory, "data", "preload")
 	if err := os.MkdirAll(preloadDir, 0755); err != nil {
-		logger.Error(fmt.Sprintf("failed to create preload directory: %v\n", err))
+		logger.Error(api.Tf("failed to create preload directory: %v\n", err))
 		return fmt.Errorf("failed to create preload directory: %w", err)
 	}
 
@@ -173,7 +173,7 @@ func PreloadAppList(directory, prefix string) (*PreloadedList, error) {
 	if directory == "" {
 		directory = os.Getenv("PI_APPS_DIR")
 		if directory == "" {
-			logger.Error("PI_APPS_DIR environment variable not set")
+			logger.Error(api.T("PI_APPS_DIR environment variable not set"))
 			return nil, fmt.Errorf("PI_APPS_DIR environment variable not set")
 		}
 	}
@@ -189,7 +189,7 @@ func PreloadAppList(directory, prefix string) (*PreloadedList, error) {
 	// Check if we need to reload the list
 	needsReload, err := shouldReloadList(config, tc)
 	if err != nil {
-		logger.Error(fmt.Sprintf("failed to check if reload needed: %v\n", err))
+		logger.Error(api.Tf("failed to check if reload needed: %v\n", err))
 		return nil, fmt.Errorf("failed to check if reload needed: %w", err)
 	}
 
@@ -197,7 +197,7 @@ func PreloadAppList(directory, prefix string) (*PreloadedList, error) {
 	if !needsReload {
 		cached, err := loadCachedList(config)
 		if err == nil {
-			logger.Info(fmt.Sprintf("Reading cached list for '%s'...\n", prefix))
+			logger.Info(api.Tf("Reading cached list for '%s'...\n", prefix))
 			return cached, nil
 		}
 		// If loading cached fails, fall through to regenerate
@@ -205,27 +205,27 @@ func PreloadAppList(directory, prefix string) (*PreloadedList, error) {
 	}
 
 	// Generate new list
-	logger.Info(fmt.Sprintf("Generating list for '%s'...\n", prefix))
+	logger.Info(api.Tf("Generating list for '%s'...\n", prefix))
 
 	// Load API functions
 	os.Setenv("PI_APPS_DIR", directory)
 
 	list, err := generateAppList(config)
 	if err != nil {
-		logger.Error(fmt.Sprintf("failed to generate app list: %v\n", err))
+		logger.Error(api.Tf("failed to generate app list: %v\n", err))
 		return nil, fmt.Errorf("failed to generate app list: %w", err)
 	}
 
 	// Save the list and timestamps
 	if err := saveCachedList(config, list); err != nil {
-		logger.Warn(fmt.Sprintf("failed to save cached list: %v\n", err))
+		logger.Warn(api.Tf("failed to save cached list: %v\n", err))
 	}
 
 	if err := tc.SaveTimestamps(prefix); err != nil {
-		logger.Warn(fmt.Sprintf("failed to save timestamps: %v\n", err))
+		logger.Warn(api.Tf("failed to save timestamps: %v\n", err))
 	}
 
-	logger.Info(fmt.Sprintf("Finished preload for '%s'\n", prefix))
+	logger.Info(api.Tf("Finished preload for '%s'\n", prefix))
 	return list, nil
 }
 
@@ -245,14 +245,14 @@ func shouldReloadList(config *AppListConfig, tc *TimeStampChecker) (bool, error)
 	// Check if list file exists
 	listFile := getListFilePath(config)
 	if _, err := os.Stat(listFile); os.IsNotExist(err) {
-		logger.Info(fmt.Sprintf("List file for %s does not exist.\n", config.Prefix))
+		logger.Info(api.Tf("List file for %s does not exist.\n", config.Prefix))
 		return true, nil
 	}
 
 	// Check if list file is empty
 	stat, err := os.Stat(listFile)
 	if err != nil || stat.Size() == 0 {
-		logger.Info(fmt.Sprintf("List file for %s is empty.\n", config.Prefix))
+		logger.Info(api.Tf("List file for %s is empty.\n", config.Prefix))
 		return true, nil
 	}
 
@@ -283,7 +283,7 @@ func generateAppList(config *AppListConfig) (*PreloadedList, error) {
 	// Get virtual file system with apps/categories
 	vfiles, err := getVirtualFileSystem(config)
 	if err != nil {
-		logger.Error(fmt.Sprintf("failed to get virtual file system: %v\n", err))
+		logger.Error(api.Tf("failed to get virtual file system: %v\n", err))
 		return nil, fmt.Errorf("failed to get virtual file system: %w", err)
 	}
 
@@ -335,7 +335,7 @@ func generateAppList(config *AppListConfig) (*PreloadedList, error) {
 func getVirtualFileSystem(config *AppListConfig) ([]string, error) {
 	if config.Prefix != "" {
 		// Show apps within specific prefix
-		logger.Info(fmt.Sprintf("Showing apps within %s/\n", config.Prefix))
+		logger.Info(api.Tf("Showing apps within %s/\n", config.Prefix))
 		vfiles, err := api.AppPrefixCategory(config.Directory, config.Prefix)
 		if err != nil {
 			return nil, err
@@ -390,7 +390,7 @@ func separateAppsAndDirs(vfiles []string, directory string) (apps []string, dirs
 	// Get CPU installable apps for filtering - this ensures architecture compatibility
 	cpuInstallableApps, err := api.ListApps("cpu_installable")
 	if err != nil {
-		logger.Warn(fmt.Sprintf("failed to get CPU installable apps: %v\n", err))
+		logger.Warn(api.Tf("failed to get CPU installable apps: %v\n", err))
 		cpuInstallableApps = []string{}
 	}
 
@@ -449,7 +449,7 @@ func createAppItem(app string, config *AppListConfig) (AppListItem, error) {
 
 	// Get app description (first line only, like the original bash script)
 	descFile := filepath.Join(config.Directory, "apps", app, "description")
-	description := "Description unavailable"
+	description := api.T("Description unavailable")
 	if descData, err := os.ReadFile(descFile); err == nil {
 		// Split into lines and take only the first line (matching bash read -r behavior)
 		lines := strings.Split(string(descData), "\n")
@@ -521,23 +521,23 @@ func getParentPath(path string) string {
 
 func getCategoryDescription(category string) string {
 	descriptions := map[string]string{
-		"Browsers":          "Internet browsers.",
-		"All Apps":          "All Pi-Apps Applications in one long list.",
-		"Appearance":        "Applications and Themes which modify the look and feel of your OS.",
-		"System Management": "Apps that help you keep track of system resources and general system management.",
-		"Games":             "Games and Emulators",
-		"Installed":         "All Pi-Apps Apps that you have installed.",
-		"Internet":          "Browsers, Chat Clients, Email Clients, and so much more.",
-		"Multimedia":        "Video playback and creation, audio playback and creation, and streaming alternatives.",
-		"Packages":          "Simple Apps that install directly from distribution repos (like APT).",
-		"Tools":             "An assortment of helpful programs that don't already fit into another category.",
-		"Terminals":         "Alternative terminal programs built for the modern age as well as to replicate your old vintage computer.",
-		"Programming":       "Code editors, IDEs, and other applications to help you write and make other programs.",
-		"Creative Arts":     "Drawing, Painting, and Photo and Movie Editors",
-		"Engineering":       "3D Printing slicers, CAD/modeling, and general design software",
-		"Office":            "Office suites (document and slideshow editors), and other office tools.",
-		"Emulation":         "Applications that help you run non-ARM or non-Linux software.",
-		"Communication":     "Internet messaging, calling, video chatting, and email clients.",
+		api.T("Browsers"):          api.T("Internet browsers."),
+		api.T("All Apps"):          api.T("All Pi-Apps Applications in one long list."),
+		api.T("Appearance"):        api.T("Applications and Themes which modify the look and feel of your OS."),
+		api.T("System Management"): api.T("Apps that help you keep track of system resources and general system management."),
+		api.T("Games"):             api.T("Games and Emulators"),
+		api.T("Installed"):         api.T("All Pi-Apps Apps that you have installed."),
+		api.T("Internet"):          api.T("Browsers, Chat Clients, Email Clients, and so much more."),
+		api.T("Multimedia"):        api.T("Video playback and creation, audio playback and creation, and streaming alternatives."),
+		api.T("Packages"):          api.T("Simple Apps that install directly from distribution repos (like APT)."),
+		api.T("Tools"):             api.T("An assortment of helpful programs that don't already fit into another category."),
+		api.T("Terminals"):         api.T("Alternative terminal programs built for the modern age as well as to replicate your old vintage computer."),
+		api.T("Programming"):       api.T("Code editors, IDEs, and other applications to help you write and make other programs."),
+		api.T("Creative Arts"):     api.T("Drawing, Painting, and Photo and Movie Editors"),
+		api.T("Engineering"):       api.T("3D Printing slicers, CAD/modeling, and general design software"),
+		api.T("Office"):            api.T("Office suites (document and slideshow editors), and other office tools."),
+		api.T("Emulation"):         api.T("Applications that help you run non-ARM or non-Linux software."),
+		api.T("Communication"):     api.T("Internet messaging, calling, video chatting, and email clients."),
 	}
 
 	if desc, ok := descriptions[category]; ok {
@@ -686,13 +686,13 @@ func PopulateGTKTreeView(treeView *gtk.TreeView, list *PreloadedList) error {
 	// Get the model from the tree view
 	model, err := treeView.GetModel()
 	if err != nil {
-		logger.Error(fmt.Sprintf("failed to get tree view model: %v\n", err))
+		logger.Error(api.Tf("failed to get tree view model: %v\n", err))
 		return fmt.Errorf("failed to get tree view model: %w", err)
 	}
 
 	listStore, ok := model.(*gtk.ListStore)
 	if !ok {
-		logger.Error("tree view model is not a ListStore")
+		logger.Error(api.T("tree view model is not a ListStore"))
 		return fmt.Errorf("tree view model is not a ListStore")
 	}
 
@@ -739,27 +739,27 @@ func CreateAppListTreeView() (*gtk.TreeView, *gtk.ListStore, error) {
 		glib.TYPE_STRING,    // 4: Status (for coloring)
 	)
 	if err != nil {
-		logger.Error(fmt.Sprintf("failed to create list store: %v\n", err))
+		logger.Error(api.Tf("failed to create list store: %v\n", err))
 		return nil, nil, fmt.Errorf("failed to create list store: %w", err)
 	}
 
 	// Create tree view
 	treeView, err := gtk.TreeViewNewWithModel(listStore)
 	if err != nil {
-		logger.Error(fmt.Sprintf("failed to create tree view: %v\n", err))
+		logger.Error(api.Tf("failed to create tree view: %v\n", err))
 		return nil, nil, fmt.Errorf("failed to create tree view: %w", err)
 	}
 
 	// Create icon column
 	iconRenderer, err := gtk.CellRendererPixbufNew()
 	if err != nil {
-		logger.Error(fmt.Sprintf("failed to create icon renderer: %v\n", err))
+		logger.Error(api.Tf("failed to create icon renderer: %v\n", err))
 		return nil, nil, fmt.Errorf("failed to create icon renderer: %w", err)
 	}
 
 	iconColumn, err := gtk.TreeViewColumnNewWithAttribute("", iconRenderer, "pixbuf", 0)
 	if err != nil {
-		logger.Error(fmt.Sprintf("failed to create icon column: %v\n", err))
+		logger.Error(api.Tf("failed to create icon column: %v\n", err))
 		return nil, nil, fmt.Errorf("failed to create icon column: %w", err)
 	}
 	iconColumn.SetSizing(gtk.TREE_VIEW_COLUMN_FIXED)
@@ -769,13 +769,13 @@ func CreateAppListTreeView() (*gtk.TreeView, *gtk.ListStore, error) {
 	// Create name column
 	nameRenderer, err := gtk.CellRendererTextNew()
 	if err != nil {
-		logger.Error(fmt.Sprintf("failed to create name renderer: %v\n", err))
+		logger.Error(api.Tf("failed to create name renderer: %v\n", err))
 		return nil, nil, fmt.Errorf("failed to create name renderer: %w", err)
 	}
 
 	nameColumn, err := gtk.TreeViewColumnNewWithAttribute("Name", nameRenderer, "text", 1)
 	if err != nil {
-		logger.Error(fmt.Sprintf("failed to create name column: %v\n", err))
+		logger.Error(api.Tf("failed to create name column: %v\n", err))
 		return nil, nil, fmt.Errorf("failed to create name column: %w", err)
 	}
 	nameColumn.SetResizable(true)
@@ -785,13 +785,13 @@ func CreateAppListTreeView() (*gtk.TreeView, *gtk.ListStore, error) {
 	// Create description column
 	descRenderer, err := gtk.CellRendererTextNew()
 	if err != nil {
-		logger.Error(fmt.Sprintf("failed to create description renderer: %v\n", err))
+		logger.Error(api.Tf("failed to create description renderer: %v\n", err))
 		return nil, nil, fmt.Errorf("failed to create description renderer: %w", err)
 	}
 
 	descColumn, err := gtk.TreeViewColumnNewWithAttribute("Description", descRenderer, "text", 2)
 	if err != nil {
-		logger.Error(fmt.Sprintf("failed to create description column: %v\n", err))
+		logger.Error(api.Tf("failed to create description column: %v\n", err))
 		return nil, nil, fmt.Errorf("failed to create description column: %w", err)
 	}
 	descColumn.SetExpand(true)
@@ -811,39 +811,39 @@ func CreateAppListTreeView() (*gtk.TreeView, *gtk.ListStore, error) {
 func GetSelectedAppPath(treeView *gtk.TreeView) (string, error) {
 	selection, err := treeView.GetSelection()
 	if err != nil {
-		logger.Error(fmt.Sprintf("failed to get selection: %v\n", err))
+		logger.Error(api.Tf("failed to get selection: %v\n", err))
 		return "", fmt.Errorf("failed to get selection: %w", err)
 	}
 
 	_, iter, ok := selection.GetSelected()
 	if !ok {
-		logger.Error("no item selected")
+		logger.Error(api.T("no item selected"))
 		return "", fmt.Errorf("no item selected")
 	}
 
 	// Get the model directly from the tree view instead of from selection
 	model, err := treeView.GetModel()
 	if err != nil {
-		logger.Error(fmt.Sprintf("failed to get tree view model: %v\n", err))
+		logger.Error(api.Tf("failed to get tree view model: %v\n", err))
 		return "", fmt.Errorf("failed to get tree view model: %w", err)
 	}
 
 	listStore, ok := model.(*gtk.ListStore)
 	if !ok {
-		logger.Error("tree view model is not a ListStore")
+		logger.Error(api.T("tree view model is not a ListStore"))
 		return "", fmt.Errorf("tree view model is not a ListStore")
 	}
 
 	// Get the path from column 3
 	value, err := listStore.GetValue(iter, 3)
 	if err != nil {
-		logger.Error(fmt.Sprintf("failed to get path value: %v\n", err))
+		logger.Error(api.Tf("failed to get path value: %v\n", err))
 		return "", fmt.Errorf("failed to get path value: %w", err)
 	}
 
 	pathInterface, err := value.GoValue()
 	if err != nil {
-		logger.Error(fmt.Sprintf("failed to convert value to Go type: %v\n", err))
+		logger.Error(api.Tf("failed to convert value to Go type: %v\n", err))
 		return "", fmt.Errorf("failed to convert value to Go type: %w", err)
 	}
 
@@ -851,7 +851,7 @@ func GetSelectedAppPath(treeView *gtk.TreeView) (string, error) {
 	case string:
 		return path, nil
 	default:
-		logger.Error("path value is not a string")
+		logger.Error(api.T("path value is not a string"))
 		return "", fmt.Errorf("path value is not a string")
 	}
 }
