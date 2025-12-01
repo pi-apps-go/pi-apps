@@ -202,40 +202,47 @@ func TerminalManageMulti(queue string) error {
 		directory = filepath.Dir(filepath.Dir(currentDir))
 	}
 
-	// Check if a daemon is already running by checking the pid file
+	// Check if a daemon is already running by checking the pid file AND queue pipe
+	// Just checking PID isn't enough because that PID might belong to a different process after reboot
 	daemonPidFile := filepath.Join(directory, "data", "manage-daemon", "pid")
+	daemonQueuePipe := filepath.Join(directory, "data", "manage-daemon", "queue")
 
+	daemonRunning := false
 	if _, err := os.Stat(daemonPidFile); err == nil {
-		// Read the PID from the file
-		pidBytes, err := os.ReadFile(daemonPidFile)
-		if err != nil {
-			return fmt.Errorf("terminal_manage_multi: failed to read daemon pid file: %w", err)
-		}
-
-		pid, err := strconv.Atoi(strings.TrimSpace(string(pidBytes)))
-		if err != nil {
-			return fmt.Errorf("terminal_manage_multi: failed to parse daemon pid: %w", err)
-		}
-
-		// Check if the process exists using os.FindProcess
-		process, err := os.FindProcess(pid)
-		if err == nil {
-			// Send signal 0 to check if process is running
-			if err := process.Signal(syscall.Signal(0)); err == nil {
-				// Process exists, send the queue to the daemon and exit
-				manageBinary, baseArgs := getManageBinary(directory)
-				args := append(baseArgs, "-daemon", queue)
-				daemonCmd := exec.Command(manageBinary, args...)
-				daemonCmd.Stdout = os.Stdout
-				daemonCmd.Stderr = os.Stderr
-
-				if err := daemonCmd.Run(); err != nil {
-					return fmt.Errorf("terminal_manage_multi: failed to send queue to daemon: %w", err)
+		// Check if queue pipe also exists (indicates a real daemon)
+		if info, err := os.Stat(daemonQueuePipe); err == nil && (info.Mode()&os.ModeNamedPipe) != 0 {
+			// Read the PID from the file
+			pidBytes, err := os.ReadFile(daemonPidFile)
+			if err == nil {
+				pid, err := strconv.Atoi(strings.TrimSpace(string(pidBytes)))
+				if err == nil {
+					// Check if the process exists using os.FindProcess
+					process, err := os.FindProcess(pid)
+					if err == nil {
+						// Send signal 0 to check if process is running
+						if err := process.Signal(syscall.Signal(0)); err == nil {
+							// All checks passed - daemon is actually running
+							daemonRunning = true
+						}
+					}
 				}
-
-				return nil
 			}
 		}
+	}
+
+	if daemonRunning {
+		// Daemon is running, send the queue to it and exit
+		manageBinary, baseArgs := getManageBinary(directory)
+		args := append(baseArgs, "-daemon", queue)
+		daemonCmd := exec.Command(manageBinary, args...)
+		daemonCmd.Stdout = os.Stdout
+		daemonCmd.Stderr = os.Stderr
+
+		if err := daemonCmd.Run(); err != nil {
+			return fmt.Errorf("terminal_manage_multi: failed to send queue to daemon: %w", err)
+		}
+
+		return nil
 	}
 
 	// If we reached here, there's no active daemon or the PID file doesn't exist

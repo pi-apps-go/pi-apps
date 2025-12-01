@@ -1437,8 +1437,13 @@ func main() {
 		api.AddEnglish()
 
 	case "createapp":
-		// Call without arguments to launch the createapp wizard
-		if err := api.CreateApp(""); err != nil {
+		// Call with app name argument to edit existing app, or without to create new app
+		// When app name is provided, createapp starts at step 2 (editing mode)
+		appName := ""
+		if len(args) > 0 {
+			appName = args[0]
+		}
+		if err := api.CreateApp(appName); err != nil {
 			api.ErrorT(api.Tf("Error: %v", err))
 		}
 
@@ -1575,6 +1580,18 @@ func main() {
 		}
 		fmt.Println(response)
 
+	case "terminal-run":
+		if len(args) < 2 {
+			api.ErrorNoExitT("Error: Missing required arguments")
+			api.StatusT("Usage: api terminal-run <cmd> <title>")
+			os.Exit(1)
+		}
+
+		err := api.TerminalRun(args[0], args[1])
+		if err != nil {
+			api.ErrorT(api.Tf("Error: %v", err))
+		}
+
 	case "crash":
 		var a []int
 		fmt.Println(a[1])
@@ -1660,7 +1677,7 @@ func printUsage() {
 	fmt.Println("  refresh_pkgapp_status <app-name> [pkg-name]  - " + api.T("Update status of a package-app"))
 	fmt.Println("  refresh_all_pkgapp_status                    - " + api.T("Update status of all package-apps"))
 	fmt.Println("  refresh_app_list                             - " + api.T("Force regeneration of the app list"))
-	fmt.Println("  createapp                                    - " + api.T("Launch the Create App wizard"))
+	fmt.Println("  createapp                                    - " + api.T("Launch the Create App wizard (if app name is provided, edit existing app)"))
 	fmt.Println("  importapp                                    - " + api.T("Launch the Import App wizard"))
 	fmt.Println("  manage                                       - " + api.T("Manage apps"))
 	fmt.Println("  logviewer                                    - " + api.T("View log files in a graphical interface"))

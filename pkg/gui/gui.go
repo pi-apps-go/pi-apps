@@ -140,7 +140,7 @@ func (g *GUI) Initialize() error {
 	// Start preload daemon
 	daemon, err := StartPreloadDaemon(g.directory)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Warning: failed to start preload daemon: %v\n", err)
+		logger.Warn(api.Tf("failed to start preload daemon: %v\n", err))
 	} else {
 		g.daemon = daemon
 	}
@@ -349,17 +349,19 @@ func (g *GUI) runNativeMode() error {
 	window.SetTitle("Pi-Apps")
 
 	// Set window size based on screen resolution (matching bash logic)
+	// Bash uses: small (<=1000 || <=600) = 250x400, large = 320x600 for the main list window
+	// We use slightly larger values to account for GTK styling differences
 	var windowWidth, windowHeight int
 	if g.screenWidth <= 1000 || g.screenHeight <= 600 {
-		// Small screen settings - more compact
-		windowHeight = 600
-		windowWidth = 500
-		logger.Info(fmt.Sprintf("Small screen detected (%dx%d), using window size %dx%d\n",
+		// Small screen settings - compact like bash version
+		windowWidth = 300
+		windowHeight = 450
+		logger.Info(fmt.Sprintf("Small screen detected (%dx%d), using compact window size %dx%d\n",
 			g.screenWidth, g.screenHeight, windowWidth, windowHeight))
 	} else {
-		// Large screen settings - wider but still compact
-		windowHeight = 700
-		windowWidth = 600
+		// Large screen settings - similar to bash version
+		windowWidth = 400
+		windowHeight = 600
 		logger.Info(fmt.Sprintf("Large screen detected (%dx%d), using window size %dx%d\n",
 			g.screenWidth, g.screenHeight, windowWidth, windowHeight))
 	}
@@ -613,6 +615,11 @@ func (g *GUI) clearContentContainer() {
 	if g.currentApps != nil {
 		g.currentApps = []AppListItem{}
 	}
+
+	// Process pending GTK events to ensure widgets are fully cleaned up
+	for gtk.EventsPending() {
+		gtk.MainIterationDo(false)
+	}
 }
 
 // createCategoryRow creates a single category row with icon and text
@@ -703,15 +710,21 @@ func (g *GUI) onCategorySelected(category string) {
 
 // showCategoryAppsView displays apps for a specific category
 func (g *GUI) showCategoryAppsView(category string) error {
+	// Validate container before proceeding
+	if g.contentContainer == nil {
+		return fmt.Errorf("content container is nil")
+	}
+
 	// Clear existing content first
 	g.clearContentContainer()
 
-	// Force garbage collection
-	g.widgetCount++
-	if g.widgetCount%10 == 0 {
-		logger.Info(fmt.Sprintf("Triggering garbage collection after %d widget operations\n", g.widgetCount))
-		runtime.GC()
-		runtime.GC()
+	// Force garbage collection to clean up destroyed widgets before creating new ones
+	runtime.GC()
+
+	// Force GTK to process any pending events before creating new widgets
+	// This helps prevent CSS styling issues with newly created widgets
+	for gtk.EventsPending() {
+		gtk.MainIterationDo(false)
 	}
 
 	// Check if this category has subcategories
@@ -988,60 +1001,6 @@ func (g *GUI) onSettingsClicked() {
 	// Settings completed successfully - show the window again
 	logger.Info("Settings closed successfully")
 	g.window.Show()
-}
-
-// performSearch performs app search using the API's AppSearchGUI function
-func (g *GUI) performSearch(query string) {
-	logger.Info(fmt.Sprintf("Performing search for: %s", query))
-
-	// Use the API's AppSearch function to get search results
-	results, err := api.AppSearch(query)
-	if err != nil {
-		logger.Error(fmt.Sprintf("Error performing search: %v", err))
-		dialog := gtk.MessageDialogNew(
-			g.window,
-			gtk.DIALOG_MODAL,
-			gtk.MESSAGE_ERROR,
-			gtk.BUTTONS_OK,
-			"Error performing search: %v",
-			err,
-		)
-		defer dialog.Destroy()
-		dialog.Run()
-		return
-	}
-
-	// Save the search query for next time (like the original bash version)
-	lastSearchFile := filepath.Join(g.directory, "data", "last-search")
-	os.MkdirAll(filepath.Dir(lastSearchFile), 0755)
-	os.WriteFile(lastSearchFile, []byte(query), 0644)
-
-	// Handle search results
-	if len(results) == 0 {
-		// No results found
-		dialog := gtk.MessageDialogNew(
-			g.window,
-			gtk.DIALOG_MODAL,
-			gtk.MESSAGE_INFO,
-			gtk.BUTTONS_OK,
-			"No results found for \"%s\".",
-			query,
-		)
-		defer dialog.Destroy()
-		dialog.Run()
-		return
-	}
-
-	if len(results) == 1 {
-		// Single result - show app details directly
-		logger.Info(fmt.Sprintf("Single search result: %s", results[0]))
-		g.showAppDetails(results[0])
-		return
-	}
-
-	// Multiple results - show search results view
-	logger.Info(fmt.Sprintf("Multiple search results: %d apps found", len(results)))
-	g.showSearchResults(query, results)
 }
 
 // showUpdatesWindow shows the updates window
@@ -1414,6 +1373,51 @@ func (g *GUI) showAppDetails(appPath string) {
 			}
 		}
 
+		// Edit button (if "Show Edit button" setting is enabled)
+		editSettingFile := filepath.Join(g.directory, "data", "settings", "Show Edit button")
+		if editSetting, err := os.ReadFile(editSettingFile); err == nil {
+			if strings.TrimSpace(string(editSetting)) == "Yes" {
+				editBtn, err := gtk.ButtonNewWithLabel("Edit")
+				if err == nil {
+					// Add edit icon to button
+					editIcon := filepath.Join(g.directory, "icons", "edit.png")
+					if pixbuf, err := gdk.PixbufNewFromFileAtSize(editIcon, 18, 18); err == nil {
+						if img, err := gtk.ImageNewFromPixbuf(pixbuf); err == nil {
+							editBtn.SetImage(img)
+							editBtn.SetAlwaysShowImage(true)
+						}
+					}
+					editBtn.SetTooltipText("Make changes to the app")
+					editBtn.Connect("clicked", func() {
+						window.Destroy() // Close details window
+						g.detailsWindow = nil
+						// Run api createapp with the app name to edit it
+						go func() {
+							// Check for multi-call binary first, then fall back to api binary
+							var apiScript string
+							var args []string
+							if multiCallBinary := os.Getenv("PI_APPS_MULTI_CALL_BINARY"); multiCallBinary != "" {
+								apiScript = multiCallBinary
+								args = []string{"api", "createapp", appName}
+							} else {
+								apiScript = filepath.Join(g.directory, "api")
+								args = []string{"createapp", appName}
+							}
+							cmd := exec.Command(apiScript, args...)
+							cmd.Dir = g.directory
+							cmd.Env = append(os.Environ(), "PI_APPS_DIR="+g.directory)
+							cmd.Run()
+							// After createapp exits, refresh the view
+							glib.IdleAdd(func() {
+								g.refreshCurrentView()
+							})
+						}()
+					})
+					buttonBox.PackStart(editBtn, false, false, 0)
+				}
+			}
+		}
+
 		// Buttons based on status (matching original logic)
 		switch status {
 		case "installed":
@@ -1635,7 +1639,7 @@ func (g *GUI) createAppInfoLabel(appName string) *gtk.Label {
 
 // performAppAction performs install/uninstall actions using terminal_manage
 func (g *GUI) performAppAction(appName, action string) {
-	fmt.Printf("Performing %s action for app: %s\n", action, appName)
+	logger.Info(api.Tf("Performing %s action for app: %s\n", action, appName))
 
 	// Check if we're using the multi-call binary
 	var apiScript string
@@ -1645,12 +1649,12 @@ func (g *GUI) performAppAction(appName, action string) {
 		// Use multi-call binary: multi-call-pi-apps api terminal_manage action app
 		apiScript = multiCallBinary
 		args = []string{"api", "terminal_manage", action, appName}
-		fmt.Printf("%s api terminal_manage %s %s\n", apiScript, action, appName)
+		logger.Info(api.Tf("Executing: %s api terminal_manage %s %s\n", apiScript, action, appName))
 	} else {
 		// Use separate binary: api terminal_manage action app
 		apiScript = filepath.Join(g.directory, "api")
 		args = []string{"terminal_manage", action, appName}
-		fmt.Printf("%s terminal_manage %s %s\n", apiScript, action, appName)
+		logger.Info(api.Tf("Executing: %s terminal_manage %s %s\n", apiScript, action, appName))
 	}
 
 	cmd := exec.Command(apiScript, args...)
@@ -1682,7 +1686,7 @@ func (g *GUI) performAppAction(appName, action string) {
 		defer dialog.Destroy()
 		dialog.Run()
 	} else {
-		fmt.Printf("Successfully ran %s process for %s using API terminal_manage\n", action, appName)
+		logger.Info(api.Tf("Successfully ran %s process for %s using API terminal_manage\n", action, appName))
 	}
 }
 
@@ -1934,10 +1938,16 @@ func (g *GUI) addPlaceholderRow(listBox *gtk.ListBox, message string) {
 }
 
 // createAppRow creates a row for an individual app
+// Rows are compact (icon + name only) with description shown on hover (like bash version)
 func (g *GUI) createAppRow(app AppListItem) (*gtk.ListBoxRow, error) {
 	row, err := gtk.ListBoxRowNew()
 	if err != nil {
 		return nil, err
+	}
+
+	// Set tooltip for the entire row (description shown on hover like bash version)
+	if app.Description != "" {
+		row.SetTooltipText(app.Description)
 	}
 
 	// Create horizontal box for row content
@@ -1945,8 +1955,8 @@ func (g *GUI) createAppRow(app AppListItem) (*gtk.ListBoxRow, error) {
 	if err != nil {
 		return nil, err
 	}
-	hbox.SetMarginTop(6)
-	hbox.SetMarginBottom(6)
+	hbox.SetMarginTop(4)
+	hbox.SetMarginBottom(4)
 	hbox.SetMarginStart(8)
 	hbox.SetMarginEnd(8)
 
@@ -1965,52 +1975,32 @@ func (g *GUI) createAppRow(app AppListItem) (*gtk.ListBoxRow, error) {
 		}
 	}
 
-	// Create vertical box for app name and description
-	vboxText, err := gtk.BoxNew(gtk.ORIENTATION_VERTICAL, 2)
+	// App name label with status color (no description - shown on hover via tooltip)
+	nameLabel, err := gtk.LabelNew("")
 	if err == nil {
-		// App name with status color
-		nameLabel, err := gtk.LabelNew("")
-		if err == nil {
-			// Set text color based on status
-			var color string
-			switch app.Status {
-			case "installed":
-				color = "#00AA00" // Green
-			case "uninstalled":
-				color = "#CC3333" // Red
-			case "corrupted":
-				color = "#888800" // Yellow
-			case "disabled":
-				color = "#FF0000" // Bright red
-			default:
-				color = "#FFFFFF" // Default white
-			}
-
-			nameText := app.Name
-			if app.Status != "" && app.Status != "uninstalled" {
-				nameText = fmt.Sprintf("%s (%s)", app.Name, app.Status)
-			}
-
-			nameLabel.SetMarkup(fmt.Sprintf("<span foreground='%s'>%s</span>", color, nameText))
-			nameLabel.SetHAlign(gtk.ALIGN_START)
-			vboxText.PackStart(nameLabel, false, false, 0)
-
-			// App description (if available)
-			if app.Description != "" {
-				descLabel, err := gtk.LabelNew(app.Description)
-				if err == nil {
-					descLabel.SetHAlign(gtk.ALIGN_START)
-					descLabel.SetEllipsize(3) // PANGO_ELLIPSIZE_END
-					descLabel.SetMaxWidthChars(50)
-
-					// Make description text smaller and gray - NO status prefix
-					descLabel.SetMarkup(fmt.Sprintf("<span size='small' foreground='#AAAAAA'>%s</span>", app.Description))
-					vboxText.PackStart(descLabel, false, false, 0)
-				}
-			}
-
-			hbox.PackStart(vboxText, true, true, 0)
+		// Set text color based on status
+		var color string
+		switch app.Status {
+		case "installed":
+			color = "#00AA00" // Green
+		case "uninstalled":
+			color = "#CC3333" // Red
+		case "corrupted":
+			color = "#888800" // Yellow
+		case "disabled":
+			color = "#FF0000" // Bright red
+		default:
+			color = "#FFFFFF" // Default white
 		}
+
+		nameText := app.Name
+		if app.Status != "" && app.Status != "uninstalled" {
+			nameText = fmt.Sprintf("%s (%s)", app.Name, app.Status)
+		}
+
+		nameLabel.SetMarkup(fmt.Sprintf("<span foreground='%s'>%s</span>", color, nameText))
+		nameLabel.SetHAlign(gtk.ALIGN_START)
+		hbox.PackStart(nameLabel, true, true, 0)
 	}
 
 	row.Add(hbox)
@@ -2103,6 +2093,17 @@ func (g *GUI) populateSubcategories(listBox *gtk.ListBox, category string, subca
 
 // refreshCurrentView refreshes the current category view to show updated app statuses
 func (g *GUI) refreshCurrentView() {
+	// Validate that we have a valid GUI state before refreshing
+	if g.window == nil || g.contentContainer == nil {
+		logger.Error("Cannot refresh view: GUI components are nil")
+		return
+	}
+
+	// Force GTK to process any pending events before refresh
+	for gtk.EventsPending() {
+		gtk.MainIterationDo(false)
+	}
+
 	if g.currentPrefix == "" {
 		// We're on the main category list, refresh it
 		g.showCategoryListView()
@@ -2613,10 +2614,16 @@ func (g *GUI) populateSearchResults(listBox *gtk.ListBox, results []string) {
 }
 
 // createSearchResultRow creates a row for search results with category information
+// Compact format: icon + name (with tooltip for description)
 func (g *GUI) createSearchResultRow(app AppListItem, appName string, categoryEntries []string) (*gtk.ListBoxRow, error) {
 	row, err := gtk.ListBoxRowNew()
 	if err != nil {
 		return nil, err
+	}
+
+	// Set tooltip for the entire row (description shown on hover like bash version)
+	if app.Description != "" && app.Description != "Description unavailable" {
+		row.SetTooltipText(app.Description)
 	}
 
 	// Create horizontal box for row content
@@ -2624,8 +2631,8 @@ func (g *GUI) createSearchResultRow(app AppListItem, appName string, categoryEnt
 	if err != nil {
 		return nil, err
 	}
-	hbox.SetMarginTop(6)
-	hbox.SetMarginBottom(6)
+	hbox.SetMarginTop(4)
+	hbox.SetMarginBottom(4)
 	hbox.SetMarginStart(8)
 	hbox.SetMarginEnd(8)
 
@@ -2644,50 +2651,32 @@ func (g *GUI) createSearchResultRow(app AppListItem, appName string, categoryEnt
 		}
 	}
 
-	// Create vertical box for app name and description
-	vboxText, err := gtk.BoxNew(gtk.ORIENTATION_VERTICAL, 2)
+	// App name label with status color (no description - shown on hover via tooltip)
+	nameLabel, err := gtk.LabelNew("")
 	if err == nil {
-		// App name with status color
-		nameLabel, err := gtk.LabelNew("")
-		if err == nil {
-			// Set text color based on status
-			var color string
-			switch app.Status {
-			case "installed":
-				color = "#00AA00" // Green
-			case "uninstalled":
-				color = "#CC3333" // Red
-			case "corrupted":
-				color = "#888800" // Yellow
-			case "disabled":
-				color = "#FF0000" // Bright red
-			default:
-				color = "#FFFFFF" // Default white
-			}
-
-			nameText := app.Name
-			if app.Status != "" && app.Status != "uninstalled" {
-				nameText = fmt.Sprintf("%s (%s)", app.Name, app.Status)
-			}
-
-			nameLabel.SetMarkup(fmt.Sprintf("<span foreground='%s'>%s</span>", color, nameText))
-			nameLabel.SetHAlign(gtk.ALIGN_START)
-			vboxText.PackStart(nameLabel, false, false, 0)
-
-			// App description (if available) - show below the name like in category views
-			if app.Description != "" && app.Description != "Description unavailable" {
-				descLabel, err := gtk.LabelNew("")
-				if err == nil {
-					descLabel.SetMarkup(fmt.Sprintf("<span size='small' foreground='#AAAAAA'>%s</span>", app.Description))
-					descLabel.SetHAlign(gtk.ALIGN_START)
-					descLabel.SetEllipsize(3) // PANGO_ELLIPSIZE_END
-					descLabel.SetMaxWidthChars(50)
-					vboxText.PackStart(descLabel, false, false, 0)
-				}
-			}
-
-			hbox.PackStart(vboxText, true, true, 0)
+		// Set text color based on status
+		var color string
+		switch app.Status {
+		case "installed":
+			color = "#00AA00" // Green
+		case "uninstalled":
+			color = "#CC3333" // Red
+		case "corrupted":
+			color = "#888800" // Yellow
+		case "disabled":
+			color = "#FF0000" // Bright red
+		default:
+			color = "#FFFFFF" // Default white
 		}
+
+		nameText := app.Name
+		if app.Status != "" && app.Status != "uninstalled" {
+			nameText = fmt.Sprintf("%s (%s)", app.Name, app.Status)
+		}
+
+		nameLabel.SetMarkup(fmt.Sprintf("<span foreground='%s'>%s</span>", color, nameText))
+		nameLabel.SetHAlign(gtk.ALIGN_START)
+		hbox.PackStart(nameLabel, true, true, 0)
 	}
 
 	// Add spacer
@@ -2860,6 +2849,55 @@ func (g *GUI) setupClickableLinks(textView *gtk.TextView, text string) {
 		urlMatches := regexp.MustCompile(urlPattern).FindAllStringIndex(text, -1)
 		foundUrls := regexp.MustCompile(urlPattern).FindAllString(text, -1)
 
+		// Helper function to check if position is over a link
+		isOverLink := func(x, y int) bool {
+			bufX, bufY := textView.WindowToBufferCoords(gtk.TEXT_WINDOW_WIDGET, x, y)
+			iter := textView.GetIterAtLocation(bufX, bufY)
+			offset := iter.GetOffset()
+			for _, match := range urlMatches {
+				if offset >= match[0] && offset <= match[1] {
+					return true
+				}
+			}
+			return false
+		}
+
+		// Change cursor to hand pointer when hovering over links
+		textView.AddEvents(int(gdk.POINTER_MOTION_MASK))
+		textView.Connect("motion-notify-event", func(widget *gtk.TextView, event *gdk.Event) bool {
+			eventMotion := gdk.EventMotionNewFromEvent(event)
+			xf, yf := eventMotion.MotionVal()
+			x, y := int(xf), int(yf)
+
+			// Get the GdkWindow for cursor changes
+			gdkWindow := textView.GetWindow(gtk.TEXT_WINDOW_TEXT)
+			if gdkWindow == nil {
+				return false
+			}
+
+			if isOverLink(x, y) {
+				// Change to hand cursor when over a link
+				display, _ := gdk.DisplayGetDefault()
+				if display != nil {
+					handCursor, _ := gdk.CursorNewFromName(display, "pointer")
+					if handCursor != nil {
+						gdkWindow.SetCursor(handCursor)
+					}
+				}
+			} else {
+				// Reset to default cursor
+				display, _ := gdk.DisplayGetDefault()
+				if display != nil {
+					textCursor, _ := gdk.CursorNewFromName(display, "text")
+					if textCursor != nil {
+						gdkWindow.SetCursor(textCursor)
+					}
+				}
+			}
+			return false
+		})
+
+		// Handle click on links
 		textView.Connect("button-press-event", func(widget *gtk.TextView, event *gdk.Event) bool {
 			// Get click position
 			eventButton := gdk.EventButtonNewFromEvent(event)
@@ -2879,10 +2917,5 @@ func (g *GUI) setupClickableLinks(textView *gtk.TextView, text string) {
 			}
 			return false
 		})
-
-		// Add note at the end of the text about links
-		endIter := buffer.GetEndIter()
-		linkNote := "\n\nNote: Links are highlighted in blue. Click directly on a link to open it."
-		buffer.Insert(endIter, linkNote)
 	}
 }

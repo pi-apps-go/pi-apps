@@ -659,6 +659,12 @@ get_pi_app_icon() { #get the path to an app's icon file (icon-64.png)
   return $?
 }
 
+terminal-run() {    
+    "$GO_API_BIN" $GO_API_ARGS terminal-run "$@"
+    return $?
+}
+
+
 # If script is executed directly (not sourced), handle command line arguments
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     # If called with arguments, pass them to the Go API

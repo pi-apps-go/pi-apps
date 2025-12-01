@@ -505,21 +505,35 @@ func runDaemon(queueStr string) error {
 	queueFile := filepath.Join(daemonDir, "queue")
 
 	// Check if daemon is already running
+	// We need to verify BOTH: 1) PID file exists with valid running process, AND 2) queue pipe exists
+	// Just checking PID isn't enough because that PID might belong to a different process after reboot
+	daemonRunning := false
 	if _, err := os.Stat(pidFile); err == nil {
-		// Read existing PID
-		pidBytes, err := os.ReadFile(pidFile)
-		if err == nil {
-			if pid, err := strconv.Atoi(strings.TrimSpace(string(pidBytes))); err == nil {
-				// Check if process exists
-				if process, err := os.FindProcess(pid); err == nil {
-					if err := process.Signal(syscall.Signal(0)); err == nil {
-						// Daemon is already running, add queue to existing daemon
-						return addToExistingDaemon(queueFile, queueStr)
+		// Check if queue pipe also exists (indicates a real daemon)
+		if info, err := os.Stat(queueFile); err == nil && (info.Mode()&os.ModeNamedPipe) != 0 {
+			// Read existing PID
+			pidBytes, err := os.ReadFile(pidFile)
+			if err == nil {
+				if pid, err := strconv.Atoi(strings.TrimSpace(string(pidBytes))); err == nil {
+					// Check if process exists
+					if process, err := os.FindProcess(pid); err == nil {
+						if err := process.Signal(syscall.Signal(0)); err == nil {
+							// All checks passed - daemon is actually running
+							daemonRunning = true
+						}
 					}
 				}
 			}
 		}
 	}
+
+	if daemonRunning {
+		return addToExistingDaemon(queueFile, queueStr)
+	}
+
+	// Clean up stale files if they exist but daemon isn't running
+	os.Remove(pidFile)
+	os.Remove(queueFile)
 
 	// No existing daemon, start new one
 	return startNewDaemon(piAppsDir, queueStr)
@@ -718,11 +732,8 @@ cd "%s"
 `, piAppsDir, piAppsDir, pidFile, filepath.Dir(execPath), execPath, queueStr, statusFile, queuePipe)
 
 	// Start terminal-run with the daemon processing
-	terminalRunPath := filepath.Join(piAppsDir, "etc", "terminal-run")
-	terminalCmd := exec.Command(terminalRunPath, terminalScript, "Terminal Output")
-
-	// Run terminal-run and wait for completion
-	err = terminalCmd.Run()
+	// Use Go implementation for reliable cross-terminal wait handling
+	err = api.TerminalRun(terminalScript, "Terminal Output")
 	if err != nil {
 		fmt.Printf("Unable to open a terminal.\nError: %v\n", err)
 

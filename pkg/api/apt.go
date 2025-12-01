@@ -873,7 +873,7 @@ func InstallPackages(app string, args ...string) error {
 		return fmt.Errorf("failed to create package name for app %s: %w", app, err)
 	}
 
-	StatusT(Tf("Creating an empty apt-package to install the necessary apt packages...\nIt will be named: %s", pkgName))
+	StatusTf("Creating an empty apt-package to install the necessary apt packages...\nIt will be named: %s", pkgName)
 
 	// Check if package is already installed and get its dependencies
 	pkgInstalled := PackageInstalled(pkgName)
@@ -886,7 +886,7 @@ func InstallPackages(app string, args ...string) error {
 		}
 
 		existingDeps = strings.Join(deps, ", ")
-		StatusT(Tf("The %s package is already installed. Inheriting its dependencies: %s", pkgName, existingDeps))
+		StatusTf("The %s package is already installed. Inheriting its dependencies: %s", pkgName, existingDeps)
 
 		// Add existing dependencies to packages list
 		if existingDeps != "" {
@@ -907,16 +907,16 @@ func InstallPackages(app string, args ...string) error {
 	uniquePkgs := sortAndDeduplicate(packages)
 
 	// Create control file
-	controlContent := fmt.Sprintf(`Maintainer: Pi-Apps team
+	controlContent := fmt.Sprintf(`Maintainer: Pi-Apps Go team
 Name: %s
-Description: Dummy package created by pi-apps to install dependencies for the '%s' app
+Description: %s
 Version: 1.0
 Architecture: all
 Priority: optional
 Section: custom
 Depends: %s
 Package: %s
-`, app, app, uniquePkgs, pkgName)
+`, app, Tf("Dummy package created by pi-apps go to install dependencies for the '%s' app", app), uniquePkgs, pkgName)
 
 	controlFile := filepath.Join(pkgDir, "DEBIAN", "control")
 	if err := os.WriteFile(controlFile, []byte(controlContent), 0644); err != nil {
@@ -976,7 +976,7 @@ Package: %s
 				}
 			}
 
-			StatusGreenT(T("Package installation complete."))
+			StatusGreenT("Package installation complete.")
 			return nil
 		}
 	}
@@ -1002,7 +1002,7 @@ Package: %s
 		}
 
 		// Install dummy deb
-		StatusT(Tf("Installing the %s package...", pkgName))
+		StatusTf("Installing the %s package...", pkgName)
 
 		if err := AptLockWait(); err != nil {
 			return fmt.Errorf("failed to wait for APT locks: %w", err)
@@ -1085,14 +1085,14 @@ Package: %s
 		// Wait for the command to complete
 		err = cmd.Wait()
 
-		StatusT(T("Apt finished."))
+		StatusT("Apt finished.")
 
 		// Get the complete output
 		combinedOutput := outputBuffer.String()
 
 		// Check if local repo was lost
 		if usingLocalPackages && !FileExists("/var/lib/apt/lists/_tmp_pi-apps-local-packages_._Packages") && i < 4 {
-			Warning(fmt.Sprintf("Local packages failed to install because another apt update process erased apt's knowledge of the pi-apps local repository.\nTrying again... (attempt %d of 5)", i+1))
+			WarningTf("Local packages failed to install because another apt update process erased apt's knowledge of the pi-apps local repository.\nTrying again... (attempt %d of 5)", i+1)
 			continue
 		}
 
@@ -1127,11 +1127,11 @@ Package: %s
 					strings.Contains(combinedOutput, "but it is not going to be installed") ||
 					strings.Contains(combinedOutput, "but .* is to be installed")) {
 
-					fmt.Println("\033[91mThe Pi-Apps Local Repository was being used, and a package seemed to not be available. Here's the Packages file:\033[39m")
+					fmt.Printf("\033[91m%s\033[39m", T("The Pi-Apps Local Repository was being used, and a package seemed to not be available. Here's the Packages file:"))
 					packagesContent, _ := os.ReadFile("/tmp/pi-apps-local-packages/Packages")
 					fmt.Println(string(packagesContent))
 
-					fmt.Println("Attempting apt --dry-run installation of the problematic package(s) for debugging purposes:")
+					fmt.Println(T("Attempting apt --dry-run installation of the problematic package(s) for debugging purposes:"))
 
 					// Extract problematic packages
 					var problemPackages []string
@@ -1155,7 +1155,7 @@ Package: %s
 						fmt.Println(string(dryRunOutput))
 					}
 
-					fmt.Println("Printing apt-cache policy output for debugging purposes:")
+					fmt.Println(T("Printing apt-cache policy output for debugging purposes:"))
 					policyCmd := exec.Command("apt-cache", "policy")
 					policyOutput, _ := policyCmd.CombinedOutput()
 					fmt.Println(string(policyOutput))

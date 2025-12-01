@@ -2371,7 +2371,7 @@ func showSuccessDialog(appName string, piAppsDir string) {
 	// Handle link clicking - simplified to just open the URL when clicked
 	textView.Connect("button-release-event", func(tv *gtk.TextView, event *gdk.Event) {
 		// Simply open the URL when clicked
-		exec.Command("xdg-open", "https://github.com/Botspot/pi-apps/issues/new/choose").Start()
+		exec.Command("xdg-open", "https://github.com/pi-apps-go/pi-apps/issues/new/choose").Start()
 	})
 
 	response := dialog.Run()

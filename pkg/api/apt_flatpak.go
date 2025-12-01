@@ -60,83 +60,83 @@ func FlatpakInstall(app string) error {
 		case "buster":
 			Status("Adding PPA for Debian Buster...")
 			if err := DebianPPAInstaller("theofficialgman/flatpak-no-bwrap", "bionic", "0ACACB5D1E74E484"); err != nil {
-				Error(fmt.Sprintf("Failed to add PPA: %v", err))
+				ErrorTf("Failed to add PPA: %v", err)
 				return fmt.Errorf("failed to add PPA: %w", err)
 			}
 			if err := AptLockWait(); err != nil {
-				Error(fmt.Sprintf("Failed waiting for apt lock: %v", err))
+				ErrorTf("Failed waiting for apt lock: %v", err)
 				return fmt.Errorf("failed waiting for apt lock: %w", err)
 			}
 			Status("Upgrading flatpak package...")
 			if err := execCommand("sudo", "apt", "--only-upgrade", "install", "flatpak", "-y"); err != nil {
-				Error(fmt.Sprintf("Failed to upgrade flatpak: %v", err))
+				ErrorTf("Failed to upgrade flatpak: %v", err)
 				return fmt.Errorf("failed to upgrade flatpak: %w", err)
 			}
 		case "bullseye":
-			Status("Adding PPA for Debian Bullseye...")
+			StatusT("Adding PPA for Debian Bullseye...")
 			if err := DebianPPAInstaller("theofficialgman/flatpak-no-bwrap", "focal", "0ACACB5D1E74E484"); err != nil {
-				Error(fmt.Sprintf("Failed to add PPA: %v", err))
+				ErrorTf("Failed to add PPA: %v", err)
 				return fmt.Errorf("failed to add PPA: %w", err)
 			}
 			if err := AptLockWait(); err != nil {
-				Error(fmt.Sprintf("Failed waiting for apt lock: %v", err))
+				ErrorTf("Failed waiting for apt lock: %v", err)
 				return fmt.Errorf("failed waiting for apt lock: %w", err)
 			}
-			Status("Upgrading flatpak package...")
+			StatusT("Upgrading flatpak package...")
 			if err := execCommand("sudo", "apt", "--only-upgrade", "install", "flatpak", "-y"); err != nil {
-				Error(fmt.Sprintf("Failed to upgrade flatpak: %v", err))
+				ErrorTf("Failed to upgrade flatpak: %v", err)
 				return fmt.Errorf("failed to upgrade flatpak: %w", err)
 			}
 		case "bionic", "focal", "jammy":
-			Status("Adding PPA for Ubuntu " + osCodename + "...")
+			StatusT("Adding PPA for Ubuntu " + osCodename + "...")
 			if err := UbuntuPPAInstaller("theofficialgman/flatpak-no-bwrap"); err != nil {
-				Error(fmt.Sprintf("Failed to add PPA: %v", err))
+				ErrorTf("Failed to add PPA: %v", err)
 				return fmt.Errorf("failed to add PPA: %w", err)
 			}
 			if err := AptLockWait(); err != nil {
-				Error(fmt.Sprintf("Failed waiting for apt lock: %v", err))
+				ErrorTf("Failed waiting for apt lock: %v", err)
 				return fmt.Errorf("failed waiting for apt lock: %w", err)
 			}
-			Status("Upgrading flatpak package...")
+			StatusT("Upgrading flatpak package...")
 			if err := execCommand("sudo", "apt", "--only-upgrade", "install", "flatpak", "-y"); err != nil {
-				Error(fmt.Sprintf("Failed to upgrade flatpak: %v", err))
+				ErrorTf("Failed to upgrade flatpak: %v", err)
 				return fmt.Errorf("failed to upgrade flatpak: %w", err)
 			}
 		}
-		StatusGreen("Flatpak successfully upgraded")
+		StatusGreenT("Flatpak successfully upgraded")
 	}
 
 	// Add flathub remote
 	Status("Adding Flathub remote repository...")
 	err := execCommand("sudo", "flatpak", "remote-add", "--if-not-exists", "flathub", "https://flathub.org/repo/flathub.flatpakrepo")
 	if err != nil {
-		Status("Could not add Flathub as root, trying as user...")
+		StatusT("Could not add Flathub as root, trying as user...")
 		// Try as user if sudo failed
 		err = execCommand("flatpak", "remote-add", "--if-not-exists", "flathub", "https://flathub.org/repo/flathub.flatpakrepo")
 		if err != nil {
-			Error(fmt.Sprintf("Failed to add Flathub remote: %v", err))
+			ErrorTf("Failed to add Flathub remote: %v", err)
 			return fmt.Errorf("flatpak failed to add flathub remote: %w", err)
 		}
 	}
-	StatusGreen("Flathub repository added successfully")
+	StatusGreenT("Flathub repository added successfully")
 
 	// Install the app
-	Status(fmt.Sprintf("Installing %s from Flathub...", app))
+	StatusTf("Installing %s from Flathub...", app)
 	err = execCommand("sudo", "flatpak", "install", "flathub", app, "-y")
 	if err != nil {
 		Status("Could not install as root, trying as user...")
 		// Try as user if sudo failed
 		err = execCommand("flatpak", "install", "flathub", app, "-y")
 		if err != nil {
-			Error(fmt.Sprintf("Failed to install %s: %v", app, err))
+			ErrorTf("Failed to install %s: %v", app, err)
 			return fmt.Errorf("flatpak failed to install %s: %w", app, err)
 		}
 	}
-	StatusGreen(fmt.Sprintf("%s installed successfully", app))
+	StatusGreenTf("%s installed successfully", app)
 
 	// Handle desktop launcher visibility without reboot
 	if !strings.Contains(os.Getenv("XDG_DATA_DIRS"), "/var/lib/flatpak/exports/share") {
-		Status("Setting up desktop integration for immediate use...")
+		StatusT("Setting up desktop integration for immediate use...")
 		appDir := "/var/lib/flatpak/exports/share/applications"
 		tempDir := "/usr/share/applications/flatpak-temporary"
 
@@ -148,26 +148,26 @@ func FlatpakInstall(app string) error {
 			if os.IsNotExist(err) || isFlatpakDirEmpty(tempDir) {
 				// Create temporary directory if it doesn't exist
 				if err := execCommand("sudo", "mkdir", "-p", tempDir); err != nil {
-					Warning(fmt.Sprintf("Failed to create temporary directory: %v", err))
+					WarningTf("Failed to create temporary directory: %v", err)
 					return fmt.Errorf("failed to create temporary directory: %w", err)
 				}
 				// Bind mount the applications directory
 				if err := execCommand("sudo", "mount", "--bind", appDir, tempDir); err != nil {
-					Warning(fmt.Sprintf("Failed to bind mount applications directory: %v", err))
+					WarningTf("Failed to bind mount applications directory: %v", err)
 					return fmt.Errorf("failed to bind mount applications directory: %w", err)
 				}
-				Status("Desktop integration set up successfully")
+				StatusT("Desktop integration set up successfully")
 			}
 		}
 	} else {
 		// Clean up temporary directory if XDG_DATA_DIRS includes flatpak path
-		Status("Cleaning up temporary desktop integration...")
+		StatusT("Cleaning up temporary desktop integration...")
 		if err := execCommand("sudo", "rm", "-rf", "/usr/share/applications/flatpak-temporary"); err != nil {
-			Warning(fmt.Sprintf("Failed to clean up temporary directory: %v", err))
+			WarningTf("Failed to clean up temporary directory: %v", err)
 		}
 	}
 
-	Status("Flatpak installation completed")
+	StatusT("Flatpak installation completed")
 	return nil
 }
 
@@ -181,35 +181,35 @@ func FlatpakUninstall(app string) error {
 	// Check if flatpak is installed
 	if _, err := exec.LookPath("flatpak"); err != nil {
 		// If flatpak is not installed, return success
-		Status("Flatpak is not installed, nothing to uninstall")
+		StatusT("Flatpak is not installed, nothing to uninstall")
 		return nil
 	}
 
 	// Check if the app is installed
-	Status("Checking if app is installed...")
+	StatusT("Checking if app is installed...")
 	cmd := exec.Command("flatpak", "list")
 	output, err := cmd.Output()
 	if err != nil {
-		Error(fmt.Sprintf("Failed to list installed flatpak apps: %v", err))
+		ErrorTf("Failed to list installed flatpak apps: %v", err)
 		return fmt.Errorf("failed to list installed flatpak apps: %w", err)
 	}
 
 	if strings.Contains(string(output), app) {
-		Status(fmt.Sprintf("Uninstalling %s...", app))
+		StatusTf("Uninstalling %s...", app)
 		// Try to uninstall with sudo first
 		err := execCommand("sudo", "flatpak", "uninstall", app, "-y")
 		if err != nil {
-			Status("Could not uninstall as root, trying as user...")
+			StatusT("Could not uninstall as root, trying as user...")
 			// Try as user if sudo failed
 			err = execCommand("flatpak", "uninstall", app, "-y")
 			if err != nil {
-				Error(fmt.Sprintf("Failed to uninstall %s: %v", app, err))
+				ErrorTf("Failed to uninstall %s: %v", app, err)
 				return fmt.Errorf("flatpak failed to uninstall %s: %w", app, err)
 			}
 		}
-		StatusGreen(fmt.Sprintf("%s uninstalled successfully", app))
+		StatusGreenTf("%s uninstalled successfully", app)
 	} else {
-		Status(fmt.Sprintf("App %s is not installed, nothing to uninstall", app))
+		StatusTf("App %s is not installed, nothing to uninstall", app)
 	}
 
 	return nil
