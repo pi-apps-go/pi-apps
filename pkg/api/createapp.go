@@ -74,17 +74,19 @@ func CreateApp(appName string) error {
 
 	// State variables for the wizard
 	var (
-		step       int         = 0
-		appType    string      = ""
-		appDetails *AppDetails = nil
+		step               int         = 0
+		appType            string      = ""
+		appDetails         *AppDetails = nil
+		isEditing          bool        = false
+		existingScriptType string      = "" // Tracks existing script type for editing mode
 	)
 
 	// If an app name was provided, start at step 2 and set editing mode
 	if appName != "" {
 		step = 2
-		// We're in editing mode
+		isEditing = true // We're in editing mode
 
-		// Determine app type
+		// Determine app type and existing script type
 		dir := filepath.Join(piAppsDir, "apps", appName)
 		pkgFile := filepath.Join(dir, "packages")
 		instFile := filepath.Join(dir, "install")
@@ -95,13 +97,27 @@ func CreateApp(appName string) error {
 			appType = "package"
 		} else if _, err := os.Stat(instFile); err == nil {
 			appType = "standard"
+			existingScriptType = "install" // Single install script
 		} else {
 			// Check for install-32 and install-64 files
-			_, err1 := os.Stat(inst32File)
-			_, err2 := os.Stat(inst64File)
+			has32 := false
+			has64 := false
+			if _, err := os.Stat(inst32File); err == nil {
+				has32 = true
+			}
+			if _, err := os.Stat(inst64File); err == nil {
+				has64 = true
+			}
 
-			if err1 == nil || err2 == nil {
+			if has32 && has64 {
 				appType = "standard"
+				existingScriptType = "install-32-and-64" // Both scripts
+			} else if has32 {
+				appType = "standard"
+				existingScriptType = "install-32" // 32-bit only
+			} else if has64 {
+				appType = "standard"
+				existingScriptType = "install-64" // 64-bit only
 			}
 		}
 
@@ -273,8 +289,12 @@ func CreateApp(appName string) error {
 			// For standard apps, handle the compatibility selection
 			var scriptType string
 
-			// Use the compatibility from the appDetails struct
-			if appDetails != nil {
+			// If editing an existing app with scripts, skip the dialog and use existing type
+			if isEditing && existingScriptType != "" {
+				scriptType = existingScriptType
+				fmt.Printf("Debug: Editing mode - using existing script type: %s\n", scriptType)
+			} else if appDetails != nil {
+				// Use the compatibility from the appDetails struct
 				switch appDetails.Compatibility {
 				case "32bit only":
 					scriptType = "install-32"
@@ -409,58 +429,62 @@ func CreateApp(appName string) error {
 				}
 			}
 
-			// Create empty install script template
+			// Create empty install script template (only used for new scripts)
 			emptyInstallScript := "#!/bin/bash\n\n\n# Be sure to use the \"error\" function - it will display a message if a command fails to run. Example below:\n\ngit_clone https://example.com | error \"Failed to clone repository!\"\n\n# Install some packages that are necessary to run this app - no need for \"error\", as the install_packages function already handles errors.\ninstall_packages package1 package2 package3 || exit 1\n"
 
-			// Create script files based on selected type
+			// Handle script files - when editing, just open existing scripts; when creating, create new ones
 			switch scriptType {
 			case "install":
-				// Create single install script
 				installPath := filepath.Join(appDir, "install")
-				if err := os.WriteFile(installPath, []byte(emptyInstallScript), 0755); err != nil {
-					return fmt.Errorf("failed to create install script: %v", err)
+				// Only create if doesn't exist (preserve existing scripts when editing)
+				if _, err := os.Stat(installPath); os.IsNotExist(err) {
+					if err := os.WriteFile(installPath, []byte(emptyInstallScript), 0755); err != nil {
+						return fmt.Errorf("failed to create install script: %v", err)
+					}
 				}
-
 				// Open the script in preferred text editor
 				OpenFile(installPath)
 
 			case "install-32-and-64":
-				// Create install-32 script
 				installPath32 := filepath.Join(appDir, "install-32")
-				if err := os.WriteFile(installPath32, []byte(emptyInstallScript), 0755); err != nil {
-					return fmt.Errorf("failed to create install-32 script: %v", err)
-				}
-
-				// Create install-64 script
 				installPath64 := filepath.Join(appDir, "install-64")
-				if err := os.WriteFile(installPath64, []byte(emptyInstallScript), 0755); err != nil {
-					return fmt.Errorf("failed to create install-64 script: %v", err)
+
+				// Only create if doesn't exist (preserve existing scripts when editing)
+				if _, err := os.Stat(installPath32); os.IsNotExist(err) {
+					if err := os.WriteFile(installPath32, []byte(emptyInstallScript), 0755); err != nil {
+						return fmt.Errorf("failed to create install-32 script: %v", err)
+					}
+				}
+				if _, err := os.Stat(installPath64); os.IsNotExist(err) {
+					if err := os.WriteFile(installPath64, []byte(emptyInstallScript), 0755); err != nil {
+						return fmt.Errorf("failed to create install-64 script: %v", err)
+					}
 				}
 
 				// Open the scripts in preferred text editor - make sure both open, with delay between them
 				OpenFile(installPath32)
-
-				// Small delay to prevent potential race conditions
 				time.Sleep(500 * time.Millisecond)
 				OpenFile(installPath64)
 
 			case "install-32":
-				// Create install-32 script only
 				installPath32 := filepath.Join(appDir, "install-32")
-				if err := os.WriteFile(installPath32, []byte(emptyInstallScript), 0755); err != nil {
-					return fmt.Errorf("failed to create install-32 script: %v", err)
+				// Only create if doesn't exist (preserve existing scripts when editing)
+				if _, err := os.Stat(installPath32); os.IsNotExist(err) {
+					if err := os.WriteFile(installPath32, []byte(emptyInstallScript), 0755); err != nil {
+						return fmt.Errorf("failed to create install-32 script: %v", err)
+					}
 				}
-
 				// Open the script in preferred text editor
 				OpenFile(installPath32)
 
 			case "install-64":
-				// Create install-64 script only
 				installPath64 := filepath.Join(appDir, "install-64")
-				if err := os.WriteFile(installPath64, []byte(emptyInstallScript), 0755); err != nil {
-					return fmt.Errorf("failed to create install-64 script: %v", err)
+				// Only create if doesn't exist (preserve existing scripts when editing)
+				if _, err := os.Stat(installPath64); os.IsNotExist(err) {
+					if err := os.WriteFile(installPath64, []byte(emptyInstallScript), 0755); err != nil {
+						return fmt.Errorf("failed to create install-64 script: %v", err)
+					}
 				}
-
 				// Open the script in preferred text editor
 				OpenFile(installPath64)
 			}
@@ -474,7 +498,7 @@ func CreateApp(appName string) error {
 				}
 			}
 
-			// Open the script in preferred text editor
+			// Open the uninstall script in preferred text editor
 			OpenFile(uninstallPath)
 
 			// Main testing dialog loop - continue this loop until the user proceeds forward or exits
@@ -2042,11 +2066,12 @@ func runScript(scriptPath, appName string) error {
 }
 
 // createAppPreviewDialog creates a dialog showing how the app will appear in the app list
+// Styled to match the actual Pi-Apps GUI list view
 func createAppPreviewDialog(appName string, piAppsDir string) *gtk.Dialog {
 	// Create dialog
 	dialog, _ := gtk.DialogNew()
-	dialog.SetTitle("List view")
-	dialog.SetDefaultSize(400, 300)
+	dialog.SetTitle("App List Preview")
+	dialog.SetDefaultSize(400, 350)
 	dialog.SetPosition(gtk.WIN_POS_CENTER)
 
 	// Set the dialog class name to match the original bash script
@@ -2058,30 +2083,39 @@ func createAppPreviewDialog(appName string, piAppsDir string) *gtk.Dialog {
 		dialog.SetIconFromFile(iconPath)
 	}
 
-	// Add CSS for dark theme
+	// Add CSS for dark theme matching actual Pi-Apps GUI
 	provider, _ := gtk.CssProviderNew()
 	css := `
-	window {
-		background-color: #222;
+	window, dialog {
+		background-color: #2d2d2d;
 		color: #fff;
+	}
+	.preview-container {
+		background-color: #1e1e1e;
+		border-radius: 6px;
+		padding: 8px;
+	}
+	.app-row {
+		background-color: #2d2d2d;
+		border-radius: 4px;
+		padding: 4px 8px;
+		margin: 2px 0;
+	}
+	.app-row:hover {
+		background-color: #3d3d3d;
 	}
 	label {
 		color: #fff;
 	}
 	button {
-		background-color: #444;
+		background-color: #3d3d3d;
 		color: #fff;
-		border: 1px solid #666;
+		border: 1px solid #555;
+		border-radius: 4px;
+		padding: 6px 12px;
 	}
 	button:hover {
-		background-color: #555;
-	}
-	treeview {
-		background-color: #333;
-		color: #fff;
-	}
-	treeview:selected {
-		background-color: #4a90d9;
+		background-color: #4d4d4d;
 	}
 	`
 	provider.LoadFromData(css)
@@ -2105,86 +2139,69 @@ func createAppPreviewDialog(appName string, piAppsDir string) *gtk.Dialog {
 	subtitleLabel.SetJustify(gtk.JUSTIFY_CENTER)
 	contentArea.Add(subtitleLabel)
 
-	// Create a simple list box instead of a tree view to avoid column issues
-	listBox, _ := gtk.BoxNew(gtk.ORIENTATION_HORIZONTAL, 5)
-	listBox.SetMarginTop(10)
-	listBox.SetMarginBottom(10)
-	listBox.SetMarginStart(10)
-	listBox.SetMarginEnd(10)
+	// Create a frame to contain the preview list (matching actual GUI style)
+	previewFrame, _ := gtk.FrameNew("")
+	previewFrame.SetShadowType(gtk.SHADOW_IN)
+	previewFrameStyle, _ := previewFrame.GetStyleContext()
+	previewFrameStyle.AddClass("preview-container")
 
-	// Create a blue highlight box that mimics selection
-	highlightBox, _ := gtk.EventBoxNew()
-	highlightStyle, _ := gtk.CssProviderNew()
-	highlightStyle.LoadFromData(`
-	box {
-		background-color: #0066cc;
-		border-radius: 3px;
-		padding: 5px;
-	}
-	`)
-	highlightBoxContext, _ := highlightBox.GetStyleContext()
-	highlightBoxContext.AddProvider(highlightStyle, gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+	// Create a ListBox like the actual GUI uses
+	listBox, _ := gtk.ListBoxNew()
+	listBox.SetSelectionMode(gtk.SELECTION_SINGLE)
+
+	// Create the app row (matching actual Pi-Apps GUI row style)
+	row, _ := gtk.ListBoxRowNew()
+	rowStyle, _ := row.GetStyleContext()
+	rowStyle.AddClass("app-row")
 
 	// Horizontal box for the list entry
-	entryBox, _ := gtk.BoxNew(gtk.ORIENTATION_HORIZONTAL, 10)
-	entryBox.SetMarginStart(5)
-	entryBox.SetMarginEnd(5)
-	entryBox.SetMarginTop(5)
-	entryBox.SetMarginBottom(5)
-	highlightBox.Add(entryBox)
+	entryBox, _ := gtk.BoxNew(gtk.ORIENTATION_HORIZONTAL, 8)
+	entryBox.SetMarginStart(8)
+	entryBox.SetMarginEnd(8)
+	entryBox.SetMarginTop(4)
+	entryBox.SetMarginBottom(4)
 
-	// Add app icon
+	// Add app icon (24x24 like actual GUI)
 	iconPath24 := filepath.Join(piAppsDir, "apps", appName, "icon-24.png")
 	var iconImage *gtk.Image
 
 	if _, err := os.Stat(iconPath24); err == nil {
-		iconImage, _ = gtk.ImageNewFromFile(iconPath24)
-	} else {
+		if pixbuf, err := gdk.PixbufNewFromFile(iconPath24); err == nil {
+			if scaled, err := pixbuf.ScaleSimple(24, 24, gdk.INTERP_BILINEAR); err == nil {
+				iconImage, _ = gtk.ImageNewFromPixbuf(scaled)
+			}
+		}
+	}
+	if iconImage == nil {
 		// Use a placeholder icon if the app icon doesn't exist
-		defaultIconPath := filepath.Join(piAppsDir, "icons", "logo-24.png")
+		defaultIconPath := filepath.Join(piAppsDir, "icons", "none-24.png")
 		if _, err := os.Stat(defaultIconPath); err == nil {
 			iconImage, _ = gtk.ImageNewFromFile(defaultIconPath)
 		} else {
-			// Create an empty image as last resort
 			iconImage, _ = gtk.ImageNew()
 			iconImage.SetSizeRequest(24, 24)
 		}
 	}
-
 	entryBox.PackStart(iconImage, false, false, 0)
 
-	// Add app name
-	nameLabel, _ := gtk.LabelNew(appName)
+	// Add app name with red color (uninstalled status - matching actual GUI)
+	// The actual GUI uses #CC3333 for uninstalled apps
+	nameLabel, _ := gtk.LabelNew("")
+	nameLabel.SetMarkup(fmt.Sprintf("<span foreground='#CC3333'>%s</span>", appName))
 	nameLabel.SetHAlign(gtk.ALIGN_START)
-	nameLabel.SetMarginStart(5)
-	nameStyleProvider, _ := gtk.CssProviderNew()
-	nameStyleProvider.LoadFromData(`
-	label {
-		color: white;
-		font-weight: bold;
-	}
-	`)
-	nameLabelContext, _ := nameLabel.GetStyleContext()
-	nameLabelContext.AddProvider(nameStyleProvider, gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
 	entryBox.PackStart(nameLabel, true, true, 0)
 
-	// Add status
-	statusLabel, _ := gtk.LabelNew("(uninstalled)")
-	statusLabel.SetHAlign(gtk.ALIGN_END)
-	statusStyleProvider, _ := gtk.CssProviderNew()
-	statusStyleProvider.LoadFromData(`
-	label {
-		color: #aaaaaa;
-		font-style: italic;
-	}
-	`)
-	statusLabelContext, _ := statusLabel.GetStyleContext()
-	statusLabelContext.AddProvider(statusStyleProvider, gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
-	entryBox.PackEnd(statusLabel, false, false, 10)
+	row.Add(entryBox)
+	listBox.Add(row)
 
-	// Add the entry to a container with padding
+	// Select the row to show it's highlighted
+	listBox.SelectRow(row)
+
+	previewFrame.Add(listBox)
+
+	// Add the preview to a container with padding
 	containerBox, _ := gtk.BoxNew(gtk.ORIENTATION_VERTICAL, 0)
-	containerBox.PackStart(highlightBox, false, false, 10)
+	containerBox.PackStart(previewFrame, true, true, 10)
 
 	// Get first line of description for tooltip
 	descriptionPath := filepath.Join(piAppsDir, "apps", appName, "description")
@@ -2199,8 +2216,8 @@ func createAppPreviewDialog(appName string, piAppsDir string) *gtk.Dialog {
 		}
 	}
 
-	// Add a tooltip to the entry
-	highlightBox.SetTooltipText(descriptionText)
+	// Add a tooltip to the row (matching actual GUI behavior)
+	row.SetTooltipText(descriptionText)
 
 	// Add the container to the content area
 	contentArea.Add(containerBox)
@@ -2422,11 +2439,12 @@ func showSuccessDialog(appName string, piAppsDir string) {
 }
 
 // createDetailsPreviewDialog creates a dialog showing the details of the app
+// Styled to match the actual Pi-Apps GUI details window
 func createDetailsPreviewDialog(appName string, piAppsDir string) *gtk.Dialog {
-	// Create dialog
+	// Create dialog with title matching actual GUI: "Details of AppName"
 	dialog, _ := gtk.DialogNew()
-	dialog.SetTitle("Details window")
-	dialog.SetDefaultSize(500, 400)
+	dialog.SetTitle(fmt.Sprintf("Details of %s", appName))
+	dialog.SetDefaultSize(500, 450)
 	dialog.SetPosition(gtk.WIN_POS_CENTER)
 
 	// Set the dialog class to match original script
@@ -2438,27 +2456,33 @@ func createDetailsPreviewDialog(appName string, piAppsDir string) *gtk.Dialog {
 		dialog.SetIconFromFile(iconPath)
 	}
 
-	// Add CSS for dark theme
+	// Add CSS for dark theme matching actual Pi-Apps GUI
 	provider, _ := gtk.CssProviderNew()
 	css := `
-	window {
-		background-color: #222;
+	window, dialog {
+		background-color: #2d2d2d;
 		color: #fff;
 	}
 	label {
 		color: #fff;
 	}
 	button {
-		background-color: #444;
+		background-color: #3d3d3d;
 		color: #fff;
-		border: 1px solid #666;
+		border: 1px solid #555;
+		border-radius: 4px;
+		padding: 6px 12px;
 	}
 	button:hover {
-		background-color: #555;
+		background-color: #4d4d4d;
 	}
-	textview {
-		background-color: #333;
+	textview, textview text {
+		background-color: #1e1e1e;
 		color: #fff;
+	}
+	.description-frame {
+		background-color: #1e1e1e;
+		border-radius: 6px;
 	}
 	`
 	provider.LoadFromData(css)
@@ -2467,49 +2491,42 @@ func createDetailsPreviewDialog(appName string, piAppsDir string) *gtk.Dialog {
 
 	// Create content area
 	contentArea, _ := dialog.GetContentArea()
-	contentArea.SetMarginTop(15)
-	contentArea.SetMarginBottom(15)
+	contentArea.SetMarginTop(10)
+	contentArea.SetMarginBottom(10)
 	contentArea.SetMarginStart(15)
 	contentArea.SetMarginEnd(15)
-	contentArea.SetSpacing(10)
+	contentArea.SetSpacing(8)
 
-	// Add app icon at the top
+	// Header section: Icon on left, info on right (matching actual GUI layout)
+	headerBox, _ := gtk.BoxNew(gtk.ORIENTATION_HORIZONTAL, 12)
+
+	// App icon (64x64)
 	iconPath64 := filepath.Join(piAppsDir, "apps", appName, "icon-64.png")
+	var iconImage *gtk.Image
 	if _, err := os.Stat(iconPath64); err == nil {
-		image, _ := gtk.ImageNewFromFile(iconPath64)
-		contentArea.PackStart(image, false, false, 0)
+		iconImage, _ = gtk.ImageNewFromFile(iconPath64)
 	} else {
-		// Use a placeholder icon if the app icon doesn't exist
-		defaultIconPath := filepath.Join(piAppsDir, "icons", "logo-64.png")
+		defaultIconPath := filepath.Join(piAppsDir, "icons", "none-64.png")
 		if _, err := os.Stat(defaultIconPath); err == nil {
-			image, _ := gtk.ImageNewFromFile(defaultIconPath)
-			contentArea.PackStart(image, false, false, 0)
+			iconImage, _ = gtk.ImageNewFromFile(defaultIconPath)
+		} else {
+			iconImage, _ = gtk.ImageNew()
+			iconImage.SetSizeRequest(64, 64)
 		}
 	}
+	headerBox.PackStart(iconImage, false, false, 0)
 
-	// Add title and info
+	// Info section (right side of header)
+	infoBox, _ := gtk.BoxNew(gtk.ORIENTATION_VERTICAL, 3)
+	infoBox.SetVAlign(gtk.ALIGN_CENTER)
+
+	// App name with status - matching actual GUI style: "AppName (uninstalled)"
 	titleLabel, _ := gtk.LabelNew("")
-	titleLabel.SetMarkup("<span font_size='large'>" + appName + "</span>")
-	titleLabel.SetJustify(gtk.JUSTIFY_CENTER)
-	contentArea.PackStart(titleLabel, false, false, 0)
+	titleLabel.SetMarkup(fmt.Sprintf("<b>%s</b> <span foreground='#888888'>(uninstalled)</span>", appName))
+	titleLabel.SetHAlign(gtk.ALIGN_START)
+	infoBox.PackStart(titleLabel, false, false, 0)
 
-	// Add subtitle
-	subtitleLabel, _ := gtk.LabelNew("Make sure everything looks right.\nHere's a preview of the Details window:")
-	subtitleLabel.SetJustify(gtk.JUSTIFY_CENTER)
-	contentArea.PackStart(subtitleLabel, false, false, 10)
-
-	// Create a box for the app details
-	detailsBox, _ := gtk.BoxNew(gtk.ORIENTATION_VERTICAL, 5)
-	detailsBox.SetMarginStart(10)
-	detailsBox.SetMarginEnd(10)
-	contentArea.PackStart(detailsBox, false, false, 0)
-
-	// Add status
-	statusLabel, _ := gtk.LabelNew("- Current status: uninstalled")
-	statusLabel.SetHAlign(gtk.ALIGN_START)
-	detailsBox.PackStart(statusLabel, false, false, 0)
-
-	// Add website link
+	// Website link - matching actual GUI style with clickable link
 	websiteFile := filepath.Join(piAppsDir, "apps", appName, "website")
 	websiteURL := ""
 	if _, err := os.Stat(websiteFile); err == nil {
@@ -2526,21 +2543,27 @@ func createDetailsPreviewDialog(appName string, piAppsDir string) *gtk.Dialog {
 		websiteLabel.SetText("- Website: Not specified")
 	}
 	websiteLabel.SetHAlign(gtk.ALIGN_START)
-	detailsBox.PackStart(websiteLabel, false, false, 0)
+	websiteLabel.SetUseMarkup(true)
+	infoBox.PackStart(websiteLabel, false, false, 0)
 
-	// Add a separator
-	separator, _ := gtk.SeparatorNew(gtk.ORIENTATION_HORIZONTAL)
-	contentArea.PackStart(separator, false, false, 10)
+	headerBox.PackStart(infoBox, true, true, 0)
+	contentArea.PackStart(headerBox, false, false, 0)
 
-	// Add description text view
+	// Description section (matching actual GUI with dark scrolled text area)
 	descScrolled, _ := gtk.ScrolledWindowNew(nil, nil)
 	descScrolled.SetHExpand(true)
 	descScrolled.SetVExpand(true)
 	descScrolled.SetShadowType(gtk.SHADOW_IN)
+	descScrolledStyle, _ := descScrolled.GetStyleContext()
+	descScrolledStyle.AddClass("description-frame")
 
 	descView, _ := gtk.TextViewNew()
 	descView.SetWrapMode(gtk.WRAP_WORD)
 	descView.SetEditable(false)
+	descView.SetLeftMargin(8)
+	descView.SetRightMargin(8)
+	descView.SetTopMargin(8)
+	descView.SetBottomMargin(8)
 	descScrolled.Add(descView)
 
 	// Read existing description
@@ -2551,11 +2574,15 @@ func createDetailsPreviewDialog(appName string, piAppsDir string) *gtk.Dialog {
 			buffer, _ := descView.GetBuffer()
 			buffer.SetText(string(content))
 		}
+	} else {
+		// Show placeholder text if no description
+		buffer, _ := descView.GetBuffer()
+		buffer.SetText("Short description on this first line. This will be the tooltip.\nBe sure to mention HOW TO RUN this app, both from the menu and from a terminal.\n\nDescribe how to use this app, and any outstanding features it has.")
 	}
 
 	contentArea.PackStart(descScrolled, true, true, 0)
 
-	// Add navigation buttons with icons
+	// Add navigation buttons with icons (matching button style)
 	previousBtn, _ := dialog.AddButton("Previous", gtk.RESPONSE_CANCEL)
 	backIcon, _ := gtk.ImageNewFromFile(filepath.Join(piAppsDir, "icons", "back.png"))
 	if backIcon != nil {
