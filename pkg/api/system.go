@@ -669,13 +669,17 @@ func GitClone(args ...string) error {
 		return fmt.Errorf("git_clone(): no repository URL specified")
 	}
 
-	// Get user's home directory for cloning (matching original bash behavior)
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return fmt.Errorf("failed to get user home directory: %w", err)
+	// Use current working directory for cloning (matching original bash behavior)
+	baseDir, err := os.Getwd()
+	if err != nil || baseDir == "" {
+		// Fallback to home directory if cwd unavailable
+		baseDir, err = os.UserHomeDir()
+		if err != nil {
+			return fmt.Errorf("failed to determine working directory: %w", err)
+		}
 	}
 
-	folder := filepath.Join(homeDir, repoName)
+	folder := filepath.Join(baseDir, repoName)
 
 	// Display status message
 	Status("Downloading " + repoName + " repository...")
@@ -693,7 +697,7 @@ func GitClone(args ...string) error {
 
 	// Clone the repository (run from home directory)
 	gitCmd := exec.Command("git", "clone", repoURL, repoName)
-	gitCmd.Dir = homeDir // Set working directory to home directory
+	gitCmd.Dir = baseDir // Set working directory to chosen base directory
 	output, err := gitCmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("\nFailed to download %s repository.\nErrors: %s", repoName, string(output))
@@ -740,6 +744,11 @@ func Unzip(zipFile string, destDir string, flags []string) error {
 		}
 	}
 
+	// Default to current directory when no destination provided (matches unzip)
+	if destDir == "" {
+		destDir = "."
+	}
+
 	// Show status message
 	Status("Extracting: " + zipFile)
 
@@ -784,10 +793,20 @@ func extractZipFile(file *zip.File, destDir string, junkPaths bool, overwrite bo
 	} else {
 		// Use the full path structure
 		cleanPath := filepath.Clean(filepath.Join(destDir, file.Name))
-		if !strings.HasPrefix(cleanPath, filepath.Clean(destDir)+string(os.PathSeparator)) {
+		// Ensure the target path stays within destDir; allow files directly in destDir
+		baseAbs, err := filepath.Abs(destDir)
+		if err != nil {
+			return fmt.Errorf("invalid destination directory: %w", err)
+		}
+		targetAbs, err := filepath.Abs(cleanPath)
+		if err != nil {
 			return fmt.Errorf("invalid file path: %s", file.Name)
 		}
-		filePath = cleanPath
+		prefix := baseAbs + string(os.PathSeparator)
+		if !(strings.HasPrefix(targetAbs, prefix) || targetAbs == baseAbs) {
+			return fmt.Errorf("invalid file path: %s", file.Name)
+		}
+		filePath = targetAbs
 	}
 
 	// Check if this is a directory

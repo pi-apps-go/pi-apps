@@ -37,8 +37,37 @@ func runManage() {
 	// Custom error handling for undefined flags
 	flag.Usage = printManageUsage
 
+	// Normalize args to accept flags with or without a leading dash for compatibility
+	normalizedArgs := make([]string, 0, len(os.Args)-1)
+	compatFlags := map[string]bool{
+		"install":                  true,
+		"uninstall":                true,
+		"update":                   true,
+		"update-self":              true,
+		"install-if-not-installed": true,
+		"gui":                      true,
+		"multi":                    true,
+		"force":                    true,
+		"test-unsupported":         true,
+		"refresh":                  true,
+		"update-file":              true,
+		"daemon":                   true,
+		"version":                  true,
+	}
+	for _, arg := range os.Args[1:] {
+		if strings.HasPrefix(arg, "-") {
+			normalizedArgs = append(normalizedArgs, arg)
+			continue
+		}
+		if compatFlags[arg] {
+			normalizedArgs = append(normalizedArgs, "-"+arg)
+		} else {
+			normalizedArgs = append(normalizedArgs, arg)
+		}
+	}
+
 	// Parse flags
-	err := flag.CommandLine.Parse(os.Args[1:])
+	err := flag.CommandLine.Parse(normalizedArgs)
 	if err != nil {
 		api.ErrorNoExit("Error: " + err.Error())
 		printManageUsage()

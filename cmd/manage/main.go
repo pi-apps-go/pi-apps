@@ -61,6 +61,8 @@ func main() {
 	}
 
 	// Define flags
+	// compatability layer to allow the use of the same flags as the original Pi-Apps manage script (either without a dash or with a dash)
+
 	installFlag := flag.Bool("install", false, "Install the specified apps")
 	uninstallFlag := flag.Bool("uninstall", false, "Uninstall the specified apps")
 	updateFlag := flag.Bool("update", false, "Update the specified apps")
@@ -78,8 +80,37 @@ func main() {
 	// Custom error handling for undefined flags
 	flag.Usage = printUsage
 
+	// Normalize args to accept flags with or without a leading dash for compatibility
+	normalizedArgs := make([]string, 0, len(os.Args)-1)
+	compatFlags := map[string]bool{
+		"install":                  true,
+		"uninstall":                true,
+		"update":                   true,
+		"update-self":              true,
+		"install-if-not-installed": true,
+		"gui":                      true,
+		"multi":                    true,
+		"force":                    true,
+		"test-unsupported":         true,
+		"refresh":                  true,
+		"update-file":              true,
+		"daemon":                   true,
+		"version":                  true,
+	}
+	for _, arg := range os.Args[1:] {
+		if strings.HasPrefix(arg, "-") {
+			normalizedArgs = append(normalizedArgs, arg)
+			continue
+		}
+		if compatFlags[arg] {
+			normalizedArgs = append(normalizedArgs, "-"+arg)
+		} else {
+			normalizedArgs = append(normalizedArgs, arg)
+		}
+	}
+
 	// Parse flags
-	err := flag.CommandLine.Parse(os.Args[1:])
+	err := flag.CommandLine.Parse(normalizedArgs)
 	if err != nil {
 		api.ErrorNoExit("Error: " + err.Error())
 		printUsage()
@@ -187,8 +218,19 @@ func main() {
 		}
 	}
 
-	// Ensure PI_APPS_DIR environment variable is set
-	piAppsDir := os.Getenv("PI_APPS_DIR")
+	// Ensure PI_APPS_DIR environment variable is set (DIRECTORY takes precedence to match bash behavior)
+	piAppsDir := ""
+	if dirEnv := os.Getenv("DIRECTORY"); dirEnv != "" {
+		if _, err := os.Stat(dirEnv); err == nil {
+			piAppsDir = dirEnv
+			os.Setenv("PI_APPS_DIR", piAppsDir)
+		}
+	}
+	if piAppsDir == "" {
+		if env := os.Getenv("PI_APPS_DIR"); env != "" {
+			piAppsDir = env
+		}
+	}
 	if piAppsDir == "" {
 		// Try to find pi-apps directory
 		homeDir, err := os.UserHomeDir()
@@ -203,6 +245,9 @@ func main() {
 		if piAppsDir == "" {
 			api.Error("Error: PI_APPS_DIR environment variable not set")
 		}
+	} else {
+		// Keep PI_APPS_DIR in sync when overridden
+		os.Setenv("PI_APPS_DIR", piAppsDir)
 	}
 
 	// If no flags are provided, print usage and exit

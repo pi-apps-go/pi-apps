@@ -24,10 +24,13 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"os/user"
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"golang.org/x/text/cases"
@@ -160,7 +163,8 @@ func ManageApp(action Action, appName string, isUpdate bool) error {
 		}
 
 		// Set up script command
-		cmd = exec.Command("bash", filepath.Join(piAppsDir, "apps", appName, scriptName))
+		scriptPath := filepath.Join(piAppsDir, "apps", appName, scriptName)
+		cmd = exec.Command("bash", scriptPath)
 
 		// Set environment variables
 		env := os.Environ()
@@ -169,6 +173,43 @@ func ManageApp(action Action, appName string, isUpdate bool) error {
 
 		if isUpdate {
 			env = append(env, "script_input=update")
+		}
+
+		// If running with elevated euid, drop to real user for script apps (match original behavior)
+		if os.Geteuid() == 0 {
+			targetUser := os.Getenv("SUDO_USER")
+			var resolvedUID uint64
+			var resolvedGID uint64
+
+			// Prefer real uid when binary is setuid root
+			if targetUser == "" {
+				if ruid := os.Getuid(); ruid != 0 {
+					if u, err := user.LookupId(strconv.Itoa(ruid)); err == nil {
+						targetUser = u.Username
+					}
+				}
+			}
+
+			if targetUser == "" {
+				targetUser = os.Getenv("USER")
+			}
+
+			if targetUser != "" {
+				if u, err := user.Lookup(targetUser); err == nil {
+					resolvedUID, _ = strconv.ParseUint(u.Uid, 10, 32)
+					resolvedGID, _ = strconv.ParseUint(u.Gid, 10, 32)
+					cmd.SysProcAttr = &syscall.SysProcAttr{
+						Credential: &syscall.Credential{
+							Uid: uint32(resolvedUID),
+							Gid: uint32(resolvedGID),
+						},
+					}
+					if u.HomeDir != "" {
+						env = append(env, "HOME="+u.HomeDir)
+						cmd.Dir = u.HomeDir
+					}
+				}
+			}
 		}
 
 		cmd.Env = env
@@ -208,14 +249,23 @@ func ManageApp(action Action, appName string, isUpdate bool) error {
 	// Set command working directory to user's home
 	cmd.Dir = os.Getenv("HOME")
 
+	// Ensure ~/.local/share exists so scripts expecting it can cd there
+	if isScriptApp {
+		_ = os.MkdirAll(filepath.Join(os.Getenv("HOME"), ".local", "share"), 0755)
+	}
+
 	// Create ANSI-stripping writer for log file to avoid escape codes in logs
 	ansiStripLogWriter := NewAnsiStripWriter(logFile)
 	// Connect command output to log file with ANSI stripped
 	cmd.Stdout = ansiStripLogWriter
 	cmd.Stderr = ansiStripLogWriter
 
-	// Run the command
-	err = cmd.Run()
+	// Run the command (script apps need bash wrapper for helper functions)
+	if isScriptApp {
+		err = RunWithScriptWrappers(cmd)
+	} else {
+		err = cmd.Run()
+	}
 
 	// Determine success or failure
 	if err != nil {
@@ -825,7 +875,8 @@ func runAppScript(appName, scriptName string) error {
 	}
 
 	// Check if we need sudo (for system operations)
-	needsSudo := scriptName == "install" || scriptName == "uninstall"
+	// For script apps, prefer running as the invoking user; scripts can elevate internally if needed.
+	needsSudo := false
 
 	// Get the path to the api-go binary
 	apiDir := filepath.Dir(apiBashWrapper)
@@ -891,7 +942,6 @@ cd "$HOME"
 	}
 
 	cmd.Env = env
-
 	// Run the command
 	err = cmd.Run()
 
