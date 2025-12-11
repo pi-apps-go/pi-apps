@@ -1715,8 +1715,8 @@ func (g *GUI) GetMessageOfTheDay() string {
 
 		// Pick a random line (matching bash `shuf -n 1` behavior)
 		if len(validLines) > 0 {
-			// Use current time as seed for randomness
-			randomIndex := int(time.Now().UnixNano()) % len(validLines)
+			// Use current time as seed for randomness (avoid int overflow on 32-bit)
+			randomIndex := int(time.Now().UnixNano() % int64(len(validLines)))
 			return validLines[randomIndex]
 		}
 	}

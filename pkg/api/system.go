@@ -848,8 +848,9 @@ func Nproc() (int, error) {
 	}
 
 	// Convert available memory to MB (from bytes)
-	// Note: Sysinfo.Freeram is in bytes, so we divide by 1024*1024 to get MB
-	availableMB := int(memInfo.Freeram * uint64(memInfo.Unit) / (1024 * 1024))
+	// Note: Sysinfo.Freeram can be 32-bit on some platforms, so promote to uint64 before multiplying
+	availableBytes := uint64(memInfo.Freeram) * uint64(memInfo.Unit)
+	availableMB := int(availableBytes / (1024 * 1024))
 
 	// Alternatively, read from /proc/meminfo
 	if availableMB == 0 {
