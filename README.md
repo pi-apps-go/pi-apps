@@ -84,16 +84,11 @@ To give you an idea of the differences, here is a list of the differences:
 </tr>
 </thead>
 
-
-
-
+<tbody>
 <tr>
 <td class="org-left">Package manager support</td>
 <td class="org-left">APT only</td>
-<td class="org-left">A<td class="org-left">❌ (depends on Linux only commands/utilties)</td>
-<td class="org-left">✅ (Go libraries handle the platform abstraction)</td>
-</tr>
-</tbody>PT, APK, pacman*, dnf* and many more</td>
+<td class="org-left">APT, APK, pacman*, dnf* and many more</td>
 </tr>
 
 
@@ -114,9 +109,8 @@ To give you an idea of the differences, here is a list of the differences:
 <tr>
 <td class="org-left">Speed</td>
 <td class="org-left">❌ (bit slow, core Pi-Apps runtime written in Bash)</td>
-<td class="org-left">✅ (written in Go, compiles to native code, which is up to 2x faster)</td>
+<td class="org-left">✅ (written in Go, compiles to native code)</td>
 </tr>
-</tbody>
 
 <tr>
 <td class="org-left">Platform agnostic and portable</td>
