@@ -63,6 +63,73 @@ Beta testing stage: **in around late 2025 - early 2026 or eariler**
 
 Stable stage: **around early 2026 or eariler**
 
+## Differences between Pi-Apps and Pi-Apps Go
+Pi-Apps Go is based on the same architecture as Pi-Apps, with many improvements added on top of it.
+To give you an idea of the differences, here is a list of the differences:
+
+<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+
+<col  class="org-left" />
+</colgroup>
+<thead>
+<tr>
+<th scope="col" class="org-left">Feature</th>
+<th scope="col" class="org-left"><img src="https://github.com/Botspot/pi-apps/blob/master/icons/proglogo.png?raw=true" alt="Pi-Apps logo" height="60"></th>
+<th scope="col" class="org-left"><img src="https://github.com/pi-apps-go/pi-apps/blob/main/icons/proglogo.png?raw=true" alt="Pi-Apps Go logo"  height="60"></th>
+</tr>
+</thead>
+
+
+
+
+<tr>
+<td class="org-left">Package manager support</td>
+<td class="org-left">APT only</td>
+<td class="org-left">A<td class="org-left">❌ (depends on Linux only commands/utilties)</td>
+<td class="org-left">✅ (Go libraries handle the platform abstraction)</td>
+</tr>
+</tbody>PT, APK, pacman*, dnf* and many more</td>
+</tr>
+
+
+<tr>
+<td class="org-left">Localization support</td>
+<td class="org-left">❌ (English only)</td>
+<td class="org-left">✅ (currently English, Spanish and Polish)</td>
+</tr>
+
+
+<tr>
+<td class="org-left">Architecture support</td>
+<td class="org-left">ARM only (unofficially x86)</td>
+<td class="org-left">ARM, x86, RISC-V</td>
+</tr>
+
+
+<tr>
+<td class="org-left">Speed</td>
+<td class="org-left">❌ (bit slow, core Pi-Apps runtime written in Bash)</td>
+<td class="org-left">✅ (written in Go, compiles to native code, which is up to 2x faster)</td>
+</tr>
+</tbody>
+
+<tr>
+<td class="org-left">Platform agnostic and portable</td>
+<td class="org-left">❌ (depends on Linux only commands/utilties that won't work anywhere)</td>
+<td class="org-left">✅ (Go libraries handle the platform abstraction)</td>
+</tr>
+</tbody>
+</table>
+
+
+<a id="support"></a>
+
+
 ## Install Pi-Apps Go
 Open a terminal and run this command:
 ```bash
