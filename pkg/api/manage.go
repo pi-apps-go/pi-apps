@@ -79,9 +79,23 @@ func ManageApp(action Action, appName string, isUpdate bool) error {
 		return fmt.Errorf("PI_APPS_DIR environment variable not set")
 	}
 
-	// Validate the app exists
+	// Validate the app exists (check both regular apps and deprecated apps)
 	appDir := filepath.Join(piAppsDir, "apps", appName)
-	if _, err := os.Stat(appDir); os.IsNotExist(err) {
+	appExists := false
+	if _, err := os.Stat(appDir); err == nil {
+		appExists = true
+	} else if IsDeprecatedApp(appName) {
+		// For deprecated apps, check if they have stored data
+		deprecatedDir := filepath.Join(piAppsDir, "data", "deprecated-apps", appName)
+		if _, err := os.Stat(deprecatedDir); err == nil {
+			appExists = true
+			// For deprecated apps, only allow uninstall action
+			if action != ActionUninstall {
+				return fmt.Errorf("app %s is deprecated and can only be uninstalled", appName)
+			}
+		}
+	}
+	if !appExists {
 		return fmt.Errorf("app %s does not exist", appName)
 	}
 
@@ -804,8 +818,20 @@ func runAppScript(appName, scriptName string) error {
 
 	// Check if script exists
 	if _, err := os.Stat(scriptPath); err != nil {
-		// If specific script doesn't exist, try architecture-specific versions for install
-		if scriptName == "install" {
+		// For uninstall scripts, check if this is a deprecated app with stored uninstall script
+		if scriptName == "uninstall" {
+			if IsDeprecatedApp(appName) {
+				storedScript, err := GetDeprecatedAppUninstallScript(appName)
+				if err == nil {
+					scriptPath = storedScript
+				} else {
+					return fmt.Errorf("uninstall script does not exist for deprecated app '%s'", appName)
+				}
+			} else {
+				return fmt.Errorf("uninstall script does not exist for app '%s'", appName)
+			}
+		} else if scriptName == "install" {
+			// If specific script doesn't exist, try architecture-specific versions for install
 			// Check for install-32 and install-64
 			install32Path := filepath.Join(getPiAppsDir(), "apps", appName, "install-32")
 			install64Path := filepath.Join(getPiAppsDir(), "apps", appName, "install-64")
@@ -1018,12 +1044,20 @@ cd "$HOME"
 }
 
 // IsValidApp checks if an app exists in the Pi-Apps directory
+// This includes both regular apps and deprecated apps
 func IsValidApp(appName string) bool {
 	appDir := filepath.Join(getPiAppsDir(), "apps", appName)
-	if _, err := os.Stat(appDir); err != nil {
-		return false
+	if _, err := os.Stat(appDir); err == nil {
+		return true
 	}
-	return true
+	// Check if it's a deprecated app
+	if IsDeprecatedApp(appName) {
+		deprecatedDir := filepath.Join(getPiAppsDir(), "data", "deprecated-apps", appName)
+		if _, err := os.Stat(deprecatedDir); err == nil {
+			return true
+		}
+	}
+	return false
 }
 
 // IsAppInstalled checks if an app is installed
@@ -1040,6 +1074,16 @@ func IsAppInstalled(appName string) bool {
 
 // GetAppType determines the type of the app (package or standard)
 func GetAppType(appName string) (string, error) {
+	// For deprecated apps, check the deprecated directory
+	if IsDeprecatedApp(appName) {
+		// Deprecated apps only have uninstall scripts, so they're always "standard"
+		deprecatedUninstall := filepath.Join(getPiAppsDir(), "data", "deprecated-apps", appName, "uninstall")
+		if _, err := os.Stat(deprecatedUninstall); err == nil {
+			return "standard", nil
+		}
+		return "", fmt.Errorf("deprecated app '%s' does not have an uninstall script", appName)
+	}
+
 	packageListPath := filepath.Join(getPiAppsDir(), "apps", appName, "packages")
 	installPath := filepath.Join(getPiAppsDir(), "apps", appName, "install")
 	install32Path := filepath.Join(getPiAppsDir(), "apps", appName, "install-32")
@@ -1096,7 +1140,17 @@ func markAppAsUninstalled(appName string) error {
 
 	// If the status file exists, remove it
 	if _, err := os.Stat(statusFile); err == nil {
-		return os.Remove(statusFile)
+		if err := os.Remove(statusFile); err != nil {
+			return err
+		}
+	}
+
+	// If this was a deprecated app, clean up the deprecated app entries
+	if IsDeprecatedApp(appName) {
+		if err := removeDeprecatedAppEntries(appName); err != nil {
+			// Log warning but don't fail the uninstall
+			fmt.Printf("Warning: Failed to remove deprecated app entries for %s: %v\n", appName, err)
+		}
 	}
 
 	// If file doesn't exist, we're good (it's already "uninstalled")

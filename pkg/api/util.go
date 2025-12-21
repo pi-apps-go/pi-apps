@@ -32,6 +32,9 @@ import (
 // It takes a script as a string and executes it only if its hash
 // doesn't exist in the runonce hashes file.
 // This is useful for one-time migrations or setting changes.
+//
+// Deprecated: In our goals to remove bash scripts for anything other then apps,
+// this function will be removed soon. Use api.RunonceFunc instead for Go native runonce functions.
 func Runonce(script string) error {
 	if script == "" {
 		return fmt.Errorf("runonce(): script is empty")
@@ -116,6 +119,75 @@ func hashExistsInFile(filePath, hash string) (bool, error) {
 	}
 
 	return false, scanner.Err()
+}
+
+// RunonceFunc runs a function only if it has never been run before with the given version.
+// It takes a function and a version identifier (e.g., "addUserDirs-v1").
+// If the version identifier doesn't exist in the runonce hashes file, the function is executed.
+// This is useful for one-time migrations or setting changes using Go functions instead of bash scripts.
+func RunonceFunc(version string, fn func() error) error {
+	if version == "" {
+		return fmt.Errorf("runonceFunc(): version identifier is empty")
+	}
+	if fn == nil {
+		return fmt.Errorf("runonceFunc(): function is nil")
+	}
+
+	// Get the PI_APPS_DIR environment variable
+	directory := os.Getenv("PI_APPS_DIR")
+	if directory == "" {
+		return fmt.Errorf("PI_APPS_DIR environment variable not set")
+	}
+
+	// Calculate SHA1 hash of the version identifier
+	hasher := sha1.New()
+	hasher.Write([]byte(version))
+	hash := fmt.Sprintf("%x", hasher.Sum(nil))
+
+	// Check if hash exists in the runonce_hashes file
+	hashesFile := filepath.Join(directory, "data", "runonce_hashes")
+
+	// Create the file if it doesn't exist
+	if !FileExists(hashesFile) {
+		// Ensure directory exists
+		if err := os.MkdirAll(filepath.Dir(hashesFile), 0755); err != nil {
+			return fmt.Errorf("failed to create directory for runonce_hashes: %w", err)
+		}
+
+		// Create empty file
+		if _, err := os.Create(hashesFile); err != nil {
+			return fmt.Errorf("failed to create runonce_hashes file: %w", err)
+		}
+	}
+
+	// Check if the hash already exists in the file
+	hashExists, err := hashExistsInFile(hashesFile, hash)
+	if err != nil {
+		return fmt.Errorf("failed to check hash existence: %w", err)
+	}
+
+	if hashExists {
+		// Hash found, function already run before - do nothing
+		return nil
+	}
+
+	// Hash not found, run the function
+	if err := fn(); err != nil {
+		return fmt.Errorf("runonceFunc(): function failed: %w", err)
+	}
+
+	// If function succeeds, add the hash to the list
+	hashFile, err := os.OpenFile(hashesFile, os.O_APPEND|os.O_WRONLY, 0644)
+	if err != nil {
+		return fmt.Errorf("failed to open runonce_hashes file: %w", err)
+	}
+	defer hashFile.Close()
+
+	if _, err := hashFile.WriteString(hash + "\n"); err != nil {
+		return fmt.Errorf("failed to write hash to file: %w", err)
+	}
+
+	return nil
 }
 
 // TextEditor opens the user's preferred text editor for the specified file

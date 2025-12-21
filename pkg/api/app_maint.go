@@ -273,33 +273,16 @@ func RunCategoryEdit(appName, category string) error {
 	return nil
 }
 
-// getOriginalCategory gets the original category of an app from the categories file
+// getOriginalCategory gets the original category of an app from the embedded categories data
 func getOriginalCategory(directory, appName string) (string, error) {
-	categoriesFile := filepath.Join(directory, "etc", "categories")
-	if !FileExists(categoriesFile) {
-		return "", fmt.Errorf("categories file does not exist")
-	}
-
-	file, err := os.Open(categoriesFile)
-	if err != nil {
-		return "", fmt.Errorf("error opening categories file: %w", err)
-	}
-	defer file.Close()
-
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		line := scanner.Text()
-		parts := strings.Split(line, "|")
-		if len(parts) >= 2 && parts[0] == appName {
-			return parts[1], nil
+	// Use embedded global categories from structured data
+	for _, assignment := range embeddedGlobalCategories {
+		if assignment.AppName == appName {
+			return assignment.Category, nil
 		}
 	}
 
-	if err := scanner.Err(); err != nil {
-		return "", fmt.Errorf("error scanning categories file: %w", err)
-	}
-
-	return "", fmt.Errorf("app not found in categories file")
+	return "", fmt.Errorf("app not found in embedded categories")
 }
 
 // RefreshAppList forces regeneration of the app list

@@ -105,9 +105,7 @@ func openWithNano(filePath string) error {
 	// Spawn nano in a separate goroutine to allow multiple sessions
 	go func() {
 		// Quote the file path to handle spaces properly
-		quotedFilePath := fmt.Sprintf("'%s'", strings.ReplaceAll(filePath, "'", "'\"'\"'"))
-		cmd := exec.Command(filepath.Join(piAppsDir, "etc", "terminal-run"), fmt.Sprintf("nano %s", quotedFilePath))
-		cmd.Start()
+		TerminalRun(fmt.Sprintf("nano %s", filePath), "Editing "+filepath.Base(filePath))
 	}()
 
 	return nil

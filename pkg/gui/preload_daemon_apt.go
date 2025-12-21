@@ -225,7 +225,7 @@ func (d *PreloadDaemon) getFoldersToPreload() ([]string, error) {
 	var folders []string
 
 	// Add special folders
-	folders = append(folders, "All Apps", "Installed", "Packages")
+	folders = append(folders, "All Apps", "Installed", "Packages", "Deprecated")
 
 	// Get categories from category files
 	categories, err := api.ReadCategoryFiles(d.directory)

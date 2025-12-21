@@ -32,13 +32,337 @@ import (
 	"github.com/gotk3/gotk3/gtk"
 )
 
+// Embedded default category data - structured Go-native configuration
+var (
+	// embeddedGlobalCategories contains the default categories
+	embeddedGlobalCategories = []CategoryAssignment{
+		{AppName: "AbiWord", Category: "Office"},
+		{AppName: "Alacritty Terminal", Category: "Terminals"},
+		{AppName: "All Is Well", Category: "System Management"},
+		{AppName: "Amiberry", Category: "Games"},
+		{AppName: "AndroidBuddy", Category: "Tools"},
+		{AppName: "Angry IP scanner", Category: "Internet"},
+		{AppName: "AntiMicroX", Category: "Tools"},
+		{AppName: "Arduino", Category: "Programming"},
+		{AppName: "AstroMenace", Category: "Games"},
+		{AppName: "Audacious", Category: "Multimedia"},
+		{AppName: "Audacity", Category: "Multimedia"},
+		{AppName: "Autostar", Category: "System Management"},
+		{AppName: "BalenaEtcher", Category: "Tools"},
+		{AppName: "Bambu Studio", Category: "Engineering"},
+		{AppName: "Better Chromium", Category: "Internet/Browsers"},
+		{AppName: "BleachBit", Category: "System Management"},
+		{AppName: "BlockBench", Category: "Creative Arts"},
+		{AppName: "BlueJ Java IDE", Category: "Programming"},
+		{AppName: "Bongo Cam", Category: "Multimedia"},
+		{AppName: "Botspot Screen Recorder", Category: "Multimedia"},
+		{AppName: "Botspot Virtual Machine", Category: "Tools/Emulation"},
+		{AppName: "Box64", Category: "Tools/Emulation"},
+		{AppName: "Box86", Category: "Tools/Emulation"},
+		{AppName: "Boxy SVG", Category: "Creative Arts"},
+		{AppName: "Brave", Category: "Internet/Browsers"},
+		{AppName: "Browsh", Category: "Internet/Browsers"},
+		{AppName: "btop++", Category: "System Management"},
+		{AppName: "Caprine", Category: "Internet/Communication"},
+		{AppName: "Caskaydia Cove NF", Category: "Appearance"},
+		{AppName: "Celeste64", Category: "Games"},
+		{AppName: "Celeste Classic", Category: "Games"},
+		{AppName: "Chromium", Category: "Internet/Browsers"},
+		{AppName: "ckb-next", Category: "Tools"},
+		{AppName: "Clam Antivirus", Category: "System Management"},
+		{AppName: "CloudBuddy", Category: "Internet"},
+		{AppName: "Codex", Category: "Programming"},
+		{AppName: "Colored Man Pages", Category: "Appearance"},
+		{AppName: "Color Emoji font", Category: "Appearance"},
+		{AppName: "CommanderPi", Category: "System Management"},
+		{AppName: "Conky", Category: "Appearance"},
+		{AppName: "Conky Rings", Category: "Appearance"},
+		{AppName: "Cool Retro Term", Category: "Terminals"},
+		{AppName: "Cura", Category: "Engineering"},
+		{AppName: "DDNet", Category: "Games"},
+		{AppName: "Deluge", Category: "Internet"},
+		{AppName: "Descent 1", Category: "Games"},
+		{AppName: "Descent 2", Category: "Games"},
+		{AppName: "Deskreen", Category: "Internet"},
+		{AppName: "Disk Usage Analyzer", Category: "System Management"},
+		{AppName: "Doom 3", Category: "Games"},
+		{AppName: "Dot Matrix", Category: "Creative Arts"},
+		{AppName: "Downgrade Chromium", Category: "Internet/Browsers"},
+		{AppName: "Drawing", Category: "Creative Arts"},
+		{AppName: "Ducopanel", Category: "Tools/Crypto"},
+		{AppName: "Eagle CAD", Category: "Engineering"},
+		{AppName: "Easy Effects", Category: "Multimedia"},
+		{AppName: "Electron Fiddle", Category: "Programming"},
+		{AppName: "Epiphany", Category: "Internet/Browsers"},
+		{AppName: "Fastfetch", Category: "System Management"},
+		{AppName: "Feather Wallet", Category: "Tools/Crypto"},
+		{AppName: "FF Multi Converter", Category: "Tools"},
+		{AppName: "Filezilla", Category: "Internet"},
+		{AppName: "Firefox Rapid Release", Category: "Internet/Browsers"},
+		{AppName: "Flameshot", Category: "Tools"},
+		{AppName: "Floorp", Category: "Internet/Browsers"},
+		{AppName: "Flow", Category: "Internet/Browsers"},
+		{AppName: "FreeTube", Category: "Multimedia"},
+		{AppName: "Friday Night Funkin' Rewritten", Category: "Games"},
+		{AppName: "Fritzing", Category: "Engineering"},
+		{AppName: "Geany Dark Mode", Category: "Appearance"},
+		{AppName: "Geekbench 5", Category: "Tools"},
+		{AppName: "Geekbench 6", Category: "Tools"},
+		{AppName: "GIMP", Category: "Creative Arts"},
+		{AppName: "Github-CLI", Category: "Programming"},
+		{AppName: "Github Desktop", Category: "Programming"},
+		{AppName: "Gnome Builder IDE", Category: "Programming"},
+		{AppName: "Gnome Maps", Category: "Tools"},
+		{AppName: "Gnome Software", Category: "hidden"},
+		{AppName: "Gnumeric", Category: "Office"},
+		{AppName: "Godot", Category: "Games"},
+		{AppName: "GParted", Category: "System Management"},
+		{AppName: "Guake Terminal", Category: "Terminals"},
+		{AppName: "Hangover", Category: "Tools/Emulation"},
+		{AppName: "Heroes 2", Category: "Games"},
+		{AppName: "Https File Server", Category: "Tools"},
+		{AppName: "HTTrack Website Copier", Category: "Internet"},
+		{AppName: "Hyper", Category: "hidden"},
+		{AppName: "Imager", Category: "Tools"},
+		{AppName: "INAV Configurator", Category: "Engineering"},
+		{AppName: "Inkscape", Category: "Creative Arts"},
+		{AppName: "Intellij IDEA", Category: "Programming"},
+		{AppName: "jGRASP IDE", Category: "Programming"},
+		{AppName: "Kdenlive", Category: "Multimedia"},
+		{AppName: "KeePassXC", Category: "Tools"},
+		{AppName: "KiCad", Category: "Engineering"},
+		{AppName: "Kodi", Category: "Multimedia"},
+		{AppName: "Kolourpaint", Category: "Creative Arts"},
+		{AppName: "Krita", Category: "Creative Arts"},
+		{AppName: "Legcord", Category: "Internet/Communication"},
+		{AppName: "Lego Digital Designer", Category: "Creative Arts"},
+		{AppName: "LibreCAD", Category: "Engineering"},
+		{AppName: "Libreoffice MS theme", Category: "Office"},
+		{AppName: "LibreOffice", Category: "Office"},
+		{AppName: "LibrePCB", Category: "Engineering"},
+		{AppName: "LibreWolf", Category: "Internet/Browsers"},
+		{AppName: "Lightpad", Category: "Appearance"},
+		{AppName: "LineRider", Category: "Games"},
+		{AppName: "Linux Wifi Hotspot", Category: "Tools"},
+		{AppName: "LMMS", Category: "Multimedia"},
+		{AppName: "Marathon", Category: "Games"},
+		{AppName: "MatterControl", Category: "Engineering"},
+		{AppName: "Microsoft PowerShell", Category: "Terminals"},
+		{AppName: "Microsoft Teams", Category: "Internet/Communication"},
+		{AppName: "Minecraft Bedrock", Category: "Games"},
+		{AppName: "Minecraft Java GDLauncher", Category: "Games"},
+		{AppName: "Minecraft Java Prism Launcher", Category: "Games"},
+		{AppName: "Minecraft Java Server", Category: "Games"},
+		{AppName: "Minecraft Pi (Modded)", Category: "Games"},
+		{AppName: "Min", Category: "Internet/Browsers"},
+		{AppName: "Mission Planner", Category: "Engineering"},
+		{AppName: "Monero GUI", Category: "Tools/Crypto"},
+		{AppName: "More RAM", Category: "Tools"},
+		{AppName: "Mullvad", Category: "Internet/Browsers"},
+		{AppName: "Mu", Category: "Programming"},
+		{AppName: "MuseScore", Category: "Multimedia"},
+		{AppName: "Nautilus", Category: "Tools"},
+		{AppName: "Nemo", Category: "Tools"},
+		{AppName: "Neofetch", Category: "System Management"},
+		{AppName: "NixNote2", Category: "Office"},
+		{AppName: "Node.js", Category: "Tools"},
+		{AppName: "Notejot", Category: "Office"},
+		{AppName: "Notepad ++", Category: "Programming"},
+		{AppName: "Obsidian", Category: "Office"},
+		{AppName: "OBS Studio", Category: "Multimedia"},
+		{AppName: "Oh My Posh", Category: "Appearance"},
+		{AppName: "Ollama GUI", Category: "Tools"},
+		{AppName: "OnionShare", Category: "Tools"},
+		{AppName: "Oomox Theme Designer", Category: "Appearance"},
+		{AppName: "OpenSCAD", Category: "Engineering"},
+		{AppName: "Open-Typer", Category: "Office"},
+		{AppName: "Organic Maps", Category: "Tools"},
+		{AppName: "Pac-Man", Category: "Games"},
+		{AppName: "PeaZip", Category: "Tools"},
+		{AppName: "Persepolis Download Manager", Category: "Internet"},
+		{AppName: "Pi-Apps Terminal Plugin (bash)", Category: "Tools"},
+		{AppName: "PiGro", Category: "Tools"},
+		{AppName: "Pika Backup", Category: "System Management"},
+		{AppName: "Pinta", Category: "Creative Arts"},
+		{AppName: "Pi Power Tools", Category: "System Management"},
+		{AppName: "PiSafe", Category: "Tools"},
+		{AppName: "Pixelorama", Category: "Creative Arts"},
+		{AppName: "Powerline-Shell", Category: "Appearance"},
+		{AppName: "PPSSPP (PSP emulator)", Category: "Games"},
+		{AppName: "Processing IDE", Category: "Programming"},
+		{AppName: "ProjectLibre", Category: "Office"},
+		{AppName: "Project OutFox", Category: "Games"},
+		{AppName: "PrusaSlicer", Category: "Engineering"},
+		{AppName: "Puffin", Category: "Internet/Browsers"},
+		{AppName: "Pycharm CE", Category: "Programming"},
+		{AppName: "PyChess", Category: "Games"},
+		{AppName: "QEMU", Category: "Tools/Emulation"},
+		{AppName: "QR Code Reader", Category: "Tools"},
+		{AppName: "Quartz", Category: "Internet/Browsers"},
+		{AppName: "Reaper", Category: "Multimedia"},
+		{AppName: "Remarkable", Category: "Programming"},
+		{AppName: "Renoise (Demo)", Category: "Multimedia"},
+		{AppName: "RiiTag-RPC", Category: "Internet"},
+		{AppName: "RustDesk", Category: "Internet"},
+		{AppName: "Scratch 2", Category: "Programming"},
+		{AppName: "Scratch 3", Category: "Programming"},
+		{AppName: "Scrcpy", Category: "Tools"},
+		{AppName: "Screenshot", Category: "Tools"},
+		{AppName: "Shattered Pixel Dungeon", Category: "Games"},
+		{AppName: "Shotwell", Category: "Creative Arts"},
+		{AppName: "Signal", Category: "Internet/Communication"},
+		{AppName: "SimpleScreenRecorder", Category: "Multimedia"},
+		{AppName: "Snapdrop", Category: "Tools"},
+		{AppName: "Snap Store", Category: "Tools"},
+		{AppName: "Sonic Pi", Category: "Multimedia"},
+		{AppName: "Sound Recorder", Category: "Multimedia"},
+		{AppName: "SpeedTest-CLI", Category: "Internet"},
+		{AppName: "Sphero SDK", Category: "Programming"},
+		{AppName: "StackEdit", Category: "Programming"},
+		{AppName: "Steam", Category: "Games"},
+		{AppName: "Steam Link", Category: "Games"},
+		{AppName: "StepMania", Category: "Games"},
+		{AppName: "Stunt Rally", Category: "hidden"},
+		{AppName: "Sublime Merge", Category: "Programming"},
+		{AppName: "Sublime Text", Category: "Programming"},
+		{AppName: "Synaptic", Category: "System Management"},
+		{AppName: "Syncthing", Category: "System Management"},
+		{AppName: "SysMonTask", Category: "System Management"},
+		{AppName: "Systemd Pilot", Category: "System Management"},
+		{AppName: "System Monitoring Center", Category: "System Management"},
+		{AppName: "Tabby", Category: "Terminals"},
+		{AppName: "TeamViewer", Category: "Internet"},
+		{AppName: "Telegram", Category: "Internet/Communication"},
+		{AppName: "template", Category: "hidden"},
+		{AppName: "Tetris CLI", Category: "Games"},
+		{AppName: "Thonny", Category: "Programming"},
+		{AppName: "Thunderbird", Category: "Internet/Communication"},
+		{AppName: "TiLP", Category: "Tools"},
+		{AppName: "Timeshift", Category: "System Management"},
+		{AppName: "tldr", Category: "Tools"},
+		{AppName: "Tor", Category: "Internet/Browsers"},
+		{AppName: "Transmission", Category: "Internet"},
+		{AppName: "Turbowarp", Category: "Programming"},
+		{AppName: "Ulauncher", Category: "Appearance"},
+		{AppName: "Unciv", Category: "Games"},
+		{AppName: "Update Buddy", Category: "System Management"},
+		{AppName: "USBImager", Category: "Tools"},
+		{AppName: "VARA HF", Category: "Engineering"},
+		{AppName: "VeraCrypt", Category: "Tools"},
+		{AppName: "Visual Studio Code", Category: "Programming"},
+		{AppName: "Vivaldi", Category: "Internet/Browsers"},
+		{AppName: "VMware Horizon Client", Category: "Tools"},
+		{AppName: "VSCodium", Category: "Programming"},
+		{AppName: "WACUP (new WinAmp)", Category: "Multimedia"},
+		{AppName: "Waveform", Category: "Multimedia"},
+		{AppName: "Web Apps", Category: "Internet"},
+		{AppName: "Webcord", Category: "Internet/Communication"},
+		{AppName: "Wechat", Category: "Internet/Communication"},
+		{AppName: "WhatsApp", Category: "Internet/Communication"},
+		{AppName: "Windows Flasher", Category: "Tools"},
+		{AppName: "Windows Screensavers", Category: "Appearance"},
+		{AppName: "Wine (x64)", Category: "Tools/Emulation"},
+		{AppName: "Wine (x86)", Category: "Tools/Emulation"},
+		{AppName: "WorldPainter", Category: "Games"},
+		{AppName: "WPS Office", Category: "Office"},
+		{AppName: "Xfburn", Category: "Tools"},
+		{AppName: "XMRig", Category: "Tools/Crypto"},
+		{AppName: "XSnow", Category: "Appearance"},
+		{AppName: "Xtreme Download Manager", Category: "Internet"},
+		{AppName: "YouTubuddy", Category: "Multimedia"},
+		{AppName: "Zen", Category: "Internet/Browsers"},
+		{AppName: "Zoom", Category: "Internet/Communication"},
+		{AppName: "Zoom PWA", Category: "Internet/Communication"},
+	}
+
+	// embeddedCategoryOverridesNonRaspberry contains overrides for non-Raspberry Pi devices
+	embeddedCategoryOverridesNonRaspberry = []CategoryAssignment{
+		{AppName: "CommanderPi", Category: "hidden"},
+		{AppName: "Downgrade Chromium", Category: "hidden"},
+		{AppName: "Flow", Category: "hidden"},
+		{AppName: "Gnome Software", Category: "Tools"},
+		{AppName: "Lightpad", Category: "hidden"},
+		{AppName: "PiGro", Category: "hidden"},
+		{AppName: "Pi Power Tools", Category: "hidden"},
+		{AppName: "Windows Flasher", Category: "hidden"},
+		{AppName: "Windows Screensavers", Category: "hidden"},
+	}
+
+	// embeddedCategoryOverridesJetsonGeneric contains overrides for Jetson devices (generic)
+	embeddedCategoryOverridesJetsonGeneric = []CategoryAssignment{
+		{AppName: "Autostar", Category: "hidden"},
+		{AppName: "Better Chromium", Category: "hidden"},
+		{AppName: "Box86", Category: "hidden"},
+		{AppName: "CommanderPi", Category: "hidden"},
+		{AppName: "Downgrade Chromium", Category: "hidden"},
+		{AppName: "Floorp", Category: "hidden"},
+		{AppName: "Flow", Category: "hidden"},
+		{AppName: "FreeTube", Category: "hidden"},
+		{AppName: "Gnome Software", Category: "Tools"},
+		{AppName: "Godot", Category: "hidden"},
+		{AppName: "Hangover", Category: "hidden"},
+		{AppName: "Kodi", Category: "hidden"},
+		{AppName: "Lightpad", Category: "hidden"},
+		{AppName: "Minecraft Pi (Modded)", Category: "hidden"},
+		{AppName: "More RAM", Category: "hidden"},
+		{AppName: "Oomox Theme Designer", Category: "hidden"},
+		{AppName: "PiGro", Category: "hidden"},
+		{AppName: "Pi Power Tools", Category: "hidden"},
+		{AppName: "QEMU", Category: "hidden"},
+		{AppName: "Snap Store", Category: "hidden"},
+		{AppName: "Steam", Category: "hidden"},
+		{AppName: "Stunt Rally", Category: "hidden"},
+		{AppName: "Windows Flasher", Category: "hidden"},
+		{AppName: "Windows Screensavers", Category: "hidden"},
+	}
+)
+
+// CategoryAssignment represents a single app-to-category mapping
+type CategoryAssignment struct {
+	AppName  string // Name of the app
+	Category string // Category name (empty string means unlisted)
+}
+
 // CategoryData represents the category assignment data
 type CategoryData struct {
 	GlobalCategories map[string]string // app -> category mapping from global file
 	LocalCategories  map[string]string // app -> category mapping from overrides file
 }
 
+// parseCategoryAssignments converts a slice of CategoryAssignment to a map
+func parseCategoryAssignments(assignments []CategoryAssignment, categories map[string]string) {
+	for _, assignment := range assignments {
+		if assignment.AppName != "" {
+			categories[assignment.AppName] = assignment.Category
+		}
+	}
+}
+
+// getDeviceCategoryOverrides returns the appropriate device-specific category overrides
+// based on the device model and OS version
+func getDeviceCategoryOverrides() []CategoryAssignment {
+	model, socID := GetDeviceModel()
+
+	// Check if it's a non-Raspberry Pi device
+	if !strings.Contains(model, "Raspberry Pi") {
+		return embeddedCategoryOverridesNonRaspberry
+	}
+
+	// Check if it's a Jetson device (Tegra-based)
+	jetsonModel := ""
+	if strings.Contains(socID, "tegra") || strings.Contains(socID, "xavier") || strings.Contains(socID, "orin") {
+		jetsonModel = socID
+	}
+
+	if jetsonModel != "" {
+		return embeddedCategoryOverridesJetsonGeneric
+	}
+
+	return nil // No device-specific overrides
+}
+
 // ReadCategoryData reads both global and local category files
+// Uses embedded default categories instead of reading from files
 func ReadCategoryData() (*CategoryData, error) {
 	piAppsDir := os.Getenv("PI_APPS_DIR")
 	if piAppsDir == "" {
@@ -50,15 +374,10 @@ func ReadCategoryData() (*CategoryData, error) {
 		LocalCategories:  make(map[string]string),
 	}
 
-	// Read global categories file
-	globalFile := filepath.Join(piAppsDir, "etc", "categories")
-	if FileExists(globalFile) {
-		if err := readCategoryFile(globalFile, data.GlobalCategories); err != nil {
-			return nil, fmt.Errorf("failed to read global categories: %w", err)
-		}
-	}
+	// Load embedded global categories from structured data
+	parseCategoryAssignments(embeddedGlobalCategories, data.GlobalCategories)
 
-	// Read local category overrides file
+	// Read local category overrides file (user overrides)
 	localFile := filepath.Join(piAppsDir, "data", "category-overrides")
 	if FileExists(localFile) {
 		if err := readCategoryFile(localFile, data.LocalCategories); err != nil {

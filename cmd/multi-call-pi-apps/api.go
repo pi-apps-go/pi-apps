@@ -1569,10 +1569,6 @@ func runAPI() {
 			api.ErrorT(api.Tf("Error: %v", err))
 		}
 
-	case "crash":
-		var a []int
-		fmt.Println(a[1])
-
 	// Plugin system commands have been removed - plugins are now build-time only
 
 	// All plugin commands have been removed - plugins are now build-time only

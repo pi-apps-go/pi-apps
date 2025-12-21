@@ -215,7 +215,7 @@ func (d *PreloadDaemon) refreshPackageAppStatus() error {
 
 	// APK database has changed, refresh all package app statuses
 	logger.Info("APK database changed, refreshing package app statuses...")
-	
+
 	if err := api.RefreshAllPkgAppStatus(); err != nil {
 		logger.Error(api.Tf("failed to refresh package app statuses: %v\n", err))
 		return fmt.Errorf("failed to refresh package app statuses: %w", err)
@@ -234,7 +234,7 @@ func (d *PreloadDaemon) getFoldersToPreload() ([]string, error) {
 	var folders []string
 
 	// Add special folders
-	folders = append(folders, "All Apps", "Installed", "Packages")
+	folders = append(folders, "All Apps", "Installed", "Packages", "Deprecated")
 
 	// Get categories from category files
 	categories, err := api.ReadCategoryFiles(d.directory)
@@ -342,7 +342,3 @@ func StartPreloadDaemon(directory string) (*PreloadDaemon, error) {
 
 	return daemon, nil
 }
-
-
-
-

@@ -75,6 +75,7 @@ func Main() error {
 }
 
 // RefreshSettings creates default settings files if they don't exist
+// Uses embedded setting-params data instead of reading from files
 func RefreshSettings() error {
 	directory := api.GetPiAppsDir()
 	if directory == "" {
@@ -82,7 +83,6 @@ func RefreshSettings() error {
 		return nil
 	}
 
-	settingParamsDir := filepath.Join(directory, "etc", "setting-params")
 	settingsDir := filepath.Join(directory, "data", "settings")
 
 	// Ensure settings directory exists
@@ -90,40 +90,15 @@ func RefreshSettings() error {
 		return fmt.Errorf("failed to create settings directory: %w", err)
 	}
 
-	// Read all setting parameter files
-	files, err := os.ReadDir(settingParamsDir)
-	if err != nil {
-		return fmt.Errorf("failed to read setting-params directory: %w", err)
-	}
-
-	for _, file := range files {
-		if file.IsDir() {
-			continue
-		}
-
-		settingName := file.Name()
-		settingPath := filepath.Join(settingsDir, settingName)
+	// Read all setting definitions from embedded data
+	for _, def := range embeddedSettingDefinitions {
+		settingPath := filepath.Join(settingsDir, def.Name)
 
 		// Only create if doesn't exist or is empty
 		if !fileExists(settingPath) || isEmpty(settingPath) {
-			// Read parameter file to get default value
-			paramPath := filepath.Join(settingParamsDir, settingName)
-			content, err := os.ReadFile(paramPath)
-			if err != nil {
-				continue
-			}
-
-			// Find first non-comment line as default
-			lines := strings.Split(string(content), "\n")
-			for _, line := range lines {
-				line = strings.TrimSpace(line)
-				if line != "" && !strings.HasPrefix(line, "#") {
-					// Write default value
-					if err := os.WriteFile(settingPath, []byte(line), 0644); err != nil {
-						fmt.Println(Tf("Warning: failed to write default for %s: %v", settingName, err))
-					}
-					break
-				}
+			// Write default value
+			if err := os.WriteFile(settingPath, []byte(def.DefaultValue), 0644); err != nil {
+				fmt.Println(Tf("Warning: failed to write default for %s: %v", def.Name, err))
 			}
 		}
 	}
@@ -132,6 +107,7 @@ func RefreshSettings() error {
 }
 
 // RevertSettings overwrites all settings with defaults
+// Uses embedded setting-params data instead of reading from files
 func RevertSettings() error {
 	directory := api.GetPiAppsDir()
 	if directory == "" {
@@ -139,7 +115,6 @@ func RevertSettings() error {
 		return nil
 	}
 
-	settingParamsDir := filepath.Join(directory, "etc", "setting-params")
 	settingsDir := filepath.Join(directory, "data", "settings")
 
 	// Ensure settings directory exists
@@ -147,38 +122,13 @@ func RevertSettings() error {
 		return fmt.Errorf("failed to create settings directory: %w", err)
 	}
 
-	// Read all setting parameter files
-	files, err := os.ReadDir(settingParamsDir)
-	if err != nil {
-		return fmt.Errorf("failed to read setting-params directory: %w", err)
-	}
+	// Read all setting definitions from embedded data
+	for _, def := range embeddedSettingDefinitions {
+		settingPath := filepath.Join(settingsDir, def.Name)
 
-	for _, file := range files {
-		if file.IsDir() {
-			continue
-		}
-
-		settingName := file.Name()
-		settingPath := filepath.Join(settingsDir, settingName)
-
-		// Read parameter file to get default value
-		paramPath := filepath.Join(settingParamsDir, settingName)
-		content, err := os.ReadFile(paramPath)
-		if err != nil {
-			continue
-		}
-
-		// Find first non-comment line as default
-		lines := strings.Split(string(content), "\n")
-		for _, line := range lines {
-			line = strings.TrimSpace(line)
-			if line != "" && !strings.HasPrefix(line, "#") {
-				// Write default value (overwrite existing)
-				if err := os.WriteFile(settingPath, []byte(line), 0644); err != nil {
-					fmt.Println(Tf("Warning: failed to revert setting %s: %v", settingName, err))
-				}
-				break
-			}
+		// Write default value (overwrite existing)
+		if err := os.WriteFile(settingPath, []byte(def.DefaultValue), 0644); err != nil {
+			fmt.Println(Tf("Warning: failed to revert setting %s: %v", def.Name, err))
 		}
 	}
 

@@ -1,3 +1,21 @@
+// This file is part of Pi-Apps Go - a modern, cross-architecture/cross-platform, and modular Pi-Apps implementation in Go.
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+// Module: cli.go
+// Description: CLI interface for the updater.
+
 package updater
 
 import (
@@ -455,6 +473,12 @@ func (c *UpdaterCLI) SetUpdateStatus() error {
 
 	// Run runonce entries (if they exist)
 	c.runOnceEntries()
+
+	// Check for removed apps that might be deprecated
+	if err := c.updater.CheckRemovedDeprecatedApps(); err != nil {
+		// Log warning but don't fail the update
+		fmt.Printf("Warning: Failed to check for removed deprecated apps: %v\n", err)
+	}
 
 	// Get updates
 	files, err := c.updater.GetUpdatableFiles()

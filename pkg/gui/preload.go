@@ -280,6 +280,28 @@ func generateAppList(config *AppListConfig) (*PreloadedList, error) {
 		list.Items = append(list.Items, updatesItem)
 	}
 
+	// Handle Deprecated category specially
+	if config.Prefix == "Deprecated" {
+		// Get list of deprecated apps
+		deprecatedApps, err := getDeprecatedApps(config.Directory)
+		if err != nil {
+			logger.Warn(api.Tf("failed to get deprecated apps: %v\n", err))
+			deprecatedApps = []string{}
+		}
+
+		// Convert to app items
+		for _, app := range deprecatedApps {
+			appItem, err := createDeprecatedAppItem(app, config)
+			if err != nil {
+				logger.Warn(fmt.Sprintf("failed to create deprecated app item for %s: %v\n", app, err))
+				continue
+			}
+			list.Items = append(list.Items, appItem)
+		}
+
+		return list, nil
+	}
+
 	// Get virtual file system with apps/categories
 	vfiles, err := getVirtualFileSystem(config)
 	if err != nil {
@@ -439,8 +461,99 @@ func createDirectoryItem(dir string, config *AppListConfig) (AppListItem, error)
 	}, nil
 }
 
+// getDeprecatedApps returns a list of all deprecated apps
+func getDeprecatedApps(directory string) ([]string, error) {
+	deprecatedDir := filepath.Join(directory, "data", "deprecated-apps")
+	if _, err := os.Stat(deprecatedDir); os.IsNotExist(err) {
+		return []string{}, nil
+	}
+
+	var deprecatedApps []string
+	entries, err := os.ReadDir(deprecatedDir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read deprecated apps directory: %w", err)
+	}
+
+	for _, entry := range entries {
+		if entry.IsDir() {
+			// Check if it has a metadata file (confirms it's a deprecated app)
+			metadataFile := filepath.Join(deprecatedDir, entry.Name(), "metadata")
+			if _, err := os.Stat(metadataFile); err == nil {
+				deprecatedApps = append(deprecatedApps, entry.Name())
+			}
+		}
+	}
+
+	return deprecatedApps, nil
+}
+
+// createDeprecatedAppItem creates an AppListItem for a deprecated app
+func createDeprecatedAppItem(app string, config *AppListConfig) (AppListItem, error) {
+	// Get app status (deprecated apps can still be installed)
+	status, err := api.GetAppStatus(app)
+	if err != nil {
+		status = ""
+	}
+
+	// Get description from metadata or use default
+	deprecatedDir := filepath.Join(config.Directory, "data", "deprecated-apps", app)
+	metadataFile := filepath.Join(deprecatedDir, "metadata")
+	description := api.T("This app has been deprecated and removed from Pi-Apps.")
+
+	if metadataData, err := os.ReadFile(metadataFile); err == nil {
+		// Parse metadata to get message if available
+		lines := strings.Split(string(metadataData), "\n")
+		for _, line := range lines {
+			if strings.HasPrefix(line, "message=") {
+				message := strings.TrimPrefix(line, "message=")
+				if message != "" {
+					description = message
+				}
+				break
+			}
+		}
+	}
+
+	// Get app icon from stored location
+	iconPath := api.GetDeprecatedAppIcon(app)
+	if iconPath == "" {
+		// Fallback to default icon
+		iconPath = filepath.Join(config.Directory, "icons", "none-24.png")
+	}
+
+	// Use 24px version if available, otherwise use what we have
+	if strings.Contains(iconPath, "icon-64.png") {
+		icon24Path := strings.Replace(iconPath, "icon-64.png", "icon-24.png", 1)
+		if appListFileExists(icon24Path) {
+			iconPath = icon24Path
+		}
+	}
+
+	// Use the prefix from config if available, otherwise default to Deprecated
+	var path string
+	if config.Prefix != "" {
+		path = config.Prefix + "/" + app
+	} else {
+		path = "Deprecated/" + app
+	}
+
+	return AppListItem{
+		Type:        "app",
+		Name:        app,
+		Path:        path,
+		Description: description,
+		IconPath:    iconPath,
+		Status:      status,
+	}, nil
+}
+
 // createAppItem creates an AppListItem for an app
 func createAppItem(app string, config *AppListConfig) (AppListItem, error) {
+	// Check if this is a deprecated app - if so, use deprecated app item creation
+	if api.IsDeprecatedApp(app) {
+		return createDeprecatedAppItem(app, config)
+	}
+
 	// Get app status
 	status, err := api.GetAppStatus(app)
 	if err != nil {
@@ -524,6 +637,7 @@ func getCategoryDescription(category string) string {
 		api.T("Browsers"):          api.T("Internet browsers."),
 		api.T("All Apps"):          api.T("All Pi-Apps Applications in one long list."),
 		api.T("Appearance"):        api.T("Applications and Themes which modify the look and feel of your OS."),
+		api.T("Deprecated"):        api.T("Apps that have been deprecated but can still be uninstalled."),
 		api.T("System Management"): api.T("Apps that help you keep track of system resources and general system management."),
 		api.T("Games"):             api.T("Games and Emulators"),
 		api.T("Installed"):         api.T("All Pi-Apps Apps that you have installed."),

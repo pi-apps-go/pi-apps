@@ -404,6 +404,31 @@ func getAppsWithStatus(directory string, wantInstalled bool) ([]string, error) {
 		return nil, fmt.Errorf("failed to list apps: %w", err)
 	}
 
+	// Also include deprecated apps that have status files
+	deprecatedDir := filepath.Join(directory, "data", "deprecated-apps")
+	if entries, err := os.ReadDir(deprecatedDir); err == nil {
+		for _, entry := range entries {
+			if entry.IsDir() {
+				appName := entry.Name()
+				// Check if this deprecated app has a status file
+				statusFile := filepath.Join(directory, "data", "status", appName)
+				if _, err := os.Stat(statusFile); err == nil {
+					// Add to allApps if not already present
+					found := false
+					for _, app := range allApps {
+						if app == appName {
+							found = true
+							break
+						}
+					}
+					if !found {
+						allApps = append(allApps, appName)
+					}
+				}
+			}
+		}
+	}
+
 	statusDir := filepath.Join(directory, "data", "status")
 	if _, err := os.Stat(statusDir); os.IsNotExist(err) {
 		// If status directory doesn't exist, create it
@@ -886,13 +911,44 @@ func checkFileExists(path string) bool {
 }
 
 // ReadCategoryFiles generates a combined categories-list from several sources:
-// category-overrides, global categories file, and unlisted apps. Format: "app|category"
+// category-overrides, device-specific overrides, global categories file, and unlisted apps. Format: "app|category"
 func ReadCategoryFiles(directory string) ([]string, error) {
 	var result []string
 	seen := make(map[string]bool)
 
-	// First read category-overrides file (user overrides take precedence)
+	// First, clean up category-overrides file by removing apps that no longer exist
+	// (matching bash behavior: remove app category if app folder not found)
 	userOverridesFile := filepath.Join(directory, "data", "category-overrides")
+	if checkFileExists(userOverridesFile) {
+		data, err := os.ReadFile(userOverridesFile)
+		if err == nil {
+			var validLines []string
+			scanner := bufio.NewScanner(strings.NewReader(string(data)))
+			for scanner.Scan() {
+				line := strings.TrimSpace(scanner.Text())
+				if line == "" || strings.HasPrefix(line, "#") {
+					validLines = append(validLines, line)
+					continue
+				}
+
+				parts := strings.Split(line, "|")
+				if len(parts) >= 1 {
+					appName := strings.TrimSpace(parts[0])
+					appDir := filepath.Join(directory, "apps", appName)
+					// Only keep the line if the app directory exists
+					if checkFileExists(appDir) {
+						validLines = append(validLines, line)
+					}
+				}
+			}
+			// Write back the cleaned file if any lines were removed
+			if len(validLines) != len(strings.Split(string(data), "\n")) {
+				os.WriteFile(userOverridesFile, []byte(strings.Join(validLines, "\n")+"\n"), 0644)
+			}
+		}
+	}
+
+	// First read category-overrides file (user overrides take precedence)
 	if checkFileExists(userOverridesFile) {
 		data, err := os.ReadFile(userOverridesFile)
 		if err == nil {
@@ -916,28 +972,22 @@ func ReadCategoryFiles(directory string) ([]string, error) {
 		}
 	}
 
-	// Then read global categories file (etc/categories)
-	globalCategoriesFile := filepath.Join(directory, "etc", "categories")
-	if checkFileExists(globalCategoriesFile) {
-		data, err := os.ReadFile(globalCategoriesFile)
-		if err == nil {
-			scanner := bufio.NewScanner(strings.NewReader(string(data)))
-			for scanner.Scan() {
-				line := strings.TrimSpace(scanner.Text())
-				if line == "" || strings.HasPrefix(line, "#") {
-					continue
-				}
-
-				parts := strings.Split(line, "|")
-				if len(parts) >= 2 {
-					appName := strings.TrimSpace(parts[0])
-					categoryName := strings.TrimSpace(parts[1])
-					if appName != "" && !seen[appName] {
-						result = append(result, appName+"|"+categoryName)
-						seen[appName] = true
-					}
-				}
+	// Then read device-specific category overrides (from embedded structured data)
+	deviceOverrides := getDeviceCategoryOverrides()
+	if deviceOverrides != nil {
+		for _, assignment := range deviceOverrides {
+			if assignment.AppName != "" && !seen[assignment.AppName] {
+				result = append(result, assignment.AppName+"|"+assignment.Category)
+				seen[assignment.AppName] = true
 			}
+		}
+	}
+
+	// Then read global categories (from embedded structured data)
+	for _, assignment := range embeddedGlobalCategories {
+		if assignment.AppName != "" && !seen[assignment.AppName] {
+			result = append(result, assignment.AppName+"|"+assignment.Category)
+			seen[assignment.AppName] = true
 		}
 	}
 
@@ -1049,6 +1099,26 @@ func AppPrefixCategory(directory, category string) ([]string, error) {
 	}
 
 	switch category {
+	case "Deprecated":
+		// Show special "Deprecated" category
+		deprecatedDir := filepath.Join(directory, "data", "deprecated-apps")
+		var deprecatedApps []string
+		if entries, err := os.ReadDir(deprecatedDir); err == nil {
+			for _, entry := range entries {
+				if entry.IsDir() {
+					// Check if it has a metadata file (confirms it's a deprecated app)
+					metadataFile := filepath.Join(deprecatedDir, entry.Name(), "metadata")
+					if _, err := os.Stat(metadataFile); err == nil {
+						deprecatedApps = append(deprecatedApps, entry.Name())
+					}
+				}
+			}
+		}
+
+		// Format deprecated apps with category prefix
+		for _, app := range deprecatedApps {
+			result = append(result, "Deprecated/"+app)
+		}
 	case "Installed":
 		// Show special "Installed" category - don't filter it
 		installedApps, err := getAppsWithStatus(directory, true)
@@ -1195,6 +1265,25 @@ func AppPrefixCategory(directory, category string) ([]string, error) {
 		}
 
 		result = append(result, filteredAllAppsResult...)
+
+		// Add special "Deprecated" category if there are any deprecated apps
+		deprecatedDir := filepath.Join(directory, "data", "deprecated-apps")
+		if entries, err := os.ReadDir(deprecatedDir); err == nil {
+			hasDeprecatedApps := false
+			for _, entry := range entries {
+				if entry.IsDir() {
+					metadataFile := filepath.Join(deprecatedDir, entry.Name(), "metadata")
+					if _, err := os.Stat(metadataFile); err == nil {
+						hasDeprecatedApps = true
+						break
+					}
+				}
+			}
+			if hasDeprecatedApps {
+				// Add "Deprecated/" as a category directory
+				result = append(result, "Deprecated/")
+			}
+		}
 	default:
 		// Show apps in specific category
 		categoryEntries, err := ReadCategoryFiles(directory)

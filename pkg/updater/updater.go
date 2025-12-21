@@ -1,3 +1,21 @@
+// This file is part of Pi-Apps Go - a modern, cross-architecture/cross-platform, and modular Pi-Apps implementation in Go.
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+// Module: updater.go
+// Description: Entrypoint for the updater.
+
 package updater
 
 import (
@@ -108,11 +126,15 @@ func New(directory string, mode UpdateMode, speed UpdateSpeed) (*Updater, error)
 		return nil, fmt.Errorf("failed to create update-status directory: %w", err)
 	}
 
-	// Read git URL
-	gitURL := "https://github.com/pi-apps-go/pi-apps"
-	if gitURLFile := filepath.Join(directory, "etc", "git_url"); fileExists(gitURLFile) {
-		if data, err := os.ReadFile(gitURLFile); err == nil {
-			gitURL = strings.TrimSpace(string(data))
+	// Read git URL (from embedded build-time constant or fallback to file)
+	gitURL := api.GitUrl
+	if gitURL == "" {
+		// Fallback to reading from file (for development or if not set at build time)
+		gitURL = "https://github.com/pi-apps-go/pi-apps"
+		if gitURLFile := filepath.Join(directory, "etc", "git_url"); fileExists(gitURLFile) {
+			if data, err := os.ReadFile(gitURLFile); err == nil {
+				gitURL = strings.TrimSpace(string(data))
+			}
 		}
 	}
 
@@ -318,6 +340,76 @@ func (u *Updater) GetUpdatableApps() ([]string, error) {
 	}
 
 	return updatable, nil
+}
+
+// GetRemovedApps returns a list of apps that exist locally but not in the online repository
+// and checks if they are deprecated apps that should be handled
+func (u *Updater) GetRemovedApps() ([]string, error) {
+	// Get list of local apps
+	localApps, err := api.ListApps("local")
+	if err != nil {
+		return nil, fmt.Errorf("failed to list local apps: %w", err)
+	}
+
+	// Get list of online apps
+	onlineApps, err := api.ListApps("online")
+	if err != nil {
+		return nil, fmt.Errorf("failed to list online apps: %w", err)
+	}
+
+	// Create a map of online apps for quick lookup
+	onlineAppsMap := make(map[string]bool)
+	for _, app := range onlineApps {
+		onlineAppsMap[app] = true
+	}
+
+	// Find apps that exist locally but not online
+	var removedApps []string
+	for _, app := range localApps {
+		if !onlineAppsMap[app] {
+			removedApps = append(removedApps, app)
+		}
+	}
+
+	return removedApps, nil
+}
+
+// CheckRemovedDeprecatedApps checks for removed apps and if they are deprecated and installed,
+// it ensures the deprecated app data is stored so they can be uninstalled later
+func (u *Updater) CheckRemovedDeprecatedApps() error {
+	removedApps, err := u.GetRemovedApps()
+	if err != nil {
+		return fmt.Errorf("failed to get removed apps: %w", err)
+	}
+
+	for _, app := range removedApps {
+		// Check if app is already deprecated (data already stored)
+		if api.IsDeprecatedApp(app) {
+			continue
+		}
+
+		// Check if app is installed
+		status, err := api.GetAppStatus(app)
+		if err != nil {
+			// If we can't get status, skip this app
+			continue
+		}
+
+		// If app is installed and not yet deprecated, check if app directory still exists
+		// If it does, we should store the deprecated app data before it gets removed
+		if status == "installed" {
+			appDir := filepath.Join(u.directory, "apps", app)
+			if _, err := os.Stat(appDir); err == nil {
+				// App directory still exists, store deprecated app data
+				// Note: This will be called by the deprecatedApps runonce function
+				// which should call RemoveDeprecatedApp to properly store the data
+				// For now, we just log a warning
+				fmt.Printf("Warning: App '%s' was removed from repository but is still installed. Consider deprecating it.\n", app)
+			}
+		}
+	}
+
+	return nil
 }
 
 // UpdateFiles updates the specified files
@@ -997,13 +1089,8 @@ func (u *Updater) SetStatus(ctx context.Context) error {
 	}
 
 	// Run runonce entries
-	runOnceScript := filepath.Join(u.directory, "etc", "runonce-entries")
-	if fileExists(runOnceScript) {
-		cmd := exec.Command(runOnceScript)
-		cmd.Dir = u.directory
-		if err := cmd.Run(); err != nil {
-			fmt.Printf("Warning: runonce-entries failed: %v\n", err)
-		}
+	if err := ExecuteRunonceEntries(); err != nil {
+		api.WarningT("Failed to execute runonce entries: %v", err)
 	}
 
 	// Get updatable files

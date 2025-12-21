@@ -1028,10 +1028,18 @@ func parseQueue(queueStr string) []QueueItem {
 		}
 
 		if action != "" && appName != "" {
-			// Get icon path
-			iconPath := filepath.Join(os.Getenv("PI_APPS_DIR"), "apps", appName, "icon-64.png")
-			if _, err := os.Stat(iconPath); os.IsNotExist(err) {
-				iconPath = filepath.Join(os.Getenv("PI_APPS_DIR"), "icons", "none-64.png")
+			// Get icon path - check for deprecated apps first
+			var iconPath string
+			if api.IsDeprecatedApp(appName) {
+				iconPath = api.GetDeprecatedAppIcon(appName)
+				if iconPath == "" {
+					iconPath = filepath.Join(os.Getenv("PI_APPS_DIR"), "icons", "none-64.png")
+				}
+			} else {
+				iconPath = filepath.Join(os.Getenv("PI_APPS_DIR"), "apps", appName, "icon-64.png")
+				if _, err := os.Stat(iconPath); os.IsNotExist(err) {
+					iconPath = filepath.Join(os.Getenv("PI_APPS_DIR"), "icons", "none-64.png")
+				}
 			}
 
 			queue = append(queue, QueueItem{
@@ -1086,13 +1094,36 @@ func validateQueueWithGUI(queue []QueueItem, useGUI bool) ([]QueueItem, error) {
 
 		// Check if app exists
 		var appDir string
+		appExists := false
 		if item.Action == "update" || item.Action == "refresh" {
 			appDir = filepath.Join(piAppsDir, "update", "pi-apps", "apps", item.AppName)
+			if _, err := os.Stat(appDir); err == nil {
+				appExists = true
+			}
 		} else {
 			appDir = filepath.Join(piAppsDir, "apps", item.AppName)
+			if _, err := os.Stat(appDir); err == nil {
+				appExists = true
+			} else if api.IsDeprecatedApp(item.AppName) {
+				// For deprecated apps, check if they have stored data
+				deprecatedDir := filepath.Join(piAppsDir, "data", "deprecated-apps", item.AppName)
+				if _, err := os.Stat(deprecatedDir); err == nil {
+					appExists = true
+					// For deprecated apps, only allow uninstall action
+					if item.Action != "uninstall" {
+						errorMsg := fmt.Sprintf("App '%s' is deprecated and can only be uninstalled, skipping", item.AppName)
+						if useGUI {
+							gui.ShowMessageDialog("Error", fmt.Sprintf("App \"<b>%s</b>\" is deprecated and can only be uninstalled.", item.AppName), 3)
+						} else {
+							fmt.Println(errorMsg)
+						}
+						continue
+					}
+				}
+			}
 		}
 
-		if _, err := os.Stat(appDir); os.IsNotExist(err) {
+		if !appExists {
 			errorMsg := fmt.Sprintf("App '%s' does not exist, skipping", item.AppName)
 			if useGUI {
 				gui.ShowMessageDialog("Error", fmt.Sprintf("Invalid app \"<b>%s</b>\". Cannot %s it.", item.AppName, item.Action), 3)
@@ -1460,10 +1491,17 @@ func writeQueueStatus(statusFile string, queue []gui.QueueItem) error {
 		// Ensure icon path is valid (not empty or a directory)
 		iconPath := item.IconPath
 		if iconPath == "" || iconPath == os.Getenv("PI_APPS_DIR") {
-			// Fix invalid icon paths
-			iconPath = filepath.Join(os.Getenv("PI_APPS_DIR"), "apps", item.AppName, "icon-64.png")
-			if _, err := os.Stat(iconPath); os.IsNotExist(err) {
-				iconPath = filepath.Join(os.Getenv("PI_APPS_DIR"), "icons", "none-64.png")
+			// Fix invalid icon paths - check for deprecated apps first
+			if api.IsDeprecatedApp(item.AppName) {
+				iconPath = api.GetDeprecatedAppIcon(item.AppName)
+				if iconPath == "" {
+					iconPath = filepath.Join(os.Getenv("PI_APPS_DIR"), "icons", "none-64.png")
+				}
+			} else {
+				iconPath = filepath.Join(os.Getenv("PI_APPS_DIR"), "apps", item.AppName, "icon-64.png")
+				if _, err := os.Stat(iconPath); os.IsNotExist(err) {
+					iconPath = filepath.Join(os.Getenv("PI_APPS_DIR"), "icons", "none-64.png")
+				}
 			}
 		}
 

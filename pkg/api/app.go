@@ -41,6 +41,7 @@ func getManageBinary(directory string) (string, []string) {
 }
 
 // AppStatus returns the current status of an app: installed, uninstalled, etc.
+// It also handles deprecated apps that may have been removed from the apps directory
 func AppStatus(app string) (string, error) {
 	if app == "" {
 		return "", fmt.Errorf("app_status: no app specified")
@@ -60,6 +61,21 @@ func AppStatus(app string) (string, error) {
 	// Check if app exists
 	appDir := filepath.Join(directory, "apps", app)
 	if _, err := os.Stat(appDir); os.IsNotExist(err) {
+		// If app doesn't exist, check if it's a deprecated app
+		if IsDeprecatedApp(app) {
+			// For deprecated apps, check status file
+			statusFile := filepath.Join(directory, "data", "status", app)
+			if _, err := os.Stat(statusFile); os.IsNotExist(err) {
+				return "uninstalled", nil
+			}
+			// Read the status file
+			statusBytes, err := os.ReadFile(statusFile)
+			if err != nil {
+				return "", fmt.Errorf("app_status: failed to read status file: %w", err)
+			}
+			status := strings.TrimSpace(string(statusBytes))
+			return status, nil
+		}
 		return "", fmt.Errorf("app_status: app %s does not exist", app)
 	}
 
@@ -75,12 +91,148 @@ func AppStatus(app string) (string, error) {
 		return "", fmt.Errorf("app_status: failed to read status file: %w", err)
 	}
 
-	status := string(statusBytes)
+	status := strings.TrimSpace(string(statusBytes))
 	return status, nil
+}
+
+// storeDeprecatedAppData stores the uninstall script and icons for a deprecated app
+// so it can be uninstalled later even after the app directory is removed
+func storeDeprecatedAppData(app, removalArch, message string) error {
+	directory := os.Getenv("PI_APPS_DIR")
+	if directory == "" {
+		currentDir, err := os.Getwd()
+		if err != nil {
+			return fmt.Errorf("failed to get current directory: %w", err)
+		}
+		directory = filepath.Dir(filepath.Dir(currentDir))
+	}
+
+	appDir := filepath.Join(directory, "apps", app)
+	deprecatedDir := filepath.Join(directory, "data", "deprecated-apps", app)
+
+	// Create deprecated app directory
+	if err := os.MkdirAll(deprecatedDir, 0755); err != nil {
+		return fmt.Errorf("failed to create deprecated app directory: %w", err)
+	}
+
+	// Store uninstall script if it exists
+	uninstallScript := filepath.Join(appDir, "uninstall")
+	if _, err := os.Stat(uninstallScript); err == nil {
+		destUninstall := filepath.Join(deprecatedDir, "uninstall")
+		if err := CopyFile(uninstallScript, destUninstall); err != nil {
+			return fmt.Errorf("failed to copy uninstall script: %w", err)
+		}
+		// Make it executable
+		if err := os.Chmod(destUninstall, 0755); err != nil {
+			return fmt.Errorf("failed to make uninstall script executable: %w", err)
+		}
+	}
+
+	// Store icon files if they exist
+	icon24 := filepath.Join(appDir, "icon-24.png")
+	icon64 := filepath.Join(appDir, "icon-64.png")
+	if _, err := os.Stat(icon24); err == nil {
+		destIcon24 := filepath.Join(deprecatedDir, "icon-24.png")
+		if err := CopyFile(icon24, destIcon24); err != nil {
+			return fmt.Errorf("failed to copy icon-24.png: %w", err)
+		}
+	}
+	if _, err := os.Stat(icon64); err == nil {
+		destIcon64 := filepath.Join(deprecatedDir, "icon-64.png")
+		if err := CopyFile(icon64, destIcon64); err != nil {
+			return fmt.Errorf("failed to copy icon-64.png: %w", err)
+		}
+	}
+
+	// Store metadata
+	metadata := fmt.Sprintf("app=%s\nremovalArch=%s\nmessage=%s\n", app, removalArch, message)
+	metadataFile := filepath.Join(deprecatedDir, "metadata")
+	if err := os.WriteFile(metadataFile, []byte(metadata), 0644); err != nil {
+		return fmt.Errorf("failed to write metadata: %w", err)
+	}
+
+	return nil
+}
+
+// IsDeprecatedApp checks if an app is deprecated and returns true if it is
+func IsDeprecatedApp(app string) bool {
+	directory := os.Getenv("PI_APPS_DIR")
+	if directory == "" {
+		return false
+	}
+	metadataFile := filepath.Join(directory, "data", "deprecated-apps", app, "metadata")
+	_, err := os.Stat(metadataFile)
+	return err == nil
+}
+
+// GetDeprecatedAppUninstallScript returns the path to the stored uninstall script for a deprecated app
+func GetDeprecatedAppUninstallScript(app string) (string, error) {
+	directory := os.Getenv("PI_APPS_DIR")
+	if directory == "" {
+		currentDir, err := os.Getwd()
+		if err != nil {
+			return "", fmt.Errorf("failed to get current directory: %w", err)
+		}
+		directory = filepath.Dir(filepath.Dir(currentDir))
+	}
+	uninstallScript := filepath.Join(directory, "data", "deprecated-apps", app, "uninstall")
+	if _, err := os.Stat(uninstallScript); os.IsNotExist(err) {
+		return "", fmt.Errorf("uninstall script not found for deprecated app %s", app)
+	}
+	return uninstallScript, nil
+}
+
+// GetDeprecatedAppIcon returns the path to the stored icon for a deprecated app
+// Returns icon-64.png if available, otherwise icon-24.png, or empty string if neither exists
+func GetDeprecatedAppIcon(app string) string {
+	directory := os.Getenv("PI_APPS_DIR")
+	if directory == "" {
+		currentDir, err := os.Getwd()
+		if err != nil {
+			return ""
+		}
+		directory = filepath.Dir(filepath.Dir(currentDir))
+	}
+	icon64 := filepath.Join(directory, "data", "deprecated-apps", app, "icon-64.png")
+	if _, err := os.Stat(icon64); err == nil {
+		return icon64
+	}
+	icon24 := filepath.Join(directory, "data", "deprecated-apps", app, "icon-24.png")
+	if _, err := os.Stat(icon24); err == nil {
+		return icon24
+	}
+	return ""
+}
+
+// removeDeprecatedAppEntries removes the deprecated app directory and all its contents
+// This should be called after a deprecated app is successfully uninstalled
+func removeDeprecatedAppEntries(app string) error {
+	directory := os.Getenv("PI_APPS_DIR")
+	if directory == "" {
+		currentDir, err := os.Getwd()
+		if err != nil {
+			return fmt.Errorf("failed to get current directory: %w", err)
+		}
+		directory = filepath.Dir(filepath.Dir(currentDir))
+	}
+
+	deprecatedDir := filepath.Join(directory, "data", "deprecated-apps", app)
+	if _, err := os.Stat(deprecatedDir); os.IsNotExist(err) {
+		// Directory doesn't exist, nothing to clean up
+		return nil
+	}
+
+	// Remove the entire deprecated app directory
+	if err := os.RemoveAll(deprecatedDir); err != nil {
+		return fmt.Errorf("failed to remove deprecated app directory: %w", err)
+	}
+
+	return nil
 }
 
 // RemoveDeprecatedApp prompts a user to uninstall a deprecated pi-apps application
 // This is a Go implementation of the original bash remove_deprecated_app function
+// It now stores the uninstall script and icons so the app can be uninstalled later
 func RemoveDeprecatedApp(app, removalArch, message string) error {
 	if app == "" {
 		return fmt.Errorf("remove_deprecated_app(): requires a pi-apps app name")
@@ -100,7 +252,12 @@ func RemoveDeprecatedApp(app, removalArch, message string) error {
 	// Get the app status
 	appStatus, err := GetAppStatus(app)
 	if err != nil {
-		return fmt.Errorf("remove_deprecated_app: failed to get app status: %w", err)
+		// If app doesn't exist, it might already be removed, but we can still mark it as deprecated
+		// Store the deprecated app data anyway
+		if err := storeDeprecatedAppData(app, removalArch, message); err != nil {
+			return fmt.Errorf("failed to store deprecated app data: %w", err)
+		}
+		return nil
 	}
 
 	// Get the system architecture using unsafe.Sizeof
@@ -113,6 +270,13 @@ func RemoveDeprecatedApp(app, removalArch, message string) error {
 		appDirExists = false
 	}
 
+	// Store deprecated app data (uninstall script, icons, metadata) before removing
+	if appDirExists {
+		if err := storeDeprecatedAppData(app, removalArch, message); err != nil {
+			return fmt.Errorf("failed to store deprecated app data: %w", err)
+		}
+	}
+
 	// Determine if we should prompt based on the conditions
 	var shouldPrompt bool
 	var text string
@@ -121,16 +285,16 @@ func RemoveDeprecatedApp(app, removalArch, message string) error {
 	case removalArch != "" && appDirExists && arch == removalArch && appStatus == "installed":
 		shouldPrompt = true
 		if message != "" {
-			text = Tf("Pi-Apps has deprecated %s for %s-bit OSs which you currently have installed.\n\n%s\n\nWould you like to uninstall it now or leave it installed? You will NOT be able to uninstall %s with Pi-Apps later.", app, removalArch, message, app)
+			text = Tf("Pi-Apps has deprecated %s for %s-bit OSs which you currently have installed.\n\n%s\n\nWould you like to uninstall it now or leave it installed? You can uninstall it later from Pi-Apps if needed.", app, removalArch, message)
 		} else {
-			text = Tf("Pi-Apps has deprecated %s for %s-bit OSs which you currently have installed.\nWould you like to uninstall it now or leave it installed? You will NOT be able to uninstall %s with Pi-Apps later.", app, removalArch, app)
+			text = Tf("Pi-Apps has deprecated %s for %s-bit OSs which you currently have installed.\nWould you like to uninstall it now or leave it installed? You can uninstall it later from Pi-Apps if needed.", app, removalArch)
 		}
 	case removalArch == "" && appDirExists && appStatus == "installed":
 		shouldPrompt = true
 		if message != "" {
-			text = Tf("Pi-Apps has deprecated %s which you currently have installed.\n\n%s\n\nWould you like to uninstall it now or leave it installed? You will NOT be able to uninstall %s with Pi-Apps later.", app, message, app)
+			text = Tf("Pi-Apps has deprecated %s which you currently have installed.\n\n%s\n\nWould you like to uninstall it now or leave it installed? You can uninstall it later from Pi-Apps if needed.", app, message)
 		} else {
-			text = Tf("Pi-Apps has deprecated %s which you currently have installed.\nWould you like to uninstall it now or leave it installed? You will NOT be able to uninstall %s with Pi-Apps later.", app, app)
+			text = Tf("Pi-Apps has deprecated %s which you currently have installed.\nWould you like to uninstall it now or leave it installed? You can uninstall it later from Pi-Apps if needed.", app)
 		}
 	}
 

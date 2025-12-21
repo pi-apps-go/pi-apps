@@ -29,6 +29,7 @@ import (
 )
 
 // GetAppStatus gets the app's current status (installed, uninstalled, corrupted, disabled)
+// It also handles deprecated apps that may have been removed from the apps directory
 //
 //	"" - error if app is not specified or PI_APPS_DIR environment variable is not set
 //	installed - app is installed
@@ -54,6 +55,19 @@ func GetAppStatus(app string) (string, error) {
 			return "", fmt.Errorf("failed to read status file: %w", err)
 		}
 		return strings.TrimSpace(string(statusData)), nil
+	}
+
+	// If app status file doesn't exist, check if it's a deprecated app
+	// Deprecated apps can still have a status even if the app directory was removed
+	if IsDeprecatedApp(app) {
+		// For deprecated apps without a status file, assume uninstalled
+		return "uninstalled", nil
+	}
+
+	// Check if app directory exists (for non-deprecated apps)
+	appDir := filepath.Join(directory, "apps", app)
+	if _, err := os.Stat(appDir); os.IsNotExist(err) {
+		return "", fmt.Errorf("app_status: app %s does not exist", app)
 	}
 
 	// If app status file doesn't exist, assume uninstalled

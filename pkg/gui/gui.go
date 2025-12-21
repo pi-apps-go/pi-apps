@@ -544,6 +544,21 @@ func (g *GUI) showCategoryListView() error {
 		}{"Updates", "Updates.png", "Pi-Apps updates are available."})
 	}
 
+	// Check if there are any deprecated apps
+	deprecatedDir := filepath.Join(g.directory, "data", "deprecated-apps")
+	hasDeprecatedApps := false
+	if entries, err := os.ReadDir(deprecatedDir); err == nil {
+		for _, entry := range entries {
+			if entry.IsDir() {
+				metadataFile := filepath.Join(deprecatedDir, entry.Name(), "metadata")
+				if _, err := os.Stat(metadataFile); err == nil {
+					hasDeprecatedApps = true
+					break
+				}
+			}
+		}
+	}
+
 	// Add standard categories in the correct order
 	standardCategories := []struct {
 		name        string
@@ -567,6 +582,15 @@ func (g *GUI) showCategoryListView() error {
 	}
 
 	categories = append(categories, standardCategories...)
+
+	// Add Deprecated category only if there are deprecated apps
+	if hasDeprecatedApps {
+		categories = append(categories, struct {
+			name        string
+			icon        string
+			description string
+		}{"Deprecated", "Deprecated.png", "Apps that have been deprecated but can still be uninstalled."})
+	}
 
 	for _, category := range categories {
 		row, err := g.createCategoryRow(category.name, category.icon, category.description)
@@ -1129,12 +1153,27 @@ func (g *GUI) showAppDetails(appPath string) {
 	headerBox, err := gtk.BoxNew(gtk.ORIENTATION_HORIZONTAL, 15)
 	if err == nil {
 		// Add app icon (64px like in original)
-		iconPath := filepath.Join(g.directory, "apps", appName, "icon-64.png")
-		if _, err := os.Stat(iconPath); err == nil {
-			if pixbuf, err := gdk.PixbufNewFromFile(iconPath); err == nil {
-				if image, err := gtk.ImageNewFromPixbuf(pixbuf); err == nil {
-					image.SetVAlign(gtk.ALIGN_START)
-					headerBox.PackStart(image, false, false, 0)
+		var iconPath string
+		if api.IsDeprecatedApp(appName) {
+			// For deprecated apps, use stored icon
+			iconPath = api.GetDeprecatedAppIcon(appName)
+			// Prefer 64px version
+			if strings.Contains(iconPath, "icon-24.png") {
+				icon64Path := strings.Replace(iconPath, "icon-24.png", "icon-64.png", 1)
+				if _, err := os.Stat(icon64Path); err == nil {
+					iconPath = icon64Path
+				}
+			}
+		} else {
+			iconPath = filepath.Join(g.directory, "apps", appName, "icon-64.png")
+		}
+		if iconPath != "" {
+			if _, err := os.Stat(iconPath); err == nil {
+				if pixbuf, err := gdk.PixbufNewFromFile(iconPath); err == nil {
+					if image, err := gtk.ImageNewFromPixbuf(pixbuf); err == nil {
+						image.SetVAlign(gtk.ALIGN_START)
+						headerBox.PackStart(image, false, false, 0)
+					}
 				}
 			}
 		}
@@ -1160,10 +1199,28 @@ func (g *GUI) showAppDetails(appPath string) {
 					statusText = "(uninstalled)"
 				}
 
-				nameLabel.SetMarkup(fmt.Sprintf("<b>%s</b> %s", appName, statusText))
+				// Add deprecated indicator if applicable
+				deprecatedText := ""
+				if api.IsDeprecatedApp(appName) {
+					deprecatedText = " <span foreground='#FF6B6B'><b>(DEPRECATED)</b></span>"
+				}
+
+				nameLabel.SetMarkup(fmt.Sprintf("<b>%s</b> %s%s", appName, statusText, deprecatedText))
 				nameLabel.SetHAlign(gtk.ALIGN_START)
 				nameLabel.SetLineWrap(true)
 				infoBox.PackStart(nameLabel, false, false, 0)
+			}
+
+			// Add deprecated warning message if app is deprecated
+			if api.IsDeprecatedApp(appName) {
+				warningLabel, err := gtk.LabelNew("")
+				if err == nil {
+					warningLabel.SetMarkup("<span foreground='#FF6B6B'><b>⚠ This app has been deprecated and removed from Pi-Apps.</b></span>\n<span foreground='#888888'>You can still uninstall it if it's currently installed.</span>")
+					warningLabel.SetHAlign(gtk.ALIGN_START)
+					warningLabel.SetLineWrap(true)
+					warningLabel.SetMarginTop(5)
+					infoBox.PackStart(warningLabel, false, false, 0)
+				}
 			}
 
 			// Package info if it's a package app (detailed implementation)
@@ -1373,47 +1430,50 @@ func (g *GUI) showAppDetails(appPath string) {
 			}
 		}
 
-		// Edit button (if "Show Edit button" setting is enabled)
-		editSettingFile := filepath.Join(g.directory, "data", "settings", "Show Edit button")
-		if editSetting, err := os.ReadFile(editSettingFile); err == nil {
-			if strings.TrimSpace(string(editSetting)) == "Yes" {
-				editBtn, err := gtk.ButtonNewWithLabel("Edit")
-				if err == nil {
-					// Add edit icon to button
-					editIcon := filepath.Join(g.directory, "icons", "edit.png")
-					if pixbuf, err := gdk.PixbufNewFromFileAtSize(editIcon, 18, 18); err == nil {
-						if img, err := gtk.ImageNewFromPixbuf(pixbuf); err == nil {
-							editBtn.SetImage(img)
-							editBtn.SetAlwaysShowImage(true)
-						}
-					}
-					editBtn.SetTooltipText("Make changes to the app")
-					editBtn.Connect("clicked", func() {
-						window.Destroy() // Close details window
-						g.detailsWindow = nil
-						// Run api createapp with the app name to edit it
-						go func() {
-							// Check for multi-call binary first, then fall back to api binary
-							var apiScript string
-							var args []string
-							if multiCallBinary := os.Getenv("PI_APPS_MULTI_CALL_BINARY"); multiCallBinary != "" {
-								apiScript = multiCallBinary
-								args = []string{"api", "createapp", appName}
-							} else {
-								apiScript = filepath.Join(g.directory, "api")
-								args = []string{"createapp", appName}
+		// Edit button (if "Show Edit button" setting is enabled and app is not deprecated)
+		// Deprecated apps cannot be edited since they're no longer in the repository
+		if !api.IsDeprecatedApp(appName) {
+			editSettingFile := filepath.Join(g.directory, "data", "settings", "Show Edit button")
+			if editSetting, err := os.ReadFile(editSettingFile); err == nil {
+				if strings.TrimSpace(string(editSetting)) == "Yes" {
+					editBtn, err := gtk.ButtonNewWithLabel("Edit")
+					if err == nil {
+						// Add edit icon to button
+						editIcon := filepath.Join(g.directory, "icons", "edit.png")
+						if pixbuf, err := gdk.PixbufNewFromFileAtSize(editIcon, 18, 18); err == nil {
+							if img, err := gtk.ImageNewFromPixbuf(pixbuf); err == nil {
+								editBtn.SetImage(img)
+								editBtn.SetAlwaysShowImage(true)
 							}
-							cmd := exec.Command(apiScript, args...)
-							cmd.Dir = g.directory
-							cmd.Env = append(os.Environ(), "PI_APPS_DIR="+g.directory)
-							cmd.Run()
-							// After createapp exits, refresh the view
-							glib.IdleAdd(func() {
-								g.refreshCurrentView()
-							})
-						}()
-					})
-					buttonBox.PackStart(editBtn, false, false, 0)
+						}
+						editBtn.SetTooltipText("Make changes to the app")
+						editBtn.Connect("clicked", func() {
+							window.Destroy() // Close details window
+							g.detailsWindow = nil
+							// Run api createapp with the app name to edit it
+							go func() {
+								// Check for multi-call binary first, then fall back to api binary
+								var apiScript string
+								var args []string
+								if multiCallBinary := os.Getenv("PI_APPS_MULTI_CALL_BINARY"); multiCallBinary != "" {
+									apiScript = multiCallBinary
+									args = []string{"api", "createapp", appName}
+								} else {
+									apiScript = filepath.Join(g.directory, "api")
+									args = []string{"createapp", appName}
+								}
+								cmd := exec.Command(apiScript, args...)
+								cmd.Dir = g.directory
+								cmd.Env = append(os.Environ(), "PI_APPS_DIR="+g.directory)
+								cmd.Run()
+								// After createapp exits, refresh the view
+								glib.IdleAdd(func() {
+									g.refreshCurrentView()
+								})
+							}()
+						})
+						buttonBox.PackStart(editBtn, false, false, 0)
+					}
 				}
 			}
 		}
@@ -1592,15 +1652,35 @@ func (g *GUI) showAppDetails(appPath string) {
 
 // getAppStatus gets the installation status of an app
 func (g *GUI) getAppStatus(appName string) string {
-	statusFile := filepath.Join(g.directory, "data", "status", appName)
-	if data, err := os.ReadFile(statusFile); err == nil {
-		return strings.TrimSpace(string(data))
+	// Use API function which handles deprecated apps
+	status, err := api.GetAppStatus(appName)
+	if err != nil {
+		return "uninstalled"
 	}
-	return "uninstalled"
+	return status
 }
 
 // getAppDescription gets the description of an app
 func (g *GUI) getAppDescription(appName string) string {
+	// Check if it's a deprecated app first
+	if api.IsDeprecatedApp(appName) {
+		deprecatedDir := filepath.Join(g.directory, "data", "deprecated-apps", appName)
+		metadataFile := filepath.Join(deprecatedDir, "metadata")
+		if metadataData, err := os.ReadFile(metadataFile); err == nil {
+			// Parse metadata to get message if available
+			lines := strings.Split(string(metadataData), "\n")
+			for _, line := range lines {
+				if strings.HasPrefix(line, "message=") {
+					message := strings.TrimPrefix(line, "message=")
+					if message != "" {
+						return message + "\n\nThis app has been deprecated and removed from Pi-Apps."
+					}
+				}
+			}
+		}
+		return "This app has been deprecated and removed from Pi-Apps."
+	}
+
 	descFile := filepath.Join(g.directory, "apps", appName, "description")
 	if data, err := os.ReadFile(descFile); err == nil {
 		return string(data)
@@ -2034,6 +2114,12 @@ func (g *GUI) hasInstallScript(appName string) bool {
 		return false
 	}
 
+	// For deprecated apps, check if uninstall script exists in deprecated directory
+	if api.IsDeprecatedApp(appName) {
+		uninstallScript, err := api.GetDeprecatedAppUninstallScript(appName)
+		return err == nil && uninstallScript != ""
+	}
+
 	installScript := filepath.Join(g.directory, "apps", appName, "install")
 	install32Script := filepath.Join(g.directory, "apps", appName, "install-32")
 	install64Script := filepath.Join(g.directory, "apps", appName, "install-64")
@@ -2309,29 +2395,37 @@ func (g *GUI) isPackageApp(appName string) bool {
 
 // openAppScripts opens the app scripts in a text editor
 func (g *GUI) openAppScripts(appName string) {
-	// Get all possible script paths
-	installScript := filepath.Join(g.directory, "apps", appName, "install")
-	install32Script := filepath.Join(g.directory, "apps", appName, "install-32")
-	install64Script := filepath.Join(g.directory, "apps", appName, "install-64")
-	uninstallScript := filepath.Join(g.directory, "apps", appName, "uninstall")
-
 	// Collect all scripts that exist, in order of importance
 	var scriptsToOpen []string
 
-	// Always try to open uninstall script first if it exists
-	if _, err := os.Stat(uninstallScript); err == nil {
-		scriptsToOpen = append(scriptsToOpen, uninstallScript)
-	}
+	// For deprecated apps, only show uninstall script from deprecated directory
+	if api.IsDeprecatedApp(appName) {
+		uninstallScript, err := api.GetDeprecatedAppUninstallScript(appName)
+		if err == nil && uninstallScript != "" {
+			scriptsToOpen = append(scriptsToOpen, uninstallScript)
+		}
+	} else {
+		// Get all possible script paths for regular apps
+		installScript := filepath.Join(g.directory, "apps", appName, "install")
+		install32Script := filepath.Join(g.directory, "apps", appName, "install-32")
+		install64Script := filepath.Join(g.directory, "apps", appName, "install-64")
+		uninstallScript := filepath.Join(g.directory, "apps", appName, "uninstall")
 
-	// Then open install scripts in order: install-32, install-64, install
-	if _, err := os.Stat(install32Script); err == nil {
-		scriptsToOpen = append(scriptsToOpen, install32Script)
-	}
-	if _, err := os.Stat(install64Script); err == nil {
-		scriptsToOpen = append(scriptsToOpen, install64Script)
-	}
-	if _, err := os.Stat(installScript); err == nil {
-		scriptsToOpen = append(scriptsToOpen, installScript)
+		// Always try to open uninstall script first if it exists
+		if _, err := os.Stat(uninstallScript); err == nil {
+			scriptsToOpen = append(scriptsToOpen, uninstallScript)
+		}
+
+		// Then open install scripts in order: install-32, install-64, install
+		if _, err := os.Stat(install32Script); err == nil {
+			scriptsToOpen = append(scriptsToOpen, install32Script)
+		}
+		if _, err := os.Stat(install64Script); err == nil {
+			scriptsToOpen = append(scriptsToOpen, install64Script)
+		}
+		if _, err := os.Stat(installScript); err == nil {
+			scriptsToOpen = append(scriptsToOpen, installScript)
+		}
 	}
 
 	if len(scriptsToOpen) == 0 {

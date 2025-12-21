@@ -48,6 +48,72 @@ type Setting struct {
 	Tooltip     string
 }
 
+// SettingDefinition defines the structure of a setting with its metadata
+type SettingDefinition struct {
+	Name           string   // Setting name (e.g., "App List Style")
+	Description    string   // Single-line or multi-line description
+	AcceptedValues []string // List of valid values for this setting
+	DefaultValue   string   // Default value (typically first in AcceptedValues)
+}
+
+// Embedded setting definitions - structured Go-native configuration
+var (
+	embeddedSettingDefinitions = []SettingDefinition{
+		{
+			Name:           "App List Style",
+			Description:    "Pi-Apps can display the apps as a compact list (GTK 3 via gotk3), or as a group of larger icons. (xlunch like interface)",
+			AcceptedValues: []string{"yad-default", "yad-light", "yad-dark", "xlunch-dark", "xlunch-dark-3d", "xlunch-light-3d"},
+			DefaultValue:   "yad-default",
+		},
+		{
+			Name:           "Check for updates",
+			Description:    "How often should Pi-Apps check for app updates and refresh Pi-Apps on boot?",
+			AcceptedValues: []string{"Daily", "Always", "Weekly", "Never"},
+			DefaultValue:   "Daily",
+		},
+		{
+			Name:           "Enable analytics",
+			Description:    "Analytics are used to count the number of installs for each app.\nEach app is associated with a shlink link. During an install, that link is \"clicked\". The total number of clicks is used to calculate how many users each app has.\nThis information cannot possibly be used to identify you, or any personal information about you.",
+			AcceptedValues: []string{"Yes", "No"},
+			DefaultValue:   "Yes",
+		},
+		{
+			Name:           "Preferred text editor",
+			Description:    "Specify which text editor to use when editing install scripts",
+			AcceptedValues: []string{"geany", "mousepad", "leafpad", "nano", "Visual Studio Code", "VSCodium"},
+			DefaultValue:   "geany",
+		},
+		{
+			Name:           "Show apps",
+			Description:    "Most apps use scripts to install software from places like Github or Sourceforge.\nBut other apps can already be easily installed from Add/Remove Software. These apps are simply a shortcut to install apt-packages.\nThis option allows you to selectively show one type of app or the other, or both types.",
+			AcceptedValues: []string{"All", "packages", "standard"},
+			DefaultValue:   "All",
+		},
+		{
+			Name:           "Show Edit button",
+			Description:    "When viewing an App's details, display an Edit button to tweak it. Beware that updating that app later will undo your changes.",
+			AcceptedValues: []string{"No", "Yes"},
+			DefaultValue:   "No",
+		},
+		{
+			Name:           "Shuffle App list",
+			Description:    "Tired of Apps being sorted alphabetically? Randomizing the order will keep things fresh.",
+			AcceptedValues: []string{"No", "Yes"},
+			DefaultValue:   "No",
+		},
+	}
+)
+
+// getSettingDefinition returns the setting definition for a given name
+func getSettingDefinition(name string) *SettingDefinition {
+	for i := range embeddedSettingDefinitions {
+		if embeddedSettingDefinitions[i].Name == name {
+			return &embeddedSettingDefinitions[i]
+		}
+	}
+	return nil
+}
+
 // NewSettingsWindow creates and initializes a new settings window
 func NewSettingsWindow() (*SettingsWindow, error) {
 
@@ -69,7 +135,7 @@ func NewSettingsWindow() (*SettingsWindow, error) {
 		comboBoxes: make(map[string]*gtk.ComboBoxText),
 	}
 
-	// Load settings from files
+	// Load settings from embedded data
 	if err := sw.loadSettings(); err != nil {
 		return nil, fmt.Errorf("failed to load settings: %w", err)
 	}
@@ -103,64 +169,25 @@ func fileExists(path string) bool {
 	return !os.IsNotExist(err)
 }
 
-// loadSettings loads all settings from the setting-params directory
+// loadSettings loads all settings from embedded setting definitions
 func (sw *SettingsWindow) loadSettings() error {
-	settingParamsDir := filepath.Join(sw.directory, "etc", "setting-params")
-
 	// Ensure settings directory exists
 	settingsDir := filepath.Join(sw.directory, "data", "settings")
 	if err := os.MkdirAll(settingsDir, 0755); err != nil {
 		return fmt.Errorf("failed to create settings directory: %w", err)
 	}
 
-	// Read all setting parameter files
-	files, err := os.ReadDir(settingParamsDir)
-	if err != nil {
-		return fmt.Errorf("failed to read setting-params directory: %w", err)
-	}
-
-	for _, file := range files {
-		if file.IsDir() {
-			continue
-		}
-
-		settingName := file.Name()
-		paramPath := filepath.Join(settingParamsDir, settingName)
-
-		// Read parameter file
-		content, err := os.ReadFile(paramPath)
-		if err != nil {
-			continue // Skip files that can't be read
-		}
-
-		lines := strings.Split(string(content), "\n")
+	// Load all settings from embedded definitions
+	for _, def := range embeddedSettingDefinitions {
 		setting := &Setting{
-			Name:   settingName,
-			Values: []string{},
+			Name:        def.Name,
+			Description: def.Description,
+			Values:      def.AcceptedValues,
+			Tooltip:     def.Description, // Use description as tooltip
 		}
 
-		// Parse content
-		for _, line := range lines {
-			line = strings.TrimSpace(line)
-			if line == "" {
-				continue
-			}
-			if strings.HasPrefix(line, "#") {
-				// This is the description/tooltip
-				if setting.Description == "" {
-					setting.Description = strings.TrimPrefix(line, "#")
-					setting.Tooltip = setting.Description
-				} else {
-					setting.Tooltip += "\n" + strings.TrimPrefix(line, "#")
-				}
-			} else {
-				// This is a value option
-				setting.Values = append(setting.Values, line)
-			}
-		}
-
-		// Read current value
-		currentPath := filepath.Join(settingsDir, settingName)
+		// Read current value from file
+		currentPath := filepath.Join(settingsDir, def.Name)
 		if fileExists(currentPath) {
 			currentBytes, err := os.ReadFile(currentPath)
 			if err == nil {
@@ -168,9 +195,9 @@ func (sw *SettingsWindow) loadSettings() error {
 			}
 		}
 
-		// If no current value, use first available option
-		if setting.Current == "" && len(setting.Values) > 0 {
-			setting.Current = setting.Values[0]
+		// If no current value, use default value
+		if setting.Current == "" {
+			setting.Current = def.DefaultValue
 			// Save default value
 			if err := os.WriteFile(currentPath, []byte(setting.Current), 0644); err != nil {
 				return fmt.Errorf("failed to write default setting: %w", err)
@@ -180,7 +207,7 @@ func (sw *SettingsWindow) loadSettings() error {
 		// Special processing for App List Style to generate theme options
 		sw.processAppListStyleSetting(setting)
 
-		sw.settings[settingName] = setting
+		sw.settings[def.Name] = setting
 	}
 
 	return nil

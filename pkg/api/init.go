@@ -47,6 +47,7 @@ var (
 	OrigSystemDesc string
 	OrigSystemVer  string
 	OrigSystemCode string
+	GitUrl         string
 	CPUOpModes     string
 	CPUOpMode32    bool
 	CPUOpMode64    bool
