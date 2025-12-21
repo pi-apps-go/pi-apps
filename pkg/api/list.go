@@ -973,13 +973,10 @@ func ReadCategoryFiles(directory string) ([]string, error) {
 	}
 
 	// Then read device-specific category overrides (from embedded structured data)
-	deviceOverrides := getDeviceCategoryOverrides()
-	if deviceOverrides != nil {
-		for _, assignment := range deviceOverrides {
-			if assignment.AppName != "" && !seen[assignment.AppName] {
-				result = append(result, assignment.AppName+"|"+assignment.Category)
-				seen[assignment.AppName] = true
-			}
+	for _, assignment := range getDeviceCategoryOverrides() {
+		if assignment.AppName != "" && !seen[assignment.AppName] {
+			result = append(result, assignment.AppName+"|"+assignment.Category)
+			seen[assignment.AppName] = true
 		}
 	}
 

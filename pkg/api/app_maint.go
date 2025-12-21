@@ -236,7 +236,7 @@ func RefreshPkgAppStatus(appName string, packageName string) error {
 					DebugTf("Unhiding %s as its packages are now available", appName)
 
 					// Get the original category from categories file
-					cat, err := getOriginalCategory(directory, appName)
+					cat, err := getOriginalCategory(appName)
 					if err != nil {
 						DebugTf("Error getting original category: %v", err)
 						cat = "Other" // Default to "Other" if there's an error
@@ -274,7 +274,7 @@ func RunCategoryEdit(appName, category string) error {
 }
 
 // getOriginalCategory gets the original category of an app from the embedded categories data
-func getOriginalCategory(directory, appName string) (string, error) {
+func getOriginalCategory(appName string) (string, error) {
 	// Use embedded global categories from structured data
 	for _, assignment := range embeddedGlobalCategories {
 		if assignment.AppName == appName {

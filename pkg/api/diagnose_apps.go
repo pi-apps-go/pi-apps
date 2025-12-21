@@ -89,10 +89,27 @@ func GetLogfile(appName string) string {
 			continue
 		}
 
-		// Look for files matching the pattern "action-appname-status-timestamp.log"
-		// The pattern should be: contains "-appname-" and ends with ".log"
-		pattern := fmt.Sprintf("-%s-", appName)
-		if strings.Contains(fileName, pattern) && strings.HasSuffix(fileName, ".log") {
+		// Look for files matching log file patterns:
+		// - "action-fail-appname.log" (e.g., "install-fail-Eagle CAD.log")
+		// - "action-incomplete-appname.log" (e.g., "install-incomplete-Eagle CAD.log")
+		// - Files containing "-appname-" and ending with ".log"
+		// - Files ending with "-appname.log"
+		matches := false
+		if strings.HasSuffix(fileName, ".log") {
+			// Check for patterns: action-fail-appname.log or action-incomplete-appname.log
+			if strings.HasSuffix(fileName, fmt.Sprintf("-%s.log", appName)) {
+				matches = true
+			} else if strings.Contains(fileName, fmt.Sprintf("-fail-%s.log", appName)) {
+				matches = true
+			} else if strings.Contains(fileName, fmt.Sprintf("-incomplete-%s.log", appName)) {
+				matches = true
+			} else if strings.Contains(fileName, fmt.Sprintf("-%s-", appName)) {
+				// Pattern with dashes on both sides
+				matches = true
+			}
+		}
+
+		if matches {
 			filePath := filepath.Join(logsDir, fileName)
 			fileInfo, err := os.Stat(filePath)
 			if err == nil {

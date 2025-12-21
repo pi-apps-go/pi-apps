@@ -1333,10 +1333,6 @@ func showUpdateConfirmDialog(appName, scriptName string) bool {
 	}
 	dialog.SetTitle(api.T("Quick question"))
 
-	// Add buttons
-	dialog.AddButton(api.T("I know what I am doing, Install current version"), gtk.RESPONSE_NO)
-	dialog.AddButton(api.T("Yes, Install newest official version"), gtk.RESPONSE_YES)
-
 	// Get content area
 	contentArea, err := dialog.GetContentArea()
 	if err != nil {
@@ -1344,14 +1340,81 @@ func showUpdateConfirmDialog(appName, scriptName string) bool {
 		return false
 	}
 
-	// Add message with markup support
+	// Create horizontal box for icon and message
+	hbox, err := gtk.BoxNew(gtk.ORIENTATION_HORIZONTAL, 12)
+	if err != nil {
+		dialog.Destroy()
+		return false
+	}
+	hbox.SetMarginTop(12)
+	hbox.SetMarginBottom(12)
+	hbox.SetMarginStart(12)
+	hbox.SetMarginEnd(12)
+
+	// Add app icon on the left
+	iconPath := getAppIconPath(appName)
+	if pixbuf, err := gdk.PixbufNewFromFile(iconPath); err == nil {
+		// Scale icon to 64x64 (or maintain aspect ratio)
+		scaledPixbuf, err := pixbuf.ScaleSimple(64, 64, gdk.INTERP_BILINEAR)
+		if err == nil {
+			if image, err := gtk.ImageNewFromPixbuf(scaledPixbuf); err == nil {
+				hbox.PackStart(image, false, false, 0)
+			}
+		}
+	}
+
+	// Add message label on the right
 	label, err := gtk.LabelNew("")
 	if err != nil {
 		dialog.Destroy()
 		return false
 	}
 	label.SetMarkup(message) // Use SetMarkup for rich text formatting
-	contentArea.Add(label)
+	label.SetLineWrap(true)
+	label.SetHAlign(gtk.ALIGN_START)
+	label.SetVAlign(gtk.ALIGN_START)
+	hbox.PackStart(label, true, true, 0)
+
+	contentArea.Add(hbox)
+
+	// Get Pi-Apps directory for icon paths
+	piAppsDir := getPiAppsDir()
+
+	// Add "I know what I am doing" button with right arrow icon
+	button1, err := gtk.ButtonNewWithLabel(api.T("I know what I am doing, Install current version"))
+	if err == nil {
+		// Add forward/right arrow icon
+		forwardIcon := filepath.Join(piAppsDir, "icons", "forward.png")
+		if pixbuf, err := gdk.PixbufNewFromFileAtSize(forwardIcon, 18, 18); err == nil {
+			if img, err := gtk.ImageNewFromPixbuf(pixbuf); err == nil {
+				button1.SetImage(img)
+				button1.SetAlwaysShowImage(true)
+				button1.SetImagePosition(gtk.POS_LEFT)
+			}
+		}
+		dialog.AddActionWidget(button1, gtk.RESPONSE_NO)
+	} else {
+		// Fallback if button creation fails
+		dialog.AddButton(api.T("I know what I am doing, Install current version"), gtk.RESPONSE_NO)
+	}
+
+	// Add "Yes, Install newest official version" button with download icon
+	button2, err := gtk.ButtonNewWithLabel(api.T("Yes, Install newest official version"))
+	if err == nil {
+		// Add download/down arrow icon
+		downloadIcon := filepath.Join(piAppsDir, "icons", "download.png")
+		if pixbuf, err := gdk.PixbufNewFromFileAtSize(downloadIcon, 18, 18); err == nil {
+			if img, err := gtk.ImageNewFromPixbuf(pixbuf); err == nil {
+				button2.SetImage(img)
+				button2.SetAlwaysShowImage(true)
+				button2.SetImagePosition(gtk.POS_LEFT)
+			}
+		}
+		dialog.AddActionWidget(button2, gtk.RESPONSE_YES)
+	} else {
+		// Fallback if button creation fails
+		dialog.AddButton(api.T("Yes, Install newest official version"), gtk.RESPONSE_YES)
+	}
 
 	// Use our custom dialog runner
 	response, err := runGtkDialog(dialog)

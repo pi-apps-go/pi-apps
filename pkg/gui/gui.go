@@ -862,33 +862,6 @@ func (g *GUI) onAppSelectionChanged() {
 	// This could be used to show app info in a side panel
 }
 
-// onAppDoubleClicked handles app double-click events
-func (g *GUI) onAppDoubleClicked(treeView *gtk.TreeView, path *gtk.TreePath, column *gtk.TreeViewColumn) {
-	appPath, err := GetSelectedAppPath(treeView)
-	if err != nil {
-		logger.Error(fmt.Sprintf("Error getting selected app: %v\n", err))
-		return
-	}
-
-	if appPath == "" {
-		return
-	}
-
-	// Handle different types of selections
-	if strings.HasSuffix(appPath, "/") {
-		// Category selected - refresh list
-		category := strings.TrimSuffix(appPath, "/")
-		if category == "Updates" {
-			g.showUpdatesWindow()
-		} else {
-			g.onCategorySelected(category)
-		}
-	} else {
-		// App selected - show details
-		g.showAppDetails(appPath)
-	}
-}
-
 // onSearchClicked handles search button clicks
 func (g *GUI) onSearchClicked() {
 	logger.Info("Search button clicked, creating custom search dialog")

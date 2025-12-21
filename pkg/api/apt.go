@@ -2576,7 +2576,7 @@ func refreshPackageAppStatusWithCache(appName, aptCacheOutput, dpkgStatus, direc
 					Debug(fmt.Sprintf("Unhiding %s as its packages are now available", appName))
 
 					// Get the original category from categories file
-					cat, err := getOriginalCategory(directory, appName)
+					cat, err := getOriginalCategory(appName)
 					if err != nil {
 						Debug(fmt.Sprintf("Error getting original category: %v", err))
 						cat = "Other" // Default to "Other" if there's an error
