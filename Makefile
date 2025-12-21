@@ -6,8 +6,7 @@ export GOEXPERIMENT=greenteagc,heapminimum512kib,newinliner
 BINDIR := $(DESTDIR)/usr/local/bin
 BUILD_DATE=$(shell date -u +%Y-%m-%dT%H:%M:%SZ || echo "Warning: unable to get current date")
 GIT_COMMIT_HASH=$(shell git rev-parse HEAD || echo "Warning: unable to get Git commit hash")
-GIT_URL=$(shell git remote get-url origin 2>/dev/null || git remote -v | grep -E '^origin' | head -1 | awk '{print $$2}' | sed 's/\.git$$//' || echo "https://github.com/pi-apps-go/pi-apps")
-LDFLAGS=-X main.BuildDate="$(BUILD_DATE)" -X main.GitCommit="$(GIT_COMMIT_HASH)" -X api.GitUrl="$(GIT_URL)"
+LDFLAGS=-X main.BuildDate="$(BUILD_DATE)" -X main.GitCommit="$(GIT_COMMIT_HASH)"
 
 PKG_MGR := $(shell \
     if command -v apt >/dev/null 2>&1; then echo apt; \

@@ -126,17 +126,9 @@ func New(directory string, mode UpdateMode, speed UpdateSpeed) (*Updater, error)
 		return nil, fmt.Errorf("failed to create update-status directory: %w", err)
 	}
 
-	// Read git URL (from embedded build-time constant or fallback to file)
-	gitURL := api.GitUrl
-	if gitURL == "" {
-		// Build-time variable not set, fallback to reading from file
-		gitURL = "https://github.com/pi-apps-go/pi-apps"
-		if gitURLFile := filepath.Join(directory, "etc", "git_url"); fileExists(gitURLFile) {
-			if data, err := os.ReadFile(gitURLFile); err == nil {
-				gitURL = strings.TrimSpace(string(data))
-			}
-		}
-	}
+	// Read git URL
+	account, repo := api.GetGitUrl()
+	gitURL := fmt.Sprintf("https://github.com/%s/%s", account, repo)
 
 	return &Updater{
 		directory: directory,
