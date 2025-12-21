@@ -783,43 +783,27 @@ func isNumeric(s string) bool {
 	return true
 }
 
-// Helper function to get the git URL (from embedded build-time constant or fallback to file)
+// Helper function to get the git URL from the git_url file
 //
 //	account - the account name
 //	repo - the repository name
 func GetGitUrl() (account, repo string) {
-	var gitURL string
+	piAppsDir := os.Getenv("PI_APPS_DIR")
+	gitURLPath := filepath.Join(piAppsDir, "etc", "git_url")
+	if FileExists(gitURLPath) {
+		// Read git URL from file
+		gitURLBytes, err := os.ReadFile(gitURLPath)
+		if err == nil {
+			gitURL := strings.TrimSpace(string(gitURLBytes))
 
-	// First, try to use embedded build-time constant
-	if GitUrl != "" {
-		gitURL = GitUrl
-	} else {
-		// Fallback to reading from file (for development or if not set at build time)
-		piAppsDir := os.Getenv("PI_APPS_DIR")
-		gitURLPath := filepath.Join(piAppsDir, "etc", "git_url")
-		if FileExists(gitURLPath) {
-			// Read git URL from file
-			gitURLBytes, err := os.ReadFile(gitURLPath)
-			if err == nil {
-				gitURL = strings.TrimSpace(string(gitURLBytes))
+			// Parse account and repository from URL
+			parts := strings.Split(gitURL, "/")
+			if len(parts) >= 2 {
+				account := parts[len(parts)-2]
+				repo := parts[len(parts)-1]
+				return account, repo
 			}
 		}
 	}
-
-	// If still no URL, use default
-	if gitURL == "" {
-		gitURL = "https://github.com/pi-apps-go/pi-apps"
-	}
-
-	// Parse account and repository from URL
-	// Remove .git suffix if present
-	gitURL = strings.TrimSuffix(gitURL, ".git")
-	parts := strings.Split(gitURL, "/")
-	if len(parts) >= 2 {
-		account = parts[len(parts)-2]
-		repo = parts[len(parts)-1]
-		return account, repo
-	}
-
 	return account, repo
 }

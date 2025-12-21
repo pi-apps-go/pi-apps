@@ -129,7 +129,7 @@ func New(directory string, mode UpdateMode, speed UpdateSpeed) (*Updater, error)
 	// Read git URL (from embedded build-time constant or fallback to file)
 	gitURL := api.GitUrl
 	if gitURL == "" {
-		// Fallback to reading from file (for development or if not set at build time)
+		// Build-time variable not set, fallback to reading from file
 		gitURL = "https://github.com/pi-apps-go/pi-apps"
 		if gitURLFile := filepath.Join(directory, "etc", "git_url"); fileExists(gitURLFile) {
 			if data, err := os.ReadFile(gitURLFile); err == nil {
