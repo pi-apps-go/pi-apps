@@ -17,7 +17,7 @@
 // Module: apt_repo.go
 // Description: Provides functions for managing APT repositories.
 
-//go:build apt || !apk || !dummy
+//go:build apt
 
 package api
 

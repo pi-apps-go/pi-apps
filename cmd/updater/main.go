@@ -3,7 +3,10 @@ package main
 import (
 	"context"
 	"fmt"
+	"image"
+	_ "image/png"
 	"log"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -11,6 +14,8 @@ import (
 	"strings"
 	"time"
 
+	"fyne.io/systray"
+	"github.com/gen2brain/beeep"
 	"github.com/pi-apps-go/pi-apps/pkg/api"
 	updaterPkg "github.com/pi-apps-go/pi-apps/pkg/updater"
 )
@@ -19,7 +24,6 @@ var (
 	// Build information (set via ldflags)
 	BuildDate string
 	GitCommit string
-	Version   = "1.0.0"
 )
 
 func main() {
@@ -204,8 +208,8 @@ func handleAutostartedMode(u *updaterPkg.Updater) error {
 		return nil
 	}
 
-	// Show notification (this would integrate with system notifications)
-	return showUpdateNotification(files, apps)
+	// Show notification and systray
+	return showUpdateNotificationWithSystray(u, files, apps)
 }
 
 // handleGetStatusMode checks if updates are available
@@ -270,13 +274,7 @@ func handleCLIMode(u *updaterPkg.Updater, mode updaterPkg.UpdateMode, useTermina
 // Helper functions
 
 func showUsage() {
-	fmt.Printf("Pi-Apps Updater v%s\n", Version)
-	if BuildDate != "" {
-		fmt.Printf("Built: %s\n", BuildDate)
-	}
-	if GitCommit != "" {
-		fmt.Printf("Commit: %s\n", GitCommit)
-	}
+	fmt.Printf("Pi-Apps Go updater (rolling release)\n")
 	fmt.Println()
 	fmt.Println("Usage: updater <mode> [speed] [options]")
 	fmt.Println()
@@ -380,14 +378,20 @@ func waitForInternet() error {
 }
 
 func checkConnectivity() error {
-	// Use a simple HTTP request to check connectivity
-	// This is a simplified version - could be enhanced
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	// Execute a simple command to check connectivity
-	cmd := exec.CommandContext(ctx, "wget", "--spider", "https://github.com")
-	return cmd.Run()
+	// Use net/http to perform a simple HTTP GET request to check connectivity
+	client := &http.Client{
+		Timeout: 5 * time.Second,
+	}
+	resp, err := client.Get("https://github.com")
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	// Consider HTTP 200 and 3xx (redirects) as connected
+	if resp.StatusCode >= 200 && resp.StatusCode < 400 {
+		return nil
+	}
+	return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 }
 
 func performBackgroundUpdates(u *updaterPkg.Updater, files []updaterPkg.FileChange, apps []string) *updaterPkg.UpdateResult {
@@ -464,17 +468,121 @@ func saveUpdateStatus(directory string, files []updaterPkg.FileChange, apps []st
 	return nil
 }
 
-func showUpdateNotification(files []updaterPkg.FileChange, apps []string) error {
-	// This would show a system notification
-	// For now, just print to console
-	fmt.Printf("📱 Pi-Apps updates available: %d files, %d apps\n", len(files), len(apps))
-	fmt.Println("Run 'updater gui' to see available updates.")
+// showUpdateNotificationWithSystray shows a notification and sets up systray
+func showUpdateNotificationWithSystray(u *updaterPkg.Updater, files []updaterPkg.FileChange, apps []string) error {
+	// Send desktop notification
+	piAppsDir := api.GetPiAppsDir()
+	iconPath := filepath.Join(piAppsDir, "icons", "logo.png")
+	message := fmt.Sprintf("Pi-Apps Go updates are available: %d files, %d apps. Click the tray icon to see details.", len(files), len(apps))
+	if err := beeep.Notify("Pi-Apps Go", message, iconPath); err != nil {
+		api.WarningT("Failed to show notification: %v", err)
+	}
+
+	// Set up and run systray (systray.Run blocks until Quit is called)
+	// This will keep the process alive and handle user interactions
+	systray.Run(
+		func() {
+			setupSystray(u, files, apps, piAppsDir)
+		},
+		func() {
+			// OnExit - cleanup if needed
+		},
+	)
+
 	return nil
+}
+
+// setupSystray sets up the systray menu and icon
+func setupSystray(u *updaterPkg.Updater, files []updaterPkg.FileChange, apps []string, piAppsDir string) {
+	// Load icon
+	iconPath := filepath.Join(piAppsDir, "icons", "logo.png")
+	iconData, err := loadIconData(iconPath)
+	if err != nil {
+		// Fallback: try to use a simple default or continue without icon
+		api.WarningT("Failed to load icon: %v", err)
+		// systray will use a default if SetIcon is not called or fails
+	} else {
+		systray.SetIcon(iconData)
+	}
+
+	// Set tooltip
+	systray.SetTooltip("Pi-Apps Go Updater")
+
+	// Add "Updates are available" menu item (disabled)
+	updatesAvailable := systray.AddMenuItem("Updates are available", "Updates are available")
+	updatesAvailable.Disable()
+
+	// Add separator
+	systray.AddSeparator()
+
+	// Add "Update" button
+	updateBtn := systray.AddMenuItem("Update", "Open update window")
+
+	// Add "Exit" button
+	exitBtn := systray.AddMenuItem("Exit", "Exit updater")
+
+	// Handle menu clicks
+	go func() {
+		for {
+			select {
+			case <-updateBtn.ClickedCh:
+				// Launch GUI updater
+				launchGUIUpdater(u.Directory())
+			case <-exitBtn.ClickedCh:
+				systray.Quit()
+				os.Exit(0)
+			}
+		}
+	}()
+}
+
+// loadIconData loads icon data from file for systray
+func loadIconData(iconPath string) ([]byte, error) {
+	// Read the icon file (systray expects raw PNG/ICO bytes)
+	data, err := os.ReadFile(iconPath)
+	if err != nil {
+		return nil, err
+	}
+
+	// Verify it's a valid image (optional check)
+	file, err := os.Open(iconPath)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	_, _, err = image.DecodeConfig(file)
+	if err != nil {
+		return nil, fmt.Errorf("invalid image format: %w", err)
+	}
+
+	return data, nil
+}
+
+// launchGUIUpdater launches the GUI updater window
+func launchGUIUpdater(directory string) {
+	// Find the updater executable
+	executable, err := os.Executable()
+	if err != nil {
+		api.ErrorNoExitTf("Failed to get executable path: %v", err)
+		return
+	}
+
+	// Launch GUI mode
+	cmd := exec.Command(executable, "gui")
+	cmd.Dir = directory
+	cmd.Env = append(os.Environ(), fmt.Sprintf("DIRECTORY=%s", directory))
+
+	// Start in background (don't wait)
+	if err := cmd.Start(); err != nil {
+		api.ErrorNoExitTf("Failed to launch GUI updater: %v", err)
+	}
 }
 
 func parseArgs() (updaterPkg.UpdateMode, updaterPkg.UpdateSpeed, bool, []string, error) {
 	// Handle special cases first
 	if len(os.Args) < 2 {
+		api.ErrorNoExitT("No mode specified")
 		showUsage()
 		os.Exit(1)
 	}
@@ -487,7 +595,7 @@ func parseArgs() (updaterPkg.UpdateMode, updaterPkg.UpdateSpeed, bool, []string,
 	}
 
 	// Handle version flag
-	if arg1 == "--version" || arg1 == "-v" || arg1 == "version" {
+	if arg1 == "--version" || arg1 == "-v" || arg1 == "version" || arg1 == "-version" {
 		showVersion()
 		os.Exit(0)
 	}
@@ -550,11 +658,15 @@ func parseArgs() (updaterPkg.UpdateMode, updaterPkg.UpdateSpeed, bool, []string,
 }
 
 func showVersion() {
-	fmt.Printf("Pi-Apps Updater v%s\n", Version)
+	fmt.Println("Pi-Apps Go updater (rolling release)")
 	if BuildDate != "" {
-		fmt.Printf("Built: %s\n", BuildDate)
+		api.StatusT("Built on: %s\n", BuildDate)
 	}
 	if GitCommit != "" {
-		fmt.Printf("Commit: %s\n", GitCommit)
+		api.StatusT("Git commit: %s\n", GitCommit)
+		account, repo := api.GetGitUrl()
+		if account != "" && repo != "" {
+			api.StatusT("Link to commit: https://github.com/%s/%s/commit/%s\n", account, repo, GitCommit)
+		}
 	}
 }

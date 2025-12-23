@@ -30,6 +30,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gen2brain/beeep"
 	"github.com/pi-apps-go/pi-apps/pkg/api"
 )
 
@@ -1211,8 +1212,13 @@ func (u *Updater) executeAutostarted(ctx context.Context) error {
 		return nil
 	}
 
-	// Show notification (this would typically launch a GUI notification)
-	fmt.Printf("Updates available: %d files, %d apps\n", len(files), len(apps))
+	// Show notification and systray will be handled by the caller (cmd/updater/main.go)
+	iconPath := filepath.Join(api.GetPiAppsDir(), "icons", "logo.png")
+	err = beeep.Notify("Pi-Apps Go", "Pi-Apps Go updates are available. Click notification or tray icon to see details.", iconPath)
+	if err != nil {
+		api.WarningT("Failed to show notification: %v", err)
+	}
+	api.StatusT("Pi-Apps updates available: %d files, %d apps", len(files), len(apps))
 	return nil
 }
 
