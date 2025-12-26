@@ -512,7 +512,7 @@ func EnableModule(moduleName string) error {
 
 // installPackageApp installs a package-based app
 func installPackageApp(appName string) error {
-	piAppsDir := getPiAppsDir()
+	piAppsDir := GetPiAppsDir()
 
 	// Set up logging
 	logDir := filepath.Join(piAppsDir, "logs")
@@ -629,7 +629,7 @@ func installPackageApp(appName string) error {
 
 // uninstallPackageApp uninstalls a package-based app
 func uninstallPackageApp(appName string) error {
-	piAppsDir := getPiAppsDir()
+	piAppsDir := GetPiAppsDir()
 
 	// Set up logging
 	logDir := filepath.Join(piAppsDir, "logs")
