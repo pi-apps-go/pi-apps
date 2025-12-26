@@ -203,7 +203,7 @@ func main() {
 	if flag.NArg() == 0 {
 		// obtain the Pi-Apps directory
 		api.Init()
-		piAppsDir := os.Getenv("PI_APPS_DIR")
+		piAppsDir := api.GetPiAppsDir()
 		if piAppsDir == "" {
 			fmt.Println("Error: PI_APPS_DIR environment variable is not set")
 			os.Exit(1)

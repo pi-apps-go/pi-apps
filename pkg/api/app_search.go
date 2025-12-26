@@ -37,7 +37,7 @@ import (
 //	error - error if app is not specified
 func WillReinstall(app string) (bool, error) {
 	// Get environment variables
-	directory := os.Getenv("PI_APPS_DIR")
+	directory := GetPiAppsDir()
 	if directory == "" {
 		return false, fmt.Errorf("PI_APPS_DIR environment variable not set")
 	}
@@ -58,7 +58,7 @@ func WillReinstall(app string) (bool, error) {
 	}
 
 	// Store original directory to restore it later
-	originalDir := os.Getenv("PI_APPS_DIR")
+	originalDir := GetPiAppsDir()
 
 	// Set directory to update location to check the update script
 	os.Setenv("PI_APPS_DIR", filepath.Join(directory, "update", "pi-apps"))

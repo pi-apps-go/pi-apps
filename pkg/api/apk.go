@@ -738,10 +738,7 @@ func InstallPackages(app string, args ...string) error {
 
 	// Create a tracking file to remember which packages were installed for this app
 	// This helps with uninstallation later
-	piAppsDir := os.Getenv("PI_APPS_DIR")
-	if piAppsDir == "" {
-		piAppsDir = GetPiAppsDir()
-	}
+	piAppsDir := GetPiAppsDir()
 
 	trackingDir := filepath.Join(piAppsDir, "data", "installed-packages")
 	if err := os.MkdirAll(trackingDir, 0755); err != nil {
@@ -763,10 +760,7 @@ func PurgePackages(app string, isUpdate bool) error {
 	StatusTf("Allowing packages required by the %s app to be uninstalled", app)
 
 	// Get PI_APPS_DIR
-	piAppsDir := os.Getenv("PI_APPS_DIR")
-	if piAppsDir == "" {
-		piAppsDir = GetPiAppsDir()
-	}
+	piAppsDir := GetPiAppsDir()
 
 	// Check for tracking file
 	trackingFile := filepath.Join(piAppsDir, "data", "installed-packages", app)
@@ -939,10 +933,6 @@ func PurgePackages(app string, isUpdate bool) error {
 
 // GetIconFromPackage finds the largest icon file (png or svg) installed by a package
 func GetIconFromPackage(packages ...string) (string, error) {
-	if len(packages) == 0 {
-		return "", fmt.Errorf("get_icon_from_package requires at least one apk package name")
-	}
-
 	// Find dependencies that start with the same name as the original packages
 	var extraPackages []string
 	for _, pkg := range packages {
@@ -1072,14 +1062,6 @@ func DebianPPAInstaller(ppaName, ppaDist, key string) error {
 
 // AddExternalRepo adds an external APK repository
 func AddExternalRepo(reponame, pubkeyurl, uris, suites, components string, additionalOptions ...string) error {
-	// Check if all needed vars are set
-	if reponame == "" {
-		return fmt.Errorf("add_external_repo: reponame not set")
-	}
-	if uris == "" {
-		return fmt.Errorf("add_external_repo: uris not set")
-	}
-
 	// Exit if reponame or uri contains space
 	if strings.Contains(reponame, " ") || strings.Contains(uris, " ") {
 		return fmt.Errorf("add_external_repo: provided reponame or uris contains a space")
@@ -1191,10 +1173,6 @@ func AddExternalRepo(reponame, pubkeyurl, uris, suites, components string, addit
 
 // RmExternalRepo removes an external APK repository
 func RmExternalRepo(reponame string, force bool) error {
-	if reponame == "" {
-		return fmt.Errorf("rm_external_repo: reponame not provided")
-	}
-
 	// Exit if reponame contains space
 	if strings.Contains(reponame, " ") {
 		return fmt.Errorf("rm_external_repo: provided reponame contains a space")
@@ -1323,11 +1301,6 @@ func AdoptiumInstaller() error {
 
 // PackageInstalled checks if a package is installed
 func PackageInstalled(packageName string) bool {
-	if packageName == "" {
-		Error("PackageInstalled(): no package specified!")
-		return false
-	}
-
 	// APK uses: apk info -e <package>
 	cmd := exec.Command("apk", "info", "-e", packageName)
 	err := cmd.Run()
@@ -1336,11 +1309,6 @@ func PackageInstalled(packageName string) bool {
 
 // PackageAvailable determines if the specified package exists in a repository
 func PackageAvailable(packageName string, dpkgArch string) bool {
-	if packageName == "" {
-		Error("PackageAvailable(): no package name specified!")
-		return false
-	}
-
 	// Special handling for "init" package check
 	// APK systems don't have an "init" package, but use various init systems
 	if packageName == "init" {
@@ -1538,7 +1506,7 @@ func PackageLatestVersion(packageName string, repo ...string) (string, error) {
 // RefreshAllPkgAppStatus updates the status of all package-apps
 func RefreshAllPkgAppStatus() error {
 	// Get the PI_APPS_DIR environment variable
-	directory := os.Getenv("PI_APPS_DIR")
+	directory := GetPiAppsDir()
 	if directory == "" {
 		return fmt.Errorf("PI_APPS_DIR environment variable not set")
 	}

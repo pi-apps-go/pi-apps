@@ -138,7 +138,7 @@ func GenerateAppIcons(iconPath, appName string) error {
 // # If a package is not available, mark the app as hidden
 func RefreshPkgAppStatus(appName string, packageName string) error {
 	// Get the PI_APPS_DIR environment variable
-	directory := os.Getenv("PI_APPS_DIR")
+	directory := GetPiAppsDir()
 	if directory == "" {
 		return fmt.Errorf("PI_APPS_DIR environment variable not set")
 	}
@@ -247,7 +247,7 @@ func RefreshPkgAppStatus(appName string, packageName string) error {
 
 // RunCategoryEdit sets the category for an app
 func RunCategoryEdit(appName, category string) error {
-	directory := os.Getenv("PI_APPS_DIR")
+	directory := GetPiAppsDir()
 	if directory == "" {
 		return fmt.Errorf("PI_APPS_DIR environment variable not set")
 	}
@@ -277,7 +277,7 @@ func getOriginalCategory(appName string) (string, error) {
 // RefreshAppList forces regeneration of the app list
 func RefreshAppList() error {
 	// Get the PI_APPS_DIR environment variable
-	directory := os.Getenv("PI_APPS_DIR")
+	directory := GetPiAppsDir()
 	if directory == "" {
 		return fmt.Errorf("PI_APPS_DIR environment variable not set")
 	}

@@ -487,7 +487,7 @@ func UpdateApp(appName string) error {
 		return err
 	case "standard":
 		// For script-based apps, run the update script if it exists, otherwise reinstall
-		updateScriptPath := filepath.Join(getPiAppsDir(), "apps", appName, "update")
+		updateScriptPath := filepath.Join(GetPiAppsDir(), "apps", appName, "update")
 		if _, err := os.Stat(updateScriptPath); err == nil {
 			return runAppScript(appName, "update")
 		}
@@ -580,7 +580,7 @@ func RefreshPackageAppStatus(appName string) error {
 
 // RefreshFlatpakAppStatus refreshes the status of a flatpak-based app
 func RefreshFlatpakAppStatus(appName string) error {
-	flatpakPackageListPath := filepath.Join(getPiAppsDir(), "apps", appName, "flatpak_packages")
+	flatpakPackageListPath := filepath.Join(GetPiAppsDir(), "apps", appName, "flatpak_packages")
 
 	// Read flatpak packages list
 	packageListBytes, err := os.ReadFile(flatpakPackageListPath)
@@ -669,7 +669,7 @@ func IsSystemSupportedMessage() (string, error) {
 
 // ValidateApps checks a list of apps to ensure they exist and can be managed
 func ValidateApps(action Action, appList []string) ([]string, error) {
-	piAppsDir := os.Getenv("PI_APPS_DIR")
+	piAppsDir := GetPiAppsDir()
 	if piAppsDir == "" {
 		return nil, fmt.Errorf("PI_APPS_DIR environment variable not set")
 	}
@@ -731,7 +731,7 @@ func MultiUninstall(appList []string) error {
 
 // installFlatpakApp installs a flatpak app based on the flatpak_packages file
 func installFlatpakApp(appName string) error {
-	flatpakPackageListPath := filepath.Join(getPiAppsDir(), "apps", appName, "flatpak_packages")
+	flatpakPackageListPath := filepath.Join(GetPiAppsDir(), "apps", appName, "flatpak_packages")
 
 	// Read flatpak packages list
 	packageListBytes, err := os.ReadFile(flatpakPackageListPath)
@@ -755,7 +755,7 @@ func installFlatpakApp(appName string) error {
 
 // uninstallFlatpakApp uninstalls a flatpak app based on the flatpak_packages file
 func uninstallFlatpakApp(appName string) error {
-	flatpakPackageListPath := filepath.Join(getPiAppsDir(), "apps", appName, "flatpak_packages")
+	flatpakPackageListPath := filepath.Join(GetPiAppsDir(), "apps", appName, "flatpak_packages")
 
 	// Read flatpak packages list
 	packageListBytes, err := os.ReadFile(flatpakPackageListPath)
@@ -791,7 +791,7 @@ func uninstallScriptApp(appName string) error {
 // runAppScript runs a script for an app (install, uninstall, update)
 func runAppScript(appName, scriptName string) error {
 	// Get PI_APPS_DIR environment variable
-	piAppsDir := getPiAppsDir()
+	piAppsDir := GetPiAppsDir()
 	if piAppsDir == "" {
 		return fmt.Errorf("PI_APPS_DIR environment variable not set")
 	}
@@ -819,7 +819,7 @@ func runAppScript(appName, scriptName string) error {
 	fmt.Fprintf(logFile, "%s %sing %s...\n\n", time.Now().Format("2006-01-02 15:04:05"), scriptName, appName)
 	Status(fmt.Sprintf("%sing \033[1m%s\033[22m...", cases.Title(language.English).String(scriptName), appName))
 
-	scriptPath := filepath.Join(getPiAppsDir(), "apps", appName, scriptName)
+	scriptPath := filepath.Join(GetPiAppsDir(), "apps", appName, scriptName)
 
 	// Check if script exists
 	if _, err := os.Stat(scriptPath); err != nil {
@@ -839,8 +839,8 @@ func runAppScript(appName, scriptName string) error {
 		case "install":
 			// If specific script doesn't exist, try architecture-specific versions for install
 			// Check for install-32 and install-64
-			install32Path := filepath.Join(getPiAppsDir(), "apps", appName, "install-32")
-			install64Path := filepath.Join(getPiAppsDir(), "apps", appName, "install-64")
+			install32Path := filepath.Join(GetPiAppsDir(), "apps", appName, "install-32")
+			install64Path := filepath.Join(GetPiAppsDir(), "apps", appName, "install-64")
 
 			// Get system architecture
 			arch, err := GetSystemArchitecture()
@@ -964,7 +964,7 @@ cd "$HOME"
 
 	// Set environment variables that scripts might need
 	env := os.Environ()
-	env = append(env, fmt.Sprintf("PI_APPS_DIR=%s", getPiAppsDir()))
+	env = append(env, fmt.Sprintf("PI_APPS_DIR=%s", GetPiAppsDir()))
 	env = append(env, fmt.Sprintf("app=%s", appName)) // Use lowercase 'app' to match bash API
 	env = append(env, "DEBIAN_FRONTEND=noninteractive")
 
@@ -1052,13 +1052,13 @@ cd "$HOME"
 // IsValidApp checks if an app exists in the Pi-Apps directory
 // This includes both regular apps and deprecated apps
 func IsValidApp(appName string) bool {
-	appDir := filepath.Join(getPiAppsDir(), "apps", appName)
+	appDir := filepath.Join(GetPiAppsDir(), "apps", appName)
 	if _, err := os.Stat(appDir); err == nil {
 		return true
 	}
 	// Check if it's a deprecated app
 	if IsDeprecatedApp(appName) {
-		deprecatedDir := filepath.Join(getPiAppsDir(), "data", "deprecated-apps", appName)
+		deprecatedDir := filepath.Join(GetPiAppsDir(), "data", "deprecated-apps", appName)
 		if _, err := os.Stat(deprecatedDir); err == nil {
 			return true
 		}
@@ -1068,7 +1068,7 @@ func IsValidApp(appName string) bool {
 
 // IsAppInstalled checks if an app is installed
 func IsAppInstalled(appName string) bool {
-	statusFile := filepath.Join(getPiAppsDir(), "data", "status", appName)
+	statusFile := filepath.Join(GetPiAppsDir(), "data", "status", appName)
 	content, err := os.ReadFile(statusFile)
 	if err != nil {
 		return false
@@ -1083,17 +1083,17 @@ func GetAppType(appName string) (string, error) {
 	// For deprecated apps, check the deprecated directory
 	if IsDeprecatedApp(appName) {
 		// Deprecated apps only have uninstall scripts, so they're always "standard"
-		deprecatedUninstall := filepath.Join(getPiAppsDir(), "data", "deprecated-apps", appName, "uninstall")
+		deprecatedUninstall := filepath.Join(GetPiAppsDir(), "data", "deprecated-apps", appName, "uninstall")
 		if _, err := os.Stat(deprecatedUninstall); err == nil {
 			return "standard", nil
 		}
 		return "", fmt.Errorf("deprecated app '%s' does not have an uninstall script", appName)
 	}
 
-	packageListPath := filepath.Join(getPiAppsDir(), "apps", appName, "packages")
-	installPath := filepath.Join(getPiAppsDir(), "apps", appName, "install")
-	install32Path := filepath.Join(getPiAppsDir(), "apps", appName, "install-32")
-	install64Path := filepath.Join(getPiAppsDir(), "apps", appName, "install-64")
+	packageListPath := filepath.Join(GetPiAppsDir(), "apps", appName, "packages")
+	installPath := filepath.Join(GetPiAppsDir(), "apps", appName, "install")
+	install32Path := filepath.Join(GetPiAppsDir(), "apps", appName, "install-32")
+	install64Path := filepath.Join(GetPiAppsDir(), "apps", appName, "install-64")
 
 	// Check if it has a packages file
 	if _, err := os.Stat(packageListPath); err == nil {
@@ -1101,7 +1101,7 @@ func GetAppType(appName string) (string, error) {
 	}
 
 	// Check if it has a flatpak_packages file
-	flatpakPackageListPath := filepath.Join(getPiAppsDir(), "apps", appName, "flatpak_packages")
+	flatpakPackageListPath := filepath.Join(GetPiAppsDir(), "apps", appName, "flatpak_packages")
 	if _, err := os.Stat(flatpakPackageListPath); err == nil {
 		return "flatpak_package", nil
 	}
@@ -1126,7 +1126,7 @@ func GetAppType(appName string) (string, error) {
 
 // markAppAsInstalled marks an app as installed in the status directory
 func markAppAsInstalled(appName string) error {
-	statusDir := filepath.Join(getPiAppsDir(), "data", "status")
+	statusDir := filepath.Join(GetPiAppsDir(), "data", "status")
 
 	// Create status directory if it doesn't exist
 	if _, err := os.Stat(statusDir); os.IsNotExist(err) {
@@ -1142,7 +1142,7 @@ func markAppAsInstalled(appName string) error {
 
 // markAppAsUninstalled marks an app as uninstalled in the status directory
 func markAppAsUninstalled(appName string) error {
-	statusFile := filepath.Join(getPiAppsDir(), "data", "status", appName)
+	statusFile := filepath.Join(GetPiAppsDir(), "data", "status", appName)
 
 	// If the status file exists, remove it
 	if _, err := os.Stat(statusFile); err == nil {
@@ -1161,21 +1161,6 @@ func markAppAsUninstalled(appName string) error {
 
 	// If file doesn't exist, we're good (it's already "uninstalled")
 	return nil
-}
-
-// getPiAppsDir returns the Pi-Apps directory from environment variable
-func getPiAppsDir() string {
-	piAppsDir := os.Getenv("PI_APPS_DIR")
-	if piAppsDir == "" {
-		// Default to a reasonable location if env var not set
-		homeDir, err := os.UserHomeDir()
-		if err == nil {
-			piAppsDir = filepath.Join(homeDir, "pi-apps")
-		} else {
-			piAppsDir = "/home/pi/pi-apps"
-		}
-	}
-	return piAppsDir
 }
 
 // GetSystemArchitecture returns the current system architecture
@@ -1221,7 +1206,7 @@ func IsAppSupportedOnSystem(appName string) (bool, string) {
 	}
 
 	// Check if app directory exists
-	appDir := filepath.Join(getPiAppsDir(), "apps", appName)
+	appDir := filepath.Join(GetPiAppsDir(), "apps", appName)
 	if _, err := os.Stat(appDir); err != nil {
 		return false, fmt.Sprintf("App directory does not exist: %v", err)
 	}

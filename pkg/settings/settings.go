@@ -28,6 +28,7 @@ import (
 
 	"github.com/gotk3/gotk3/glib"
 	"github.com/gotk3/gotk3/gtk"
+	"github.com/pi-apps-go/pi-apps/pkg/api"
 )
 
 // SettingsWindow represents the main settings window
@@ -124,7 +125,7 @@ func NewSettingsWindow() (*SettingsWindow, error) {
 	gtk.Init(nil)
 
 	// Get PI_APPS_DIR environment variable
-	directory := os.Getenv("PI_APPS_DIR")
+	directory := api.GetPiAppsDir()
 	if directory == "" {
 		return nil, fmt.Errorf("PI_APPS_DIR environment variable not set")
 	}

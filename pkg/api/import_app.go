@@ -44,7 +44,7 @@ func ImportAppGUI() error {
 	gtk.Init(nil)
 
 	// Get PI_APPS_DIR environment variable
-	piAppsDir := os.Getenv("PI_APPS_DIR")
+	piAppsDir := GetPiAppsDir()
 	if piAppsDir == "" {
 		return fmt.Errorf("PI_APPS_DIR environment variable not set")
 	}
@@ -788,7 +788,7 @@ func isNumeric(s string) bool {
 //	account - the account name
 //	repo - the repository name
 func GetGitUrl() (account, repo string) {
-	piAppsDir := os.Getenv("PI_APPS_DIR")
+	piAppsDir := GetPiAppsDir()
 	gitURLPath := filepath.Join(piAppsDir, "etc", "git_url")
 	if FileExists(gitURLPath) {
 		// Read git URL from file

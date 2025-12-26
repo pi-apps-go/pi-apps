@@ -302,7 +302,7 @@ func getTranslationsDirectory() (string, error) {
 	}
 
 	// Try relative to PI_APPS_DIR, development path
-	if piAppsDir := getPiAppsDir(); piAppsDir != "" {
+	if piAppsDir := GetPiAppsDir(); piAppsDir != "" {
 		localesDir := filepath.Join(piAppsDir, "go-rewrite", "locales")
 		if apiDirExists(localesDir) {
 			return localesDir, nil
@@ -310,7 +310,7 @@ func getTranslationsDirectory() (string, error) {
 	}
 
 	// Try relative to PI_APPS_DIR
-	if piAppsDir := getPiAppsDir(); piAppsDir != "" {
+	if piAppsDir := GetPiAppsDir(); piAppsDir != "" {
 		localesDir := filepath.Join(piAppsDir, "locales")
 		if apiDirExists(localesDir) {
 			return localesDir, nil

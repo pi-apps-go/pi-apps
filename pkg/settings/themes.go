@@ -28,6 +28,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/pi-apps-go/pi-apps/pkg/api"
 )
 
 // generateThemeOptions generates the available theme options for App List Style
@@ -178,7 +180,7 @@ func isGTKTheme(themeName string) bool {
 
 // GetCurrentAppListStyle reads the current App List Style setting from disk
 func GetCurrentAppListStyle() (string, error) {
-	directory := os.Getenv("PI_APPS_DIR")
+	directory := api.GetPiAppsDir()
 	if directory == "" {
 		return "", fmt.Errorf("PI_APPS_DIR environment variable not set")
 	}

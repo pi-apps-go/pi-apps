@@ -171,7 +171,7 @@ func (tc *TimeStampChecker) SaveTimestamps(prefix string) error {
 // PreloadAppList generates or loads a cached app list
 func PreloadAppList(directory, prefix string) (*PreloadedList, error) {
 	if directory == "" {
-		directory = os.Getenv("PI_APPS_DIR")
+		directory = api.GetPiAppsDir()
 		if directory == "" {
 			logger.Error(api.T("PI_APPS_DIR environment variable not set"))
 			return nil, fmt.Errorf("PI_APPS_DIR environment variable not set")

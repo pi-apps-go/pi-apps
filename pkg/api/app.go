@@ -94,7 +94,7 @@ func AppStatus(app string) (string, error) {
 // storeDeprecatedAppData stores the uninstall script and icons for a deprecated app
 // so it can be uninstalled later even after the app directory is removed
 func storeDeprecatedAppData(app, removalArch, message string) error {
-	directory := os.Getenv("PI_APPS_DIR")
+	directory := GetPiAppsDir()
 	if directory == "" {
 		currentDir, err := os.Getwd()
 		if err != nil {
@@ -152,7 +152,7 @@ func storeDeprecatedAppData(app, removalArch, message string) error {
 
 // IsDeprecatedApp checks if an app is deprecated and returns true if it is
 func IsDeprecatedApp(app string) bool {
-	directory := os.Getenv("PI_APPS_DIR")
+	directory := GetPiAppsDir()
 	if directory == "" {
 		return false
 	}

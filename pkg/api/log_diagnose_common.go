@@ -117,7 +117,7 @@ func GetDeviceInfo() (string, error) {
 	info.WriteString("OS architecture: " + arch + "-bit\n")
 
 	// Get Pi-Apps information
-	piAppsDir := os.Getenv("PI_APPS_DIR") // Pi-Apps directory environment variable
+	piAppsDir := GetPiAppsDir() // Pi-Apps directory environment variable
 	if piAppsDir != "" && fileExists(piAppsDir) {
 		// Get last local update date using Go-native parsing
 		cmd := exec.Command("git", "-C", piAppsDir, "show", "-s", `--format=%ad`, "--date=short")

@@ -83,7 +83,7 @@ var logger = log.NewWithOptions(os.Stderr, log.Options{
 // NewGUI creates a new GUI instance
 func NewGUI(config GUIConfig) (*GUI, error) {
 	if config.Directory == "" {
-		config.Directory = os.Getenv("PI_APPS_DIR")
+		config.Directory = api.GetPiAppsDir()
 		if config.Directory == "" {
 			return nil, fmt.Errorf("PI_APPS_DIR environment variable not set")
 		}
@@ -1900,7 +1900,7 @@ func ShowMessageDialog(title, message string, dialogType int) {
 	dialog.SetPosition(gtk.WIN_POS_CENTER)
 
 	// Set dialog icon
-	piAppsDir := os.Getenv("PI_APPS_DIR")
+	piAppsDir := api.GetPiAppsDir()
 	if piAppsDir != "" {
 		iconPath := filepath.Join(piAppsDir, "icons", "logo.png")
 		if err := dialog.SetIconFromFile(iconPath); err == nil {

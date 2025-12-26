@@ -24,6 +24,7 @@ import (
 	"strings"
 
 	"github.com/leonelquinteros/gotext"
+	"github.com/pi-apps-go/pi-apps/pkg/api"
 )
 
 // Locale is the global locale instance for the settings package
@@ -32,7 +33,7 @@ var Locale *gotext.Locale
 // InitializeI18n initializes the internationalization system
 func InitializeI18n() error {
 	// Get the base directory for Pi-Apps
-	directory := os.Getenv("PI_APPS_DIR")
+	directory := api.GetPiAppsDir()
 	if directory == "" {
 		// Fallback to current directory structure
 		// First try current directory (for tests)
@@ -148,7 +149,7 @@ func Tn(msgid, msgidPlural string, n int, args ...interface{}) string {
 // GetAvailableLocales returns a list of available locales
 func GetAvailableLocales() []string {
 	// Use the same directory resolution logic as InitializeI18n
-	directory := os.Getenv("PI_APPS_DIR")
+	directory := api.GetPiAppsDir()
 	if directory == "" {
 		// Fallback to current directory structure
 		// First try current directory (for tests)
@@ -177,7 +178,7 @@ func GetAvailableLocales() []string {
 
 // SetLocale changes the current locale
 func SetLocale(locale string) error {
-	directory := os.Getenv("PI_APPS_DIR")
+	directory := api.GetPiAppsDir()
 	if directory == "" {
 		directory = filepath.Join(filepath.Dir(os.Args[0]), "..")
 	}

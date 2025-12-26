@@ -52,7 +52,7 @@ func main() {
 	if flag.NArg() == 0 {
 		// obtain the Pi-Apps directory
 		api.Init()
-		piAppsDir := os.Getenv("PI_APPS_DIR")
+		piAppsDir := api.GetPiAppsDir()
 		if piAppsDir == "" {
 			fmt.Println("Error: PI_APPS_DIR environment variable is not set")
 			os.Exit(1)
@@ -175,7 +175,7 @@ func main() {
 			}
 
 			// Also search in description
-			piAppsDir := os.Getenv("PI_APPS_DIR")
+			piAppsDir := api.GetPiAppsDir()
 			descFile := piAppsDir + "/apps/" + app + "/description"
 			if content, err := os.ReadFile(descFile); err == nil {
 				if strings.Contains(strings.ToLower(string(content)), queryLower) {
@@ -206,7 +206,7 @@ func main() {
 
 		api.Init()
 		appName := args[0]
-		piAppsDir := os.Getenv("PI_APPS_DIR")
+		piAppsDir := api.GetPiAppsDir()
 
 		// Check if app exists
 		appDir := piAppsDir + "/apps/" + appName
@@ -246,7 +246,7 @@ func main() {
 	case "gui":
 		// Start the Pi-Apps GUI
 		api.Init()
-		piAppsDir := os.Getenv("PI_APPS_DIR")
+		piAppsDir := api.GetPiAppsDir()
 		if piAppsDir == "" {
 			fmt.Println("Error: PI_APPS_DIR environment variable is not set")
 			os.Exit(1)
@@ -360,7 +360,7 @@ func main() {
 
 		api.Init()
 		appName := args[0]
-		piAppsDir := os.Getenv("PI_APPS_DIR")
+		piAppsDir := api.GetPiAppsDir()
 		descFile := piAppsDir + "/apps/" + appName + "/description"
 
 		if _, err := os.Stat(descFile); os.IsNotExist(err) {
@@ -386,7 +386,7 @@ func main() {
 
 		api.Init()
 		appName := args[0]
-		piAppsDir := os.Getenv("PI_APPS_DIR")
+		piAppsDir := api.GetPiAppsDir()
 		websiteFile := piAppsDir + "/apps/" + appName + "/website"
 
 		if _, err := os.Stat(websiteFile); os.IsNotExist(err) {

@@ -37,7 +37,7 @@ func ShlinkLink(app, trigger string) error {
 	// Run in a goroutine to avoid blocking the caller
 	go func() {
 		// Check if analytics are enabled
-		directory := os.Getenv("PI_APPS_DIR")
+		directory := GetPiAppsDir()
 		if directory == "" {
 			ErrorT("ShlinkLink(): PI_APPS_DIR environment variable not set")
 			return

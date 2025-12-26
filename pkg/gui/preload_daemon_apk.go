@@ -320,7 +320,7 @@ func (d *PreloadDaemon) RefreshAllCategories() error {
 // StartPreloadDaemon is a convenience function to start the daemon with default settings
 func StartPreloadDaemon(directory string) (*PreloadDaemon, error) {
 	if directory == "" {
-		directory = os.Getenv("PI_APPS_DIR")
+		directory = api.GetPiAppsDir()
 		if directory == "" {
 			logger.Error(api.T("PI_APPS_DIR environment variable not set"))
 			return nil, fmt.Errorf("PI_APPS_DIR environment variable not set")

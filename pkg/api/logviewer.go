@@ -50,7 +50,7 @@ type LogEntry struct {
 
 // CleanupOldLogFiles removes log files older than 6 days
 func CleanupOldLogFiles() error {
-	piAppsDir := os.Getenv("PI_APPS_DIR")
+	piAppsDir := GetPiAppsDir()
 	if piAppsDir == "" {
 		return fmt.Errorf("PI_APPS_DIR environment variable not set")
 	}
@@ -90,7 +90,7 @@ func CleanupOldLogFiles() error {
 
 // GetLogFiles returns all log files sorted by modification time (newest first)
 func GetLogFiles() ([]LogEntry, error) {
-	piAppsDir := os.Getenv("PI_APPS_DIR")
+	piAppsDir := GetPiAppsDir()
 	if piAppsDir == "" {
 		return nil, fmt.Errorf("PI_APPS_DIR environment variable not set")
 	}
@@ -165,7 +165,7 @@ func parseLogFilename(filePath string, modTime time.Time) (LogEntry, error) {
 	result := matches[2]
 	app := matches[3]
 
-	piAppsDir := os.Getenv("PI_APPS_DIR")
+	piAppsDir := GetPiAppsDir()
 	if piAppsDir == "" {
 		piAppsDir = "."
 	}
@@ -284,7 +284,7 @@ func getResultIcon(result, piAppsDir string) string {
 
 // DeleteAllLogFiles removes all log files from the logs directory
 func DeleteAllLogFiles() error {
-	piAppsDir := os.Getenv("PI_APPS_DIR")
+	piAppsDir := GetPiAppsDir()
 	if piAppsDir == "" {
 		return fmt.Errorf("PI_APPS_DIR environment variable not set")
 	}
@@ -328,7 +328,7 @@ func ShowLogViewer() error {
 
 // showLogViewerGUI displays the log viewer using GTK
 func showLogViewerGUI(logEntries []LogEntry) error {
-	piAppsDir := os.Getenv("PI_APPS_DIR")
+	piAppsDir := GetPiAppsDir()
 	if piAppsDir == "" {
 		return fmt.Errorf("PI_APPS_DIR environment variable not set")
 	}

@@ -163,7 +163,7 @@ func main() {
 
 	// Set default directory if not provided
 	if *directory == "" {
-		*directory = os.Getenv("PI_APPS_DIR")
+		*directory = api.GetPiAppsDir()
 		if *directory == "" {
 			logger.Fatal("PI_APPS_DIR environment variable not set and no directory specified")
 		}

@@ -227,7 +227,7 @@ func main() {
 		}
 	}
 	if piAppsDir == "" {
-		if env := os.Getenv("PI_APPS_DIR"); env != "" {
+		if env := api.GetPiAppsDir(); env != "" {
 			piAppsDir = env
 		}
 	}
@@ -534,7 +534,7 @@ type QueueItem struct {
 // runDaemon implements the daemon functionality for managing app operations
 func runDaemon(queueStr string) error {
 	// Get PI_APPS_DIR environment variable
-	piAppsDir := os.Getenv("PI_APPS_DIR")
+	piAppsDir := api.GetPiAppsDir()
 	if piAppsDir == "" {
 		return fmt.Errorf("PI_APPS_DIR environment variable not set")
 	}
@@ -878,9 +878,9 @@ func runDaemonInCurrentShell(guiQueue []gui.QueueItem, statusFile string) error 
 					retryQueue := parseQueue(strings.Join(retryApps, "\n"))
 					for _, retryItem := range retryQueue {
 						// Ensure icon path is properly set for retry items
-						iconPath := filepath.Join(os.Getenv("PI_APPS_DIR"), "apps", retryItem.AppName, "icon-64.png")
+						iconPath := filepath.Join(api.GetPiAppsDir(), "apps", retryItem.AppName, "icon-64.png")
 						if _, err := os.Stat(iconPath); os.IsNotExist(err) {
-							iconPath = filepath.Join(os.Getenv("PI_APPS_DIR"), "icons", "none-64.png")
+							iconPath = filepath.Join(api.GetPiAppsDir(), "icons", "none-64.png")
 						}
 
 						newGuiItem := gui.QueueItem{
@@ -1033,12 +1033,12 @@ func parseQueue(queueStr string) []QueueItem {
 			if api.IsDeprecatedApp(appName) {
 				iconPath = api.GetDeprecatedAppIcon(appName)
 				if iconPath == "" {
-					iconPath = filepath.Join(os.Getenv("PI_APPS_DIR"), "icons", "none-64.png")
+					iconPath = filepath.Join(api.GetPiAppsDir(), "icons", "none-64.png")
 				}
 			} else {
-				iconPath = filepath.Join(os.Getenv("PI_APPS_DIR"), "apps", appName, "icon-64.png")
+				iconPath = filepath.Join(api.GetPiAppsDir(), "apps", appName, "icon-64.png")
 				if _, err := os.Stat(iconPath); os.IsNotExist(err) {
-					iconPath = filepath.Join(os.Getenv("PI_APPS_DIR"), "icons", "none-64.png")
+					iconPath = filepath.Join(api.GetPiAppsDir(), "icons", "none-64.png")
 				}
 			}
 
@@ -1062,7 +1062,7 @@ func validateQueue(queue []QueueItem) ([]QueueItem, error) {
 
 // validateQueueWithGUI validates the queue items with optional GUI error dialogs
 func validateQueueWithGUI(queue []QueueItem, useGUI bool) ([]QueueItem, error) {
-	piAppsDir := os.Getenv("PI_APPS_DIR")
+	piAppsDir := api.GetPiAppsDir()
 	var validQueue []QueueItem
 
 	for _, item := range queue {
@@ -1356,9 +1356,9 @@ func daemonTerminal(queueStr, statusFile, queuePipe string) error {
 					retryQueue := parseQueue(strings.Join(retryApps, "\n"))
 					for _, retryItem := range retryQueue {
 						// Ensure icon path is properly set for retry items
-						iconPath := filepath.Join(os.Getenv("PI_APPS_DIR"), "apps", retryItem.AppName, "icon-64.png")
+						iconPath := filepath.Join(api.GetPiAppsDir(), "apps", retryItem.AppName, "icon-64.png")
 						if _, err := os.Stat(iconPath); os.IsNotExist(err) {
-							iconPath = filepath.Join(os.Getenv("PI_APPS_DIR"), "icons", "none-64.png")
+							iconPath = filepath.Join(api.GetPiAppsDir(), "icons", "none-64.png")
 						}
 
 						newGuiItem := gui.QueueItem{
@@ -1490,17 +1490,17 @@ func writeQueueStatus(statusFile string, queue []gui.QueueItem) error {
 	for _, item := range queue {
 		// Ensure icon path is valid (not empty or a directory)
 		iconPath := item.IconPath
-		if iconPath == "" || iconPath == os.Getenv("PI_APPS_DIR") {
+		if iconPath == "" || iconPath == api.GetPiAppsDir() {
 			// Fix invalid icon paths - check for deprecated apps first
 			if api.IsDeprecatedApp(item.AppName) {
 				iconPath = api.GetDeprecatedAppIcon(item.AppName)
 				if iconPath == "" {
-					iconPath = filepath.Join(os.Getenv("PI_APPS_DIR"), "icons", "none-64.png")
+					iconPath = filepath.Join(api.GetPiAppsDir(), "icons", "none-64.png")
 				}
 			} else {
-				iconPath = filepath.Join(os.Getenv("PI_APPS_DIR"), "apps", item.AppName, "icon-64.png")
+				iconPath = filepath.Join(api.GetPiAppsDir(), "apps", item.AppName, "icon-64.png")
 				if _, err := os.Stat(iconPath); os.IsNotExist(err) {
-					iconPath = filepath.Join(os.Getenv("PI_APPS_DIR"), "icons", "none-64.png")
+					iconPath = filepath.Join(api.GetPiAppsDir(), "icons", "none-64.png")
 				}
 			}
 		}

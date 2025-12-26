@@ -150,7 +150,7 @@ func ValidateAppsGUI(queue []QueueItem) ([]QueueItem, error) {
 	}
 
 	// Get Pi-Apps directory
-	piAppsDir := getPiAppsDir()
+	piAppsDir := api.GetPiAppsDir()
 	if piAppsDir == "" {
 		return nil, fmt.Errorf("PI_APPS_DIR environment variable not set")
 	}
@@ -275,7 +275,7 @@ func ProgressMonitorWithOptions(queue []QueueItem, daemonMode bool) error {
 	win.SetBorderWidth(5) // Reduced border width
 
 	// Set window icon
-	icon, err := gdk.PixbufNewFromFile(filepath.Join(getPiAppsDir(), "icons", "logo.png"))
+	icon, err := gdk.PixbufNewFromFile(filepath.Join(api.GetPiAppsDir(), "icons", "logo.png"))
 	if err == nil {
 		win.SetIcon(icon)
 	}
@@ -429,7 +429,7 @@ func ProgressMonitorWithOptions(queue []QueueItem, daemonMode bool) error {
 		currentQueue := queue // Default to original queue
 		if daemonMode {
 			// Try to read from a well-known status file location
-			piAppsDir := getPiAppsDir()
+			piAppsDir := api.GetPiAppsDir()
 			statusFile := filepath.Join(piAppsDir, "data", "manage-daemon", "status")
 			if updatedQueue, err := readQueueFromStatusFile(statusFile); err == nil && len(updatedQueue) > 0 {
 				currentQueue = updatedQueue
@@ -537,7 +537,7 @@ func ShowSummaryDialog(completedQueue []QueueItem) error {
 	win.SetResizable(true)
 
 	// Set window icon
-	icon, err := gdk.PixbufNewFromFile(filepath.Join(getPiAppsDir(), "icons", "logo.png"))
+	icon, err := gdk.PixbufNewFromFile(filepath.Join(api.GetPiAppsDir(), "icons", "logo.png"))
 	if err == nil {
 		win.SetIcon(icon)
 	}
@@ -775,7 +775,7 @@ func ShowBrokenPackagesDialog() (string, error) {
 	dialog.SetPosition(gtk.WIN_POS_CENTER)
 
 	// Set dialog icon
-	icon, err := gdk.PixbufNewFromFile(filepath.Join(getPiAppsDir(), "icons", "logo.png"))
+	icon, err := gdk.PixbufNewFromFile(filepath.Join(api.GetPiAppsDir(), "icons", "logo.png"))
 	if err == nil {
 		dialog.SetIcon(icon)
 	}
@@ -823,7 +823,7 @@ func ShowBrokenPackagesDialog() (string, error) {
 
 // getIconPath ensures icon paths are correctly resolved
 func getIconPath(iconName string) string {
-	piAppsDir := getPiAppsDir()
+	piAppsDir := api.GetPiAppsDir()
 
 	// If iconName is empty, return default icon immediately
 	if iconName == "" {
@@ -1378,7 +1378,7 @@ func showUpdateConfirmDialog(appName, scriptName string) bool {
 	contentArea.Add(hbox)
 
 	// Get Pi-Apps directory for icon paths
-	piAppsDir := getPiAppsDir()
+	piAppsDir := api.GetPiAppsDir()
 
 	// Add "I know what I am doing" button with right arrow icon
 	button1, err := gtk.ButtonNewWithLabel(api.T("I know what I am doing, Install current version"))
@@ -1429,7 +1429,7 @@ func showUpdateConfirmDialog(appName, scriptName string) bool {
 
 // getAppIconPath returns the path to the app's icon
 func getAppIconPath(appName string) string {
-	piAppsDir := getPiAppsDir()
+	piAppsDir := api.GetPiAppsDir()
 	icon64Path := filepath.Join(piAppsDir, "apps", appName, "icon-64.png")
 	if fileExists(icon64Path) {
 		return icon64Path
@@ -1452,24 +1452,9 @@ func capitalize(s string) string {
 	return strings.ToUpper(s[:1]) + s[1:]
 }
 
-// getPiAppsDir returns the Pi-Apps directory from environment variable
-func getPiAppsDir() string {
-	piAppsDir := os.Getenv("PI_APPS_DIR")
-	if piAppsDir == "" {
-		// Default to a reasonable location if env var not set
-		homeDir, err := os.UserHomeDir()
-		if err == nil {
-			piAppsDir = filepath.Join(homeDir, "pi-apps")
-		} else {
-			piAppsDir = "/home/pi/pi-apps"
-		}
-	}
-	return piAppsDir
-}
-
 // getAppStatus returns the current status of an app (installed, uninstalled, corrupted, etc.)
 func getAppStatus(appName string) string {
-	statusFile := filepath.Join(getPiAppsDir(), "data", "status", appName)
+	statusFile := filepath.Join(api.GetPiAppsDir(), "data", "status", appName)
 	content, err := os.ReadFile(statusFile)
 	if err != nil {
 		return "uninstalled" // Default to uninstalled if status file doesn't exist
@@ -1508,7 +1493,7 @@ func filesMatch(file1, file2 string) bool {
 
 // getInstallScriptName determines which install script to use for an app
 func getInstallScriptName(appName string) string {
-	piAppsDir := getPiAppsDir()
+	piAppsDir := api.GetPiAppsDir()
 	appDir := filepath.Join(piAppsDir, "apps", appName)
 
 	// Check available scripts

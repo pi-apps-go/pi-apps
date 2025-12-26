@@ -1232,7 +1232,7 @@ func UnzipWithArgs(args ...string) error {
 // GetPiAppIcon returns the path to an app's icon file (icon-64.png)
 // Returns the full path to the icon file, or an error if not found
 func GetPiAppIcon(appName string) (string, error) {
-	piAppsDir := getPiAppsDir()
+	piAppsDir := GetPiAppsDir()
 	iconPath := filepath.Join(piAppsDir, "apps", appName, "icon-64.png")
 
 	// Check if the icon file exists
