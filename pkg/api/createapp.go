@@ -33,6 +33,7 @@ import (
 	"github.com/gotk3/gotk3/glib"
 	"github.com/gotk3/gotk3/gtk"
 	"github.com/gotk3/gotk3/pango"
+	"github.com/toqueteos/webbrowser"
 )
 
 // commandExists checks if a command is available in the system PATH
@@ -2388,7 +2389,8 @@ func showSuccessDialog(appName string, piAppsDir string) {
 	// Handle link clicking - simplified to just open the URL when clicked
 	textView.Connect("button-release-event", func(tv *gtk.TextView, event *gdk.Event) {
 		// Simply open the URL when clicked
-		exec.Command("xdg-open", "https://github.com/pi-apps-go/pi-apps/issues/new/choose").Start()
+		account, repo := GetGitUrl()
+		webbrowser.Open(fmt.Sprintf("https://github.com/%s/%s/issues/new/choose", account, repo))
 	})
 
 	response := dialog.Run()

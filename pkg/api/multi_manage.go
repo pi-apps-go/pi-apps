@@ -37,7 +37,7 @@ func MultiInstallGUI() error {
 	gtk.Init(nil)
 
 	// Get PI_APPS_DIR environment variable
-	piAppsDir := os.Getenv("PI_APPS_DIR")
+	piAppsDir := GetPiAppsDir()
 	if piAppsDir == "" {
 		return fmt.Errorf("PI_APPS_DIR environment variable not set")
 	}
@@ -393,7 +393,7 @@ func MultiUninstallGUI() error {
 	gtk.Init(nil)
 
 	// Get PI_APPS_DIR environment variable
-	piAppsDir := os.Getenv("PI_APPS_DIR")
+	piAppsDir := GetPiAppsDir()
 	if piAppsDir == "" {
 		return fmt.Errorf("PI_APPS_DIR environment variable not set")
 	}

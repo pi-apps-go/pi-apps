@@ -105,7 +105,8 @@ func IsSystemSupported() (*SystemSupportStatus, error) {
 	// Note: This check is currently being marked as supported as there are plans for Alpine Linux to be supported in Pi-Apps Go.
 	if isMuslSystem() {
 		//status.IsSupported = false
-		Warning("While Pi-Apps Go (and the Go ecosystem in general) is meant to be portable, you are running a system with non-glibc C library (like musl). Many apps, especially Electron-based ones, will fail to run properly without a glibc-based compatibility layer. Pi-Apps will automatically hide apps that are proven to be broken on non-glibc systems even with a glibc compatiblity layer.")
+		Warning("While Pi-Apps Go (and the Go ecosystem in general) is meant to be portable, you are running a system with non-glibc C library (like musl). Many apps, especially Electron-based ones, will fail to run properly without a glibc-based compatibility layer or a custom build of Electron with musl libc support (like the ones provided by upstream Alpine repositories). Pi-Apps will automatically hide apps that don't have musl builds or don't work with a glibc compatiblity layer.")
+		status.Message = "Running a non-glibc C library, will hide apps that don't support musl."
 		//return status, nil
 	}
 
@@ -128,9 +129,9 @@ func IsSystemSupported() (*SystemSupportStatus, error) {
 	// Pi-Apps Go does not use any shell commands because this is a rewrite, so checking for BusyBox commands is not needed.
 	// TODO: Remove the check for BusyBox commands once Pi-Apps Go ditches the use of shell specific commands.
 	if busyboxIssue := checkBusyBoxIssue(); busyboxIssue != "" {
-		status.IsSupported = false
-		status.Message = busyboxIssue
-		return status, nil
+		// We are not using shell commands that are affected by BusyBox issues.
+		//status.Message = busyboxIssue
+		//return status, nil
 	}
 
 	// Check OS version

@@ -37,11 +37,7 @@ import (
 //	corrupted - app is corrupted
 //	disabled - app is disabled
 func GetAppStatus(app string) (string, error) {
-	if app == "" {
-		return "", fmt.Errorf("app_status(): requires an argument")
-	}
-
-	directory := os.Getenv("PI_APPS_DIR")
+	directory := GetPiAppsDir()
 	if directory == "" {
 		return "", fmt.Errorf("PI_APPS_DIR environment variable not set")
 	}
@@ -84,11 +80,7 @@ func GetAppStatus(app string) (string, error) {
 //	standard - app is a standard app
 //	package - app is a package app
 func AppType(app string) (string, error) {
-	if app == "" {
-		return "", fmt.Errorf("app_type(): no app specified")
-	}
-
-	directory := os.Getenv("PI_APPS_DIR")
+	directory := GetPiAppsDir()
 	if directory == "" {
 		return "", fmt.Errorf("PI_APPS_DIR environment variable not set")
 	}
@@ -127,11 +119,7 @@ func AppType(app string) (string, error) {
 //	packages - packages required for installation
 //	error - error if packages file does not exist
 func PkgAppPackagesRequired(app string) (string, error) {
-	if app == "" {
-		return "", fmt.Errorf("pkgapp_packages_required(): no app specified")
-	}
-
-	directory := os.Getenv("PI_APPS_DIR")
+	directory := GetPiAppsDir()
 	if directory == "" {
 		return "", fmt.Errorf("PI_APPS_DIR environment variable not set")
 	}
@@ -218,7 +206,7 @@ func PkgAppPackagesRequired(app string) (string, error) {
 //	[]string - list of apps
 //	error - error if PI_APPS_DIR environment variable is not set
 func ListAppsMissingDummyDebs() ([]string, error) {
-	directory := os.Getenv("PI_APPS_DIR")
+	directory := GetPiAppsDir()
 	if directory == "" {
 		return nil, fmt.Errorf("PI_APPS_DIR environment variable not set")
 	}

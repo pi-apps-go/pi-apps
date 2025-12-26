@@ -119,14 +119,21 @@ func GetDeviceInfo() (string, error) {
 	// Get Pi-Apps information
 	piAppsDir := os.Getenv("PI_APPS_DIR") // Pi-Apps directory environment variable
 	if piAppsDir != "" && fileExists(piAppsDir) {
-		// Get last local update date
-		cmd := exec.Command("bash", "-c",
-			fmt.Sprintf(`cd "%s" && git show -s --format="%%ad" --date=short | xargs date +%%x -d`, piAppsDir))
+		// Get last local update date using Go-native parsing
+		cmd := exec.Command("git", "-C", piAppsDir, "show", "-s", `--format=%ad`, "--date=short")
 		output, err := cmd.Output()
 		if err == nil && len(output) > 0 {
-			localUpdateDate := strings.TrimSpace(string(output))
-			if localUpdateDate != "" {
-				info.WriteString("Last updated Pi-Apps on: " + localUpdateDate + "\n")
+			commitDate := strings.TrimSpace(string(output))
+			if commitDate != "" {
+				// commitDate should be in format YYYY-MM-DD
+				parsedTime, err := time.Parse("2006-01-02", commitDate)
+				if err == nil {
+					// Format to system default short date (as xargs date +%x would do)
+					localUpdateDate := parsedTime.Format("01/02/2006")
+					info.WriteString("Last updated Pi-Apps on: " + localUpdateDate + "\n")
+				} else {
+					info.WriteString("Last updated Pi-Apps on: " + commitDate + "\n")
+				}
 			}
 		}
 
@@ -435,18 +442,24 @@ func SendErrorReport(logfilePath string) (string, error) {
 	return "Error report sent successfully!", nil
 }
 
-// fileContainsPattern checks if a file contains a given pattern
+// fileContainsPattern checks if a file contains a given pattern using Go's native library functions
 func fileContainsPattern(filePath, pattern string) (bool, error) {
-	// Use grep to check if the file contains the pattern
-	cmd := exec.Command("grep", pattern, filePath)
-	if err := cmd.Run(); err != nil {
-		// grep returns exit code 1 if the pattern is not found, which is not an error for us
-		if exitErr, ok := err.(*exec.ExitError); ok && exitErr.ExitCode() == 1 {
-			return false, nil
-		}
+	file, err := os.Open(filePath)
+	if err != nil {
 		return false, err
 	}
-	return true, nil
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		if strings.Contains(scanner.Text(), pattern) {
+			return true, nil
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		return false, err
+	}
+	return false, nil
 }
 
 // Helper function to run shell commands

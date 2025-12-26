@@ -33,11 +33,6 @@ import (
 
 // FlatpakInstall installs an app using flatpak
 func FlatpakInstall(app string) error {
-	if app == "" {
-		Error("flatpak_install(): This function is used to install a flatpak app, but nothing was specified")
-		return fmt.Errorf("flatpak_install(): This function is used to install a flatpak app, but nothing was specified")
-	}
-
 	// Check if flatpak is installed
 	if _, err := exec.LookPath("flatpak"); err != nil {
 		// Try to install flatpak using APK
@@ -139,11 +134,6 @@ func FlatpakInstall(app string) error {
 
 // FlatpakUninstall uninstalls an app using flatpak
 func FlatpakUninstall(app string) error {
-	if app == "" {
-		Error("flatpak_uninstall(): This function is used to uninstall a flatpak app, but nothing was specified")
-		return fmt.Errorf("flatpak_uninstall(): This function is used to uninstall a flatpak app, but nothing was specified")
-	}
-
 	// Check if flatpak is installed
 	if _, err := exec.LookPath("flatpak"); err != nil {
 		// If flatpak is not installed, return success

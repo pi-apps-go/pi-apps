@@ -135,6 +135,8 @@ func main() {
 		fmt.Println("  native       Same as gtk")
 		fmt.Println("  yad-default  YAD-based interface (compatibility, deprecated)")
 		fmt.Println("  xlunch-dark  XLunch dark theme")
+		fmt.Println("  preload-daemon       Start the preload daemon to refresh the app list and continue running")
+		fmt.Println("  preload-daemon-once  Start the preload daemon to refresh the app list only once")
 		fmt.Println()
 		return
 	}

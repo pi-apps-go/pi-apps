@@ -35,15 +35,8 @@ import (
 // This implementation uses the govips library for image processing and preserves the original aspect ratio
 // of the image when resizing, similar to how ImageMagick would handle it in the bash implementation
 func GenerateAppIcons(iconPath, appName string) error {
-	if iconPath == "" {
-		return fmt.Errorf("generate_app_icons(): icon field empty")
-	}
-	if appName == "" {
-		return fmt.Errorf("generate_app_icons(): app field empty")
-	}
-
 	// Get the PI_APPS_DIR environment variable
-	directory := os.Getenv("PI_APPS_DIR")
+	directory := GetPiAppsDir()
 	if directory == "" {
 		return fmt.Errorf("PI_APPS_DIR environment variable not set")
 	}
@@ -144,10 +137,6 @@ func GenerateAppIcons(iconPath, appName string) error {
 //
 // # If a package is not available, mark the app as hidden
 func RefreshPkgAppStatus(appName string, packageName string) error {
-	if appName == "" {
-		return fmt.Errorf("refresh_pkgapp_status(): no app specified")
-	}
-
 	// Get the PI_APPS_DIR environment variable
 	directory := os.Getenv("PI_APPS_DIR")
 	if directory == "" {
@@ -299,7 +288,7 @@ func RefreshAppList() error {
 		return fmt.Errorf("app list style setting not found")
 	}
 
-	guiMode, err := os.ReadFile(guiModeFile)
+	_, err := os.ReadFile(guiModeFile)
 	if err != nil {
 		return fmt.Errorf("error reading app list style: %w", err)
 	}
@@ -312,18 +301,17 @@ func RefreshAppList() error {
 	}
 
 	// Run the preload-daemon
-	cmd := exec.Command(filepath.Join(directory, "etc", "preload-daemon"),
-		string(guiMode), "once")
+	cmd := exec.Command(filepath.Join(directory, "gui"),
+		"-mode", "preload-daemon-once")
 	cmd.Stdout = nil // Discard output
 	cmd.Stderr = nil
 
-	err = cmd.Start()
+	err = cmd.Run()
 	if err != nil {
-		return fmt.Errorf("error starting preload-daemon: %w", err)
+		return fmt.Errorf("error running preload-daemon: %w", err)
 	}
 
-	// We don't wait for the command to complete, as it's running in the background
-	DebugT("Preload daemon started to refresh app list")
+	DebugT("Preload daemon completed to refresh app list")
 
 	return nil
 }

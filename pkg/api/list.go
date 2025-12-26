@@ -35,7 +35,7 @@ import (
 // online, online_only, local, local_only, all, package, standard, have_status, missing_status, disabled
 func ListApps(filter string) ([]string, error) {
 	// Get the directory from environment variable
-	directory := os.Getenv("PI_APPS_DIR")
+	directory := GetPiAppsDir()
 	if directory == "" {
 		return nil, fmt.Errorf("PI_APPS_DIR environment variable not set")
 	}
@@ -708,7 +708,7 @@ func getSystemArchitecture() string {
 		switch arch {
 		case "aarch64", "arm64", "x86_64", "amd64", "riscv64":
 			return "64"
-		case "armv7l", "armv6l", "i386", "i686", "armhf":
+		case "armv7l", "armv6l", "i386", "i686", "armhf", "riscv32":
 			return "32"
 		}
 	}

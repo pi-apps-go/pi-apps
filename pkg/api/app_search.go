@@ -36,10 +36,6 @@ import (
 //	true - app will be reinstalled
 //	error - error if app is not specified
 func WillReinstall(app string) (bool, error) {
-	if app == "" {
-		return false, fmt.Errorf("will_reinstall(): requires an argument")
-	}
-
 	// Get environment variables
 	directory := os.Getenv("PI_APPS_DIR")
 	if directory == "" {
@@ -164,11 +160,7 @@ func filesMatch(file1, file2 string) (bool, error) {
 //	[]string - list of apps
 //	error - error if query is not specified
 func AppSearch(query string, searchFiles ...string) ([]string, error) {
-	if query == "" {
-		return nil, fmt.Errorf("app_search(): requires a search query")
-	}
-
-	directory := os.Getenv("PI_APPS_DIR")
+	directory := GetPiAppsDir()
 	if directory == "" {
 		return nil, fmt.Errorf("PI_APPS_DIR environment variable not set")
 	}
@@ -328,7 +320,7 @@ func listAppDirs(directory string) []string {
 //	"" - no app selected
 //	error - error if GTK is not initialized
 func AppSearchGUI() (string, error) {
-	directory := os.Getenv("PI_APPS_DIR")
+	directory := GetPiAppsDir()
 	if directory == "" {
 		return "", fmt.Errorf("PI_APPS_DIR environment variable not set")
 	}

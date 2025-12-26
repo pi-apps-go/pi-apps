@@ -55,7 +55,7 @@ func ViewFile(filePath string) error {
 	win.SetPosition(gtk.WIN_POS_CENTER)
 
 	// Try to get the Pi-Apps directory for icons
-	piAppsDir := os.Getenv("PI_APPS_DIR")
+	piAppsDir := GetPiAppsDir()
 	if piAppsDir != "" {
 		// Use different icons based on whether it's a log file or other file
 		var iconPath string
@@ -167,11 +167,6 @@ func ViewFile(filePath string) error {
 	gtk.Main()
 
 	return nil
-}
-
-// ViewLog is an alias for ViewFile to maintain API compatibility
-func ViewLog(logfilePath string) error {
-	return ViewFile(logfilePath)
 }
 
 // isLogFile checks if a file is likely a log file based on its name

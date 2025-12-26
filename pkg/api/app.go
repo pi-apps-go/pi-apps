@@ -43,12 +43,8 @@ func getManageBinary(directory string) (string, []string) {
 // AppStatus returns the current status of an app: installed, uninstalled, etc.
 // It also handles deprecated apps that may have been removed from the apps directory
 func AppStatus(app string) (string, error) {
-	if app == "" {
-		return "", fmt.Errorf("app_status: no app specified")
-	}
-
 	// Get the Pi-Apps directory
-	directory := os.Getenv("PI_APPS_DIR")
+	directory := GetPiAppsDir()
 	if directory == "" {
 		// Default to the parent of the parent directory
 		currentDir, err := os.Getwd()
@@ -167,7 +163,7 @@ func IsDeprecatedApp(app string) bool {
 
 // GetDeprecatedAppUninstallScript returns the path to the stored uninstall script for a deprecated app
 func GetDeprecatedAppUninstallScript(app string) (string, error) {
-	directory := os.Getenv("PI_APPS_DIR")
+	directory := GetPiAppsDir()
 	if directory == "" {
 		currentDir, err := os.Getwd()
 		if err != nil {
@@ -185,7 +181,7 @@ func GetDeprecatedAppUninstallScript(app string) (string, error) {
 // GetDeprecatedAppIcon returns the path to the stored icon for a deprecated app
 // Returns icon-64.png if available, otherwise icon-24.png, or empty string if neither exists
 func GetDeprecatedAppIcon(app string) string {
-	directory := os.Getenv("PI_APPS_DIR")
+	directory := GetPiAppsDir()
 	if directory == "" {
 		currentDir, err := os.Getwd()
 		if err != nil {
@@ -207,7 +203,7 @@ func GetDeprecatedAppIcon(app string) string {
 // removeDeprecatedAppEntries removes the deprecated app directory and all its contents
 // This should be called after a deprecated app is successfully uninstalled
 func removeDeprecatedAppEntries(app string) error {
-	directory := os.Getenv("PI_APPS_DIR")
+	directory := GetPiAppsDir()
 	if directory == "" {
 		currentDir, err := os.Getwd()
 		if err != nil {
@@ -234,12 +230,8 @@ func removeDeprecatedAppEntries(app string) error {
 // This is a Go implementation of the original bash remove_deprecated_app function
 // It now stores the uninstall script and icons so the app can be uninstalled later
 func RemoveDeprecatedApp(app, removalArch, message string) error {
-	if app == "" {
-		return fmt.Errorf("remove_deprecated_app(): requires a pi-apps app name")
-	}
-
 	// Get the Pi-Apps directory
-	directory := os.Getenv("PI_APPS_DIR")
+	directory := GetPiAppsDir()
 	if directory == "" {
 		// Default to the parent of the parent directory
 		currentDir, err := os.Getwd()
@@ -344,10 +336,6 @@ func RemoveDeprecatedApp(app, removalArch, message string) error {
 // TerminalManage is a wrapper for executing app management actions
 // This is a Go implementation of the original bash terminal_manage function
 func TerminalManage(action, app string) error {
-	if action == "" {
-		return fmt.Errorf("terminal_manage(): Must specify an action: either 'install' or 'uninstall' or 'update' or 'refresh'")
-	}
-
 	// Forward to the multi-version with a single action
 	return TerminalManageMulti(fmt.Sprintf("%s %s", action, app))
 }
@@ -356,7 +344,7 @@ func TerminalManage(action, app string) error {
 // This is a Go implementation of the original bash terminal_manage_multi function
 func TerminalManageMulti(queue string) error {
 	// Get the Pi-Apps directory
-	directory := os.Getenv("PI_APPS_DIR")
+	directory := GetPiAppsDir()
 	if directory == "" {
 		// Default to the parent of the parent directory
 		currentDir, err := os.Getwd()
@@ -448,8 +436,8 @@ func TerminalManageMulti(queue string) error {
 
 			style := string(styleBytes)
 
-			// Reload the app list via the preload script
-			preloadCmd := exec.Command(filepath.Join(directory, "preload"), style, prefix)
+			// Reload the app list via the gui
+			preloadCmd := exec.Command(filepath.Join(directory, "gui"), "-mode", "preload-daemon-once", style, prefix)
 			preloadOutput, err := preloadCmd.Output()
 			if err != nil {
 				return fmt.Errorf("terminal_manage_multi: failed to run preload: %w", err)
@@ -467,11 +455,7 @@ func TerminalManageMulti(queue string) error {
 
 // RefreshApp refreshes an app by copying its files from the update directory to the main directory
 func RefreshApp(app string) error {
-	if app == "" {
-		return fmt.Errorf("refresh_app(): no app specified")
-	}
-
-	directory := os.Getenv("PI_APPS_DIR")
+	directory := GetPiAppsDir()
 	if directory == "" {
 		return fmt.Errorf("PI_APPS_DIR environment variable not set")
 	}
@@ -532,11 +516,7 @@ func RefreshApp(app string) error {
 
 // UpdateFile updates a specific file in the Pi-Apps system
 func UpdateFile(filePath string) error {
-	if filePath == "" {
-		return fmt.Errorf("update_file(): no file specified")
-	}
-
-	directory := os.Getenv("PI_APPS_DIR")
+	directory := GetPiAppsDir()
 	if directory == "" {
 		return fmt.Errorf("PI_APPS_DIR environment variable not set")
 	}

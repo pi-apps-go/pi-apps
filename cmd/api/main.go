@@ -356,7 +356,7 @@ func main() {
 		}
 
 		// Open file viewer
-		err := api.ViewLog(args[0])
+		err := api.ViewFile(args[0])
 		if err != nil {
 			api.ErrorT(api.Tf("Error viewing file: %v", err))
 		}
@@ -465,7 +465,7 @@ func main() {
 			case "send":
 				logfilePath := api.GetLogfile(result.AppName)
 				fmt.Printf("Sending error report for %s...\n", result.AppName)
-				response, err := api.ProcessSendErrorReport(logfilePath)
+				response, err := api.SendErrorReport(logfilePath)
 				if err != nil {
 					api.ErrorT(api.Tf("Error sending report: %s", err))
 				} else {
@@ -1051,7 +1051,7 @@ func main() {
 			os.Exit(1)
 		}
 
-		if err := api.BitlyLink(args[0], args[1]); err != nil {
+		if err := api.ShlinkLink(args[0], args[1]); err != nil {
 			api.ErrorT(api.Tf("Error: %v", err))
 		}
 
@@ -1591,7 +1591,6 @@ func main() {
 		if err != nil {
 			api.ErrorT(api.Tf("Error: %v", err))
 		}
-
 	// Plugin system commands have been removed - plugins are now build-time only
 
 	// All plugin commands have been removed - plugins are now build-time only

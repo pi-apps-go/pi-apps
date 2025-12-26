@@ -333,7 +333,7 @@ func runAPI() {
 		}
 
 		// Open file viewer
-		err := api.ViewLog(args[0])
+		err := api.ViewFile(args[0])
 		if err != nil {
 			api.ErrorT(api.Tf("Error viewing file: %v", err))
 		}
@@ -442,7 +442,7 @@ func runAPI() {
 			case "send":
 				logfilePath := api.GetLogfile(result.AppName)
 				fmt.Printf("Sending error report for %s...\n", result.AppName)
-				response, err := api.ProcessSendErrorReport(logfilePath)
+				response, err := api.SendErrorReport(logfilePath)
 				if err != nil {
 					api.ErrorT(api.Tf("Error sending report: %s", err))
 				} else {
@@ -1028,7 +1028,7 @@ func runAPI() {
 			os.Exit(1)
 		}
 
-		if err := api.BitlyLink(args[0], args[1]); err != nil {
+		if err := api.ShlinkLink(args[0], args[1]); err != nil {
 			api.ErrorT(api.Tf("Error: %v", err))
 		}
 

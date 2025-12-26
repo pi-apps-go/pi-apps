@@ -30,7 +30,7 @@ import (
 // RunWithScriptWrappers runs a command with the API bash wrapper loaded
 func RunWithScriptWrappers(cmd *exec.Cmd) error {
 	// Get PI_APPS_DIR environment variable
-	piAppsDir := os.Getenv("PI_APPS_DIR")
+	piAppsDir := GetPiAppsDir()
 	if piAppsDir == "" {
 		return fmt.Errorf("PI_APPS_DIR environment variable not set")
 	}

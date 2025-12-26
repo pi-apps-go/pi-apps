@@ -33,6 +33,8 @@ import (
 	"syscall"
 	"time"
 
+	"net/http"
+
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 )
@@ -74,7 +76,7 @@ func (w *AnsiStripWriter) Write(p []byte) (n int, err error) {
 // ManageApp handles installation, uninstallation, or updating of an app
 func ManageApp(action Action, appName string, isUpdate bool) error {
 	// Get PI_APPS_DIR environment variable
-	piAppsDir := os.Getenv("PI_APPS_DIR")
+	piAppsDir := GetPiAppsDir()
 	if piAppsDir == "" {
 		return fmt.Errorf("PI_APPS_DIR environment variable not set")
 	}
@@ -520,16 +522,23 @@ func InstallIfNotInstalled(appName string) error {
 
 // CheckInternetConnection checks if the internet is available
 func CheckInternetConnection() error {
-	cmd := exec.Command("wget", "--spider", "https://github.com")
-	if err := cmd.Run(); err != nil {
+	client := &http.Client{
+		Timeout: 5 * time.Second,
+	}
+	resp, err := client.Get("https://github.com")
+	if err != nil {
 		return fmt.Errorf("github.com failed to respond: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 400 {
+		return fmt.Errorf("github.com returned status: %s", resp.Status)
 	}
 	return nil
 }
 
 // SetAppStatus sets the status of an app (installed, uninstalled, corrupted, disabled)
 func SetAppStatus(appName, status string) error {
-	piAppsDir := os.Getenv("PI_APPS_DIR")
+	piAppsDir := GetPiAppsDir()
 	if piAppsDir == "" {
 		return fmt.Errorf("PI_APPS_DIR environment variable not set")
 	}
@@ -555,7 +564,7 @@ func RefreshPackageAppStatus(appName string) error {
 
 	// Check if all packages are installed
 	allInstalled := true
-	for _, pkg := range strings.Fields(packages) {
+	for pkg := range strings.FieldsSeq(packages) {
 		if !PackageInstalled(pkg) {
 			allInstalled = false
 			break
@@ -600,7 +609,7 @@ func RefreshFlatpakAppStatus(appName string) error {
 
 // GetScriptNameForCPU determines which install script to use based on the current CPU architecture
 func GetScriptNameForCPU(appName string) string {
-	piAppsDir := os.Getenv("PI_APPS_DIR")
+	piAppsDir := GetPiAppsDir()
 	if piAppsDir == "" {
 		return ""
 	}
@@ -640,15 +649,11 @@ func GetScriptNameForCPU(appName string) string {
 
 // Is64BitOS checks if the current OS is 64-bit
 func Is64BitOS() bool {
-	// Run 'uname -m' to get architecture
-	cmd := exec.Command("uname", "-m")
-	output, err := cmd.Output()
+	arch, err := GetSystemArchitecture()
 	if err != nil {
 		return false
 	}
-
-	arch := strings.TrimSpace(string(output))
-	return strings.HasSuffix(arch, "64") || arch == "aarch64"
+	return arch == "aarch64" || arch == "x86_64" || arch == "amd64" || arch == "riscv64"
 }
 
 // IsSystemSupportedMessage returns a message explaining why the system might not be supported
@@ -759,10 +764,10 @@ func uninstallFlatpakApp(appName string) error {
 	}
 
 	packageList := strings.TrimSpace(string(packageListBytes))
-	packages := strings.Fields(packageList)
+	packages := strings.FieldsSeq(packageList)
 
 	// Uninstall each flatpak package
-	for _, pkg := range packages {
+	for pkg := range packages {
 		if err := FlatpakUninstall(pkg); err != nil {
 			return fmt.Errorf("failed to uninstall flatpak package %s: %v", pkg, err)
 		}
@@ -819,7 +824,8 @@ func runAppScript(appName, scriptName string) error {
 	// Check if script exists
 	if _, err := os.Stat(scriptPath); err != nil {
 		// For uninstall scripts, check if this is a deprecated app with stored uninstall script
-		if scriptName == "uninstall" {
+		switch scriptName {
+		case "uninstall":
 			if IsDeprecatedApp(appName) {
 				storedScript, err := GetDeprecatedAppUninstallScript(appName)
 				if err == nil {
@@ -830,7 +836,7 @@ func runAppScript(appName, scriptName string) error {
 			} else {
 				return fmt.Errorf("uninstall script does not exist for app '%s'", appName)
 			}
-		} else if scriptName == "install" {
+		case "install":
 			// If specific script doesn't exist, try architecture-specific versions for install
 			// Check for install-32 and install-64
 			install32Path := filepath.Join(getPiAppsDir(), "apps", appName, "install-32")
@@ -866,7 +872,7 @@ func runAppScript(appName, scriptName string) error {
 			} else {
 				return fmt.Errorf("unsupported architecture: %s", arch)
 			}
-		} else {
+		default:
 			return fmt.Errorf("%s script does not exist for app '%s'", scriptName, appName)
 		}
 	}

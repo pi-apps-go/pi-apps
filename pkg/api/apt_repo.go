@@ -28,6 +28,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 )
 
@@ -38,16 +39,6 @@ import (
 //	true - at least one package is installed from the repository
 //	error - error if repository URI, suite, or component is not specified
 func AnythingInstalledFromURISuiteComponent(uri, suite, component string) (bool, error) {
-	if uri == "" {
-		Error("AnythingInstalledFromURISuiteComponent: A repository uri must be specified.")
-		return false, fmt.Errorf("repository uri must be specified")
-	}
-
-	if suite == "" {
-		Error("AnythingInstalledFromURISuiteComponent: A repository suite must be specified.")
-		return false, fmt.Errorf("repository suite must be specified")
-	}
-
 	Debug(fmt.Sprintf("Checking if anything is installed from %s %s %s", uri, suite, component))
 
 	// Clean URI by removing protocol and trailing slashes
@@ -98,7 +89,7 @@ func AnythingInstalledFromURISuiteComponent(uri, suite, component string) (bool,
 		// Find intersection of installed packages and packages in repo
 		var packagesToCheck []string
 		for _, pkg := range packagesInRepo {
-			if contains(installedPackages, pkg) {
+			if slices.Contains(installedPackages, pkg) {
 				packagesToCheck = append(packagesToCheck, pkg)
 			}
 		}
@@ -127,11 +118,6 @@ func AnythingInstalledFromURISuiteComponent(uri, suite, component string) (bool,
 //
 //	error - error if file is not specified or testMode is not "test"
 func RemoveRepofileIfUnused(file, testMode, key string) error {
-	if file == "" {
-		Error("RemoveRepofileIfUnused: no sources.list.d file specified!")
-		return fmt.Errorf("no sources.list.d file specified")
-	}
-
 	// Return if the file does not exist
 	if _, err := os.Stat(file); os.IsNotExist(err) {
 		return nil
@@ -459,14 +445,4 @@ func checkIfPackagesInstalledFromRepo(packages []string, uri, suite, component s
 	}
 
 	return false, nil
-}
-
-// Helper function to check if a slice contains a string
-func contains(slice []string, item string) bool {
-	for _, s := range slice {
-		if s == item {
-			return true
-		}
-	}
-	return false
 }

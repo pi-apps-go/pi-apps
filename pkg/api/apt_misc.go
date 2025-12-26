@@ -537,10 +537,6 @@ func checkBrokenPackages() (string, error) {
 // EnableModule ensures a kernel module is loaded and configured to load on system startup
 // It's a Go implementation of the shell 'enable_module' function
 func EnableModule(moduleName string) error {
-	if moduleName == "" {
-		return fmt.Errorf("module name must be specified")
-	}
-
 	// Special handling for the fuse module
 	if moduleName == "fuse" {
 		// Get the app variable, if we're in an app installation context

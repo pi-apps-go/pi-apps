@@ -259,16 +259,6 @@ func AddEnglish() {
 //	false - package is not new enough
 //	true - package is new enough
 func PackageIsNewEnough(packageName, compareVersion string) bool {
-	if packageName == "" {
-		Error("PackageIsNewEnough(): no package specified!")
-		return false
-	}
-
-	if compareVersion == "" {
-		Error("PackageIsNewEnough(): no comparison version number specified!")
-		return false
-	}
-
 	// Get the latest available version
 	packageVersion, err := PackageLatestVersion(packageName)
 	if err != nil || packageVersion == "" {
@@ -334,13 +324,6 @@ func extractNumber(s string) int {
 
 // DownloadFile downloads a file from URL to destination
 func DownloadFile(url, destination string) error {
-	if url == "" {
-		return fmt.Errorf("no URL specified")
-	}
-	if destination == "" {
-		return fmt.Errorf("no destination specified")
-	}
-
 	// Create the destination directory if it doesn't exist
 	dir := filepath.Dir(destination)
 	if err := os.MkdirAll(dir, 0755); err != nil {
@@ -429,42 +412,10 @@ func CopyFile(src, dst string) error {
 	return nil
 }
 
-// GetCommandOutput executes a command and returns its output
-func GetCommandOutput(command string, args ...string) (string, error) {
-	cmd := exec.Command(command, args...)
-	output, err := cmd.Output()
-	if err != nil {
-		return "", err
-	}
-	return strings.TrimSpace(string(output)), nil
-}
-
-// RunCommand executes a command and returns its exit code
-func RunCommand(command string, args ...string) int {
-	cmd := exec.Command(command, args...)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	err := cmd.Run()
-
-	if err != nil {
-		if exitError, ok := err.(*exec.ExitError); ok {
-			return exitError.ExitCode()
-		}
-		ErrorNoExitT("Failed to execute command: %v", err)
-		return 1
-	}
-
-	return 0
-}
-
 // EnsureDir ensures a directory exists, creating it if necessary
 //
 //	error - error if path is not specified
 func EnsureDir(path string) error {
-	if path == "" {
-		return fmt.Errorf("no path specified")
-	}
-
 	if DirExists(path) {
 		return nil
 	}

@@ -32,7 +32,7 @@ import (
 // UserCount returns number of users for specified app
 // If app is empty, returns the entire clicklist
 func UserCount(app string) (string, error) {
-	directory := os.Getenv("PI_APPS_DIR")
+	directory := GetPiAppsDir()
 	if directory == "" {
 		return "", fmt.Errorf("PI_APPS_DIR environment variable not set")
 	}
@@ -123,11 +123,7 @@ func UserCount(app string) (string, error) {
 // ScriptName returns name of install script(s) for the specified app
 // Outputs: "", 'install-32', 'install-64', 'install', 'install-32 install-64'
 func ScriptName(app string) (string, error) {
-	if app == "" {
-		return "", fmt.Errorf("script_name(): requires an argument")
-	}
-
-	directory := os.Getenv("PI_APPS_DIR")
+	directory := GetPiAppsDir()
 	if directory == "" {
 		return "", fmt.Errorf("PI_APPS_DIR environment variable not set")
 	}
@@ -164,11 +160,7 @@ func ScriptName(app string) (string, error) {
 
 // ScriptNameCPU gets script name to run based on detected CPU architecture
 func ScriptNameCPU(app string) (string, error) {
-	if app == "" {
-		return "", fmt.Errorf("script_name_cpu(): requires an argument")
-	}
-
-	directory := os.Getenv("PI_APPS_DIR")
+	directory := GetPiAppsDir()
 	if directory == "" {
 		return "", fmt.Errorf("PI_APPS_DIR environment variable not set")
 	}

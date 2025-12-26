@@ -44,10 +44,6 @@ import (
 
 // RepoAdd adds local package files to the /tmp/pi-apps-local-packages repository
 func RepoAdd(files ...string) error {
-	if len(files) == 0 {
-		return fmt.Errorf("no files specified")
-	}
-
 	// Ensure the repo folder exists
 	repoDir := "/tmp/pi-apps-local-packages"
 	if err := os.MkdirAll(repoDir, 0755); err != nil {
@@ -603,10 +599,6 @@ func RepoRm() error {
 //	packageName - package name
 //	error - error if app is not specified
 func AppToPkgName(app string) (string, error) {
-	if app == "" {
-		return "", fmt.Errorf("no app-name specified")
-	}
-
 	// Calculate MD5 hash of the app name using native Go crypto package
 	h := md5.New()
 	io.WriteString(h, app)
@@ -625,10 +617,6 @@ func AppToPkgName(app string) (string, error) {
 //	"" - error if app is not specified
 //	error - error if app is not specified
 func InstallPackages(app string, args ...string) error {
-	if app == "" {
-		return fmt.Errorf("install_packages function can only be used by apps to install packages (the app variable was not set)")
-	}
-
 	// Extract apt flags and process package list
 	var aptFlags []string
 	var packages []string
@@ -995,7 +983,7 @@ Package: %s
 	}
 
 	// Run apt update and install with retry loop
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		// Run apt update
 		if err := AptUpdate(aptFlags...); err != nil {
 			return err
@@ -1265,10 +1253,6 @@ func sortAndDeduplicate(packages []string) string {
 // PurgePackages allows dependencies of the specified app to be autoremoved
 // This is a Go implementation of the original bash purge_packages function
 func PurgePackages(app string, isUpdate bool) error {
-	if app == "" {
-		return fmt.Errorf("purge_packages function can only be used by apps to install packages (the app variable was not set)")
-	}
-
 	Status(Tf("Allowing packages required by the %s app to be uninstalled", app))
 
 	// Create a unique package name using app_to_pkgname
@@ -1407,9 +1391,9 @@ func PurgePackages(app string, isUpdate bool) error {
 		}
 	} else {
 		// Check for legacy installed-packages file
-		installDataDir := os.Getenv("PI_APPS_DIR")
+		installDataDir := GetPiAppsDir()
 		if installDataDir == "" {
-			installDataDir = "/home/pi/pi-apps" // Default location
+			return fmt.Errorf("failed to get PI_APPS_DIR")
 		}
 
 		legacyPkgFile := filepath.Join(installDataDir, "data", "installed-packages", app)
@@ -1553,9 +1537,9 @@ func PurgePackages(app string, isUpdate bool) error {
 	}
 
 	// Clean up the installed-packages file
-	installDataDir := os.Getenv("PI_APPS_DIR")
+	installDataDir := GetPiAppsDir()
 	if installDataDir == "" {
-		installDataDir = "/home/pi/pi-apps" // Default location
+		return fmt.Errorf("failed to get PI_APPS_DIR")
 	}
 
 	legacyPkgFile := filepath.Join(installDataDir, "data", "installed-packages", app)
@@ -1570,10 +1554,6 @@ func PurgePackages(app string, isUpdate bool) error {
 // GetIconFromPackage finds the largest icon file (png or svg) installed by a package
 // This is a Go implementation of the original bash get_icon_from_package function
 func GetIconFromPackage(packages ...string) (string, error) {
-	if len(packages) == 0 {
-		return "", fmt.Errorf("get_icon_from_package requires at least one apt package name")
-	}
-
 	// Find dependencies that start with the same name as the original packages
 	var extraPackages []string
 	for _, pkg := range packages {
@@ -1685,10 +1665,6 @@ func GetIconFromPackage(packages ...string) (string, error) {
 // UbuntuPPAInstaller sets up a PPA on an Ubuntu-based distro
 // This is a Go implementation of the original bash ubuntu_ppa_installer function
 func UbuntuPPAInstaller(ppaName string) error {
-	if ppaName == "" {
-		return fmt.Errorf(T("ubuntu_ppa_installer(): This function is used to add a ppa to a ubuntu based install but a required input argument was missing"))
-	}
-
 	// Prepare ppaGrep for checking if the PPA is already added
 	ppaGrep := ppaName
 	if !strings.HasSuffix(ppaName, "/") {
@@ -1704,7 +1680,7 @@ func UbuntuPPAInstaller(ppaName string) error {
 	}
 
 	ppaAdded := false
-	for _, line := range strings.Split(string(output), "\n") {
+	for line := range strings.SplitSeq(string(output), "\n") {
 		fields := strings.Fields(line)
 		if len(fields) >= 3 && fields[2] == "deb" && strings.Contains(fields[0]+" "+fields[1], ppaGrep) {
 			ppaAdded = true
@@ -1775,10 +1751,6 @@ func UbuntuPPAInstaller(ppaName string) error {
 // DebianPPAInstaller sets up a PPA on a Debian-based distro
 // This is a Go implementation of the original bash debian_ppa_installer function
 func DebianPPAInstaller(ppaName, ppaDist, key string) error {
-	if ppaName == "" || ppaDist == "" || key == "" {
-		return fmt.Errorf(T("debian_ppa_installer(): This function is used to add a ppa to a debian based install but a required input argument was missing"))
-	}
-
 	// Prepare ppaGrep for checking if the PPA is already added
 	ppaGrep := ppaName
 	if !strings.HasSuffix(ppaName, "/") {
@@ -1874,20 +1846,6 @@ func DebianPPAInstaller(ppaName, ppaDist, key string) error {
 // AddExternalRepo adds an external apt repository and its gpg key
 // Follows https://wiki.debian.org/DebianRepository/UseThirdParty specification with deb822 format
 func AddExternalRepo(reponame, pubkeyurl, uris, suites, components string, additionalOptions ...string) error {
-	// Check if all needed vars are set
-	if reponame == "" {
-		return fmt.Errorf("add_external_repo: reponame not set")
-	}
-	if uris == "" {
-		return fmt.Errorf("add_external_repo: uris not set")
-	}
-	if suites == "" {
-		return fmt.Errorf("add_external_repo: suites not set")
-	}
-	if pubkeyurl == "" {
-		return fmt.Errorf("add_external_repo: pubkeyurl not set")
-	}
-
 	// Exit if reponame or uri or suite contains space
 	if strings.Contains(reponame, " ") || strings.Contains(uris, " ") || strings.Contains(suites, " ") {
 		return fmt.Errorf("add_external_repo: provided reponame, uris, or suites contains a space")
@@ -2041,10 +1999,6 @@ func AddExternalRepo(reponame, pubkeyurl, uris, suites, components string, addit
 // RmExternalRepo removes an external apt repository and its gpg key
 // If force is true, it removes the repo regardless of whether it's in use
 func RmExternalRepo(reponame string, force bool) error {
-	if reponame == "" {
-		return fmt.Errorf("rm_external_repo: reponame not provided")
-	}
-
 	// Exit if reponame contains space
 	if strings.Contains(reponame, " ") {
 		return fmt.Errorf("rm_external_repo: provided reponame contains a space")
@@ -2139,11 +2093,6 @@ func AdoptiumInstaller() error {
 
 // PackageInstalled checks if a package is installed
 func PackageInstalled(packageName string) bool {
-	if packageName == "" {
-		Error("PackageInstalled(): no package specified!")
-		return false
-	}
-
 	// Use dpkg to check if the package is installed
 	// Force English locale to ensure consistent error message parsing
 	cmd := exec.Command("dpkg", "-s", packageName)
@@ -2164,11 +2113,6 @@ func PackageInstalled(packageName string) bool {
 
 // PackageAvailable determines if the specified package exists in a local repository
 func PackageAvailable(packageName string, dpkgArch string) bool {
-	if packageName == "" {
-		Error("PackageAvailable(): no package name specified!")
-		return false
-	}
-
 	// If dpkgArch is not specified, get the current architecture
 	if dpkgArch == "" {
 		cmd := exec.Command("dpkg", "--print-architecture")
@@ -2221,11 +2165,6 @@ func PackageAvailable(packageName string, dpkgArch string) bool {
 //	[]string - list of dependencies
 //	error - error if package is not specified
 func PackageDependencies(packageName string) ([]string, error) {
-	if packageName == "" {
-		Error("PackageDependencies(): no package specified!")
-		return nil, fmt.Errorf("no package specified")
-	}
-
 	// Get package info like the original implementation
 	info, err := PackageInfo(packageName)
 	if err != nil {
@@ -2253,11 +2192,6 @@ func PackageDependencies(packageName string) ([]string, error) {
 //	"" - package is not installed
 //	version - package is installed
 func PackageInstalledVersion(packageName string) (string, error) {
-	if packageName == "" {
-		Error("PackageInstalledVersion(): no package specified!")
-		return "", fmt.Errorf("no package specified")
-	}
-
 	// Use dpkg to get the installed version
 	// Force English locale to ensure consistent output format
 	cmd := exec.Command("dpkg-query", "-W", "-f=${Version}", packageName)
@@ -2275,11 +2209,6 @@ func PackageInstalledVersion(packageName string) (string, error) {
 //	"" - package is not available
 //	version - package is available
 func PackageLatestVersion(packageName string, repo ...string) (string, error) {
-	if packageName == "" {
-		Error("PackageLatestVersion(): no package specified!")
-		return "", fmt.Errorf("no package specified")
-	}
-
 	// Optional repo selection flags
 	var additionalFlags []string
 	if len(repo) >= 2 && repo[0] == "-t" {
@@ -2333,7 +2262,7 @@ func PackageLatestVersion(packageName string, repo ...string) (string, error) {
 // RefreshAllPkgAppStatus updates the status of all package-apps
 func RefreshAllPkgAppStatus() error {
 	// Get the PI_APPS_DIR environment variable
-	directory := os.Getenv("PI_APPS_DIR")
+	directory := GetPiAppsDir()
 	if directory == "" {
 		return fmt.Errorf("PI_APPS_DIR environment variable not set")
 	}
@@ -2638,11 +2567,6 @@ func isPackageAvailableFromPolicy(packageName, aptCacheOutput string) bool {
 
 // PackageInfo lists everything dpkg knows about the specified package
 func PackageInfo(packageName string) (string, error) {
-	if packageName == "" {
-		Error("PackageInfo(): no package specified!")
-		return "", fmt.Errorf("no package specified")
-	}
-
 	// Validate package name to prevent dpkg errors with spaces or invalid characters
 	if strings.ContainsAny(packageName, " \t\n\r") {
 		return "", fmt.Errorf("package name '%s' contains invalid characters (spaces or whitespace)", packageName)

@@ -31,28 +31,11 @@ import (
 	"time"
 )
 
-// BitlyLink is a compatibility function that redirects to ShlinkLink
-//
-// It's maintained for backward compatibility with scripts that might use it
-func BitlyLink(app, trigger string) error {
-	return ShlinkLink(app, trigger)
-}
-
 // ShlinkLink sends anonymous analytics data when an app is installed or uninstalled
 // to track app popularity. No personally identifiable information is sent.
 func ShlinkLink(app, trigger string) error {
 	// Run in a goroutine to avoid blocking the caller
 	go func() {
-		// Validate inputs
-		if app == "" {
-			Error("ShlinkLink(): requires an app argument")
-			return
-		}
-		if trigger == "" {
-			Error("ShlinkLink(): requires a trigger argument")
-			return
-		}
-
 		// Check if analytics are enabled
 		directory := os.Getenv("PI_APPS_DIR")
 		if directory == "" {
@@ -127,10 +110,10 @@ func getModel() (string, string) {
 	}
 
 	// Convert to string and split into lines
-	lines := strings.Split(string(cpuInfo), "\n")
+	lines := strings.SplitSeq(string(cpuInfo), "\n")
 
 	// Find model and hardware info
-	for _, line := range lines {
+	for line := range lines {
 		if strings.HasPrefix(line, "Model") {
 			model = strings.TrimPrefix(line, "Model")
 			model = strings.TrimPrefix(model, ":")

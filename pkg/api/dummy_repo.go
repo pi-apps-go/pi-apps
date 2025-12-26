@@ -32,16 +32,6 @@ import (
 //	true - at least one package is installed from the repository
 //	error - error if repository URI, suite, or component is not specified
 func AnythingInstalledFromURISuiteComponent(uri, suite, component string) (bool, error) {
-	if uri == "" {
-		Error("AnythingInstalledFromURISuiteComponent: A repository uri must be specified.")
-		return false, fmt.Errorf("repository uri must be specified")
-	}
-
-	if suite == "" {
-		Error("AnythingInstalledFromURISuiteComponent: A repository suite must be specified.")
-		return false, fmt.Errorf("repository suite must be specified")
-	}
-
 	Debug(fmt.Sprintf("Checking if anything is installed from %s %s %s", uri, suite, component))
 
 	// assume false if no package manager build tag is set
@@ -54,11 +44,6 @@ func AnythingInstalledFromURISuiteComponent(uri, suite, component string) (bool,
 //
 //	error - error if file is not specified or testMode is not "test"
 func RemoveRepofileIfUnused(file, testMode, key string) error {
-	if file == "" {
-		Error("RemoveRepofileIfUnused: no sources.list.d file specified!")
-		return fmt.Errorf("no sources.list.d file specified")
-	}
-
 	// return success if no package manager build tag is set
 	return nil
 }
@@ -91,14 +76,4 @@ func getPackagesInRepo(repoFile string) ([]string, error) {
 func checkIfPackagesInstalledFromRepo(packages []string, uri, suite, component string) (bool, error) {
 	// return false if no package manager build tag is set
 	return false, nil
-}
-
-// Helper function to check if a slice contains a string
-func contains(slice []string, item string) bool {
-	for _, s := range slice {
-		if s == item {
-			return true
-		}
-	}
-	return false
 }

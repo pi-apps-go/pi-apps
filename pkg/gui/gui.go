@@ -159,6 +159,18 @@ func (g *GUI) Run() error {
 		return g.runImGuiMode()
 	}
 
+	if strings.HasPrefix(g.guiMode, "preload-daemon-once") {
+		logger.Info("Using preload daemon once mode")
+		logger.Warn("Preload daemon mode does not launch a GUI, it is used to refresh the app list (you have selected to launch the daemon only once).")
+		return g.runPreloadDaemonOnceMode()
+	}
+
+	if strings.HasPrefix(g.guiMode, "preload-daemon") {
+		logger.Info("Using preload daemon mode")
+		logger.Warn("Preload daemon mode does not launch a GUI, it is used to refresh the app list (you have selected to presist the daemon until you manually stop it).")
+		return g.runPreloadDaemonMode()
+	}
+
 	// Check if GTK can be used for native mode
 	if !canUseGTK() {
 		return fmt.Errorf("GTK not available: no display environment detected")
@@ -331,6 +343,41 @@ func (g *GUI) runImGuiMode() error {
 
 	// Run the ImGui GUI
 	return imguiGUI.Run()
+}
+
+// runPreloadDaemonMode runs the preload daemon mode
+func (g *GUI) runPreloadDaemonMode() error {
+	logger.Info("Starting preload daemon mode")
+	logger.Info("Starting preload deamon main loop")
+	daemon, err := StartPreloadDaemon(g.directory)
+	if err != nil {
+		logger.Error("failed to start preload daemon: %w", err)
+		return fmt.Errorf("failed to start preload daemon: %w", err)
+	}
+	defer daemon.Stop()
+
+	// Wait for the daemon to finish
+	daemon.wg.Wait()
+
+	return nil
+}
+
+// runPreloadDaemonOnceMode runs the preload daemon mode only once
+func (g *GUI) runPreloadDaemonOnceMode() error {
+	logger.Info("Starting preload daemon once mode")
+	logger.Info("Starting preload deamon main loop")
+	daemon, err := StartPreloadDaemon(g.directory)
+	if err != nil {
+		logger.Error("failed to start preload daemon: %w", err)
+		return fmt.Errorf("failed to start preload daemon: %w", err)
+	}
+	daemon.Stop()
+
+	// Wait for the daemon to finish
+	daemon.wg.Wait()
+
+	return nil
+
 }
 
 // runNativeMode runs the GUI in native GTK3 mode

@@ -272,10 +272,6 @@ func sortAndDeduplicate(packages []string) string {
 // PurgePackages allows dependencies of the specified app to be autoremoved
 // This is a Go implementation of the original bash purge_packages function
 func PurgePackages(app string, isUpdate bool) error {
-	if app == "" {
-		return fmt.Errorf("purge_packages function can only be used by apps to install packages (the app variable was not set)")
-	}
-
 	Status(Tf("Allowing packages required by the %s app to be uninstalled", app))
 
 	// return success if no package manager build tag is set
@@ -297,10 +293,6 @@ func GetIconFromPackage(packages ...string) (string, error) {
 // UbuntuPPAInstaller sets up a PPA on an Ubuntu-based distro
 // This is a Go implementation of the original bash ubuntu_ppa_installer function
 func UbuntuPPAInstaller(ppaName string) error {
-	if ppaName == "" {
-		return fmt.Errorf(T("ubuntu_ppa_installer(): This function is used to add a ppa to a ubuntu based install but a required input argument was missing"))
-	}
-
 	// return success if no package manager build tag is set
 	return nil
 }
@@ -308,30 +300,12 @@ func UbuntuPPAInstaller(ppaName string) error {
 // DebianPPAInstaller sets up a PPA on a Debian-based distro
 // This is a Go implementation of the original bash debian_ppa_installer function
 func DebianPPAInstaller(ppaName, ppaDist, key string) error {
-	if ppaName == "" || ppaDist == "" || key == "" {
-		return fmt.Errorf(T("debian_ppa_installer(): This function is used to add a ppa to a debian based install but a required input argument was missing"))
-	}
-
 	// return success if no package manager build tag is set
 	return nil
 }
 
 // AddExternalRepo adds an external package manager repository
 func AddExternalRepo(reponame, pubkeyurl, uris, suites, components string, additionalOptions ...string) error {
-	// Check if all needed vars are set
-	if reponame == "" {
-		return fmt.Errorf("add_external_repo: reponame not set")
-	}
-	if uris == "" {
-		return fmt.Errorf("add_external_repo: uris not set")
-	}
-	if suites == "" {
-		return fmt.Errorf("add_external_repo: suites not set")
-	}
-	if pubkeyurl == "" {
-		return fmt.Errorf("add_external_repo: pubkeyurl not set")
-	}
-
 	// Exit if reponame or uri or suite contains space
 	if strings.Contains(reponame, " ") || strings.Contains(uris, " ") || strings.Contains(suites, " ") {
 		return fmt.Errorf("add_external_repo: provided reponame, uris, or suites contains a space")
@@ -344,10 +318,6 @@ func AddExternalRepo(reponame, pubkeyurl, uris, suites, components string, addit
 // RmExternalRepo removes an external package manager repository
 // If force is true, it removes the repo regardless of whether it's in use
 func RmExternalRepo(reponame string, force bool) error {
-	if reponame == "" {
-		return fmt.Errorf("rm_external_repo: reponame not provided")
-	}
-
 	// Exit if reponame contains space
 	if strings.Contains(reponame, " ") {
 		return fmt.Errorf("rm_external_repo: provided reponame contains a space")
@@ -366,22 +336,12 @@ func AdoptiumInstaller() error {
 
 // PackageInstalled checks if a package is installed
 func PackageInstalled(packageName string) bool {
-	if packageName == "" {
-		Error("PackageInstalled(): no package specified!")
-		return false
-	}
-
 	// return false if no package manager build tag is set
 	return false
 }
 
 // PackageAvailable determines if the specified package exists in a local repository
 func PackageAvailable(packageName string, dpkgArch string) bool {
-	if packageName == "" {
-		Error("PackageAvailable(): no package name specified!")
-		return false
-	}
-
 	// return false if no package manager build tag is set
 	return false
 }
@@ -391,11 +351,6 @@ func PackageAvailable(packageName string, dpkgArch string) bool {
 //	[]string - list of dependencies
 //	error - error if package is not specified
 func PackageDependencies(packageName string) ([]string, error) {
-	if packageName == "" {
-		Error("PackageDependencies(): no package specified!")
-		return nil, fmt.Errorf("no package specified")
-	}
-
 	// return empty slice if no package manager build tag is set
 	return []string{}, nil
 }
@@ -421,7 +376,7 @@ func PackageLatestVersion(packageName string, repo ...string) (string, error) {
 // RefreshAllPkgAppStatus updates the status of all package-apps
 func RefreshAllPkgAppStatus() error {
 	// Get the PI_APPS_DIR environment variable
-	directory := os.Getenv("PI_APPS_DIR")
+	directory := GetPiAppsDir()
 	if directory == "" {
 		return fmt.Errorf("PI_APPS_DIR environment variable not set")
 	}
@@ -484,11 +439,6 @@ func isPackageAvailableFromPolicy(packageName, aptCacheOutput string) bool {
 
 // PackageInfo lists everything the package manager knows about the specified package
 func PackageInfo(packageName string) (string, error) {
-	if packageName == "" {
-		Error("PackageInfo(): no package specified!")
-		return "", fmt.Errorf("no package specified")
-	}
-
 	// Validate package name to prevent package manager errors with spaces or invalid characters
 	if strings.ContainsAny(packageName, " \t\n\r") {
 		return "", fmt.Errorf("package name '%s' contains invalid characters (spaces or whitespace)", packageName)

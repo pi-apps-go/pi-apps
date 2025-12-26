@@ -364,7 +364,7 @@ func getDeviceCategoryOverrides() []CategoryAssignment {
 // ReadCategoryData reads both global and local category files
 // Uses embedded default categories instead of reading from files
 func ReadCategoryData() (*CategoryData, error) {
-	piAppsDir := os.Getenv("PI_APPS_DIR")
+	piAppsDir := GetPiAppsDir()
 	if piAppsDir == "" {
 		return nil, fmt.Errorf("PI_APPS_DIR environment variable not set")
 	}
@@ -441,7 +441,7 @@ func (cd *CategoryData) SetAppCategory(app, category string) {
 
 // SaveLocalCategories saves the local category overrides to file
 func (cd *CategoryData) SaveLocalCategories() error {
-	piAppsDir := os.Getenv("PI_APPS_DIR")
+	piAppsDir := GetPiAppsDir()
 	if piAppsDir == "" {
 		return fmt.Errorf("PI_APPS_DIR environment variable not set")
 	}
@@ -511,7 +511,7 @@ func ShowCategoryEditor() error {
 
 // EditAppCategory edits a specific app's category (command line interface)
 func EditAppCategory(app, category string) error {
-	piAppsDir := os.Getenv("PI_APPS_DIR")
+	piAppsDir := GetPiAppsDir()
 	if piAppsDir == "" {
 		return fmt.Errorf("PI_APPS_DIR environment variable not set")
 	}
@@ -553,7 +553,7 @@ func EditAppCategory(app, category string) error {
 
 // showCategoryEditorGUI displays the category editor using GTK
 func showCategoryEditorGUI() error {
-	piAppsDir := os.Getenv("PI_APPS_DIR")
+	piAppsDir := GetPiAppsDir()
 	if piAppsDir == "" {
 		return fmt.Errorf("PI_APPS_DIR environment variable not set")
 	}
@@ -618,7 +618,7 @@ func showCategoryEditorGUI() error {
 
 // showCategoryDialog shows the main category editing dialog
 func showCategoryDialog(data *CategoryData, apps []string) (string, *CategoryData, error) {
-	piAppsDir := os.Getenv("PI_APPS_DIR")
+	piAppsDir := GetPiAppsDir()
 	if piAppsDir == "" {
 		return "", nil, fmt.Errorf("PI_APPS_DIR environment variable not set")
 	}
@@ -804,7 +804,7 @@ func createCategoryTreeView() (*gtk.TreeView, *gtk.ListStore, error) {
 
 // populateCategoryList adds apps and their categories to the list store
 func populateCategoryList(listStore *gtk.ListStore, data *CategoryData, apps []string) {
-	piAppsDir := os.Getenv("PI_APPS_DIR")
+	piAppsDir := GetPiAppsDir()
 	if piAppsDir == "" {
 		return
 	}

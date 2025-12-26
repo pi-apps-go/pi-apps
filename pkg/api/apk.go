@@ -454,10 +454,6 @@ func RepoRm() error {
 
 // AppToPkgName converts an app-name to a unique, valid package-name that starts with 'pi-apps-'
 func AppToPkgName(app string) (string, error) {
-	if app == "" {
-		return "", fmt.Errorf("no app-name specified")
-	}
-
 	// Calculate MD5 hash of the app name
 	h := md5.New()
 	io.WriteString(h, app)
@@ -472,10 +468,6 @@ func AppToPkgName(app string) (string, error) {
 
 // InstallPackages installs packages using APK
 func InstallPackages(app string, args ...string) error {
-	if app == "" {
-		return fmt.Errorf("install_packages function can only be used by apps to install packages (the app variable was not set)")
-	}
-
 	// Process arguments
 	var packages []string
 	usingLocalPackages := false
@@ -768,10 +760,6 @@ func InstallPackages(app string, args ...string) error {
 
 // PurgePackages allows dependencies of the specified app to be removed
 func PurgePackages(app string, isUpdate bool) error {
-	if app == "" {
-		return fmt.Errorf("purge_packages function can only be used by apps to install packages (the app variable was not set)")
-	}
-
 	StatusTf("Allowing packages required by the %s app to be uninstalled", app)
 
 	// Get PI_APPS_DIR

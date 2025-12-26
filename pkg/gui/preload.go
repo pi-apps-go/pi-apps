@@ -367,8 +367,8 @@ func getVirtualFileSystem(config *AppListConfig) ([]string, error) {
 		var result []string
 		prefixWithSlash := config.Prefix + "/"
 		for _, vfile := range vfiles {
-			if strings.HasPrefix(vfile, prefixWithSlash) {
-				result = append(result, strings.TrimPrefix(vfile, prefixWithSlash))
+			if after, ok := strings.CutPrefix(vfile, prefixWithSlash); ok {
+				result = append(result, after)
 			}
 		}
 		return result, nil

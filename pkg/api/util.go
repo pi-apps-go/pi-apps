@@ -36,12 +36,8 @@ import (
 // Deprecated: In our goals to remove bash scripts for anything other then apps,
 // this function will be removed soon. Use api.RunonceFunc instead for Go native runonce functions.
 func Runonce(script string) error {
-	if script == "" {
-		return fmt.Errorf("runonce(): script is empty")
-	}
-
 	// Get the PI_APPS_DIR environment variable
-	directory := os.Getenv("PI_APPS_DIR")
+	directory := GetPiAppsDir()
 	if directory == "" {
 		return fmt.Errorf("PI_APPS_DIR environment variable not set")
 	}
@@ -126,15 +122,12 @@ func hashExistsInFile(filePath, hash string) (bool, error) {
 // If the version identifier doesn't exist in the runonce hashes file, the function is executed.
 // This is useful for one-time migrations or setting changes using Go functions instead of bash scripts.
 func RunonceFunc(version string, fn func() error) error {
-	if version == "" {
-		return fmt.Errorf("runonceFunc(): version identifier is empty")
-	}
 	if fn == nil {
 		return fmt.Errorf("runonceFunc(): function is nil")
 	}
 
 	// Get the PI_APPS_DIR environment variable
-	directory := os.Getenv("PI_APPS_DIR")
+	directory := GetPiAppsDir()
 	if directory == "" {
 		return fmt.Errorf("PI_APPS_DIR environment variable not set")
 	}
@@ -192,10 +185,6 @@ func RunonceFunc(version string, fn func() error) error {
 
 // TextEditor opens the user's preferred text editor for the specified file
 func TextEditor(filePath string) error {
-	if filePath == "" {
-		return fmt.Errorf("text_editor(): no file specified")
-	}
-
 	// Get the PI_APPS_DIR environment variable
 	directory := os.Getenv("PI_APPS_DIR")
 	if directory == "" {

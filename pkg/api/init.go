@@ -114,7 +114,7 @@ func init() {
 // initPiAppsDir determines and sets the Pi-Apps directory location
 func initPiAppsDir() {
 	// Check if PI_APPS_DIR environment variable is already set
-	piappsDir := os.Getenv("PI_APPS_DIR")
+	piappsDir := GetPiAppsDir()
 	if piappsDir != "" {
 		PIAppsDir = piappsDir
 		return
@@ -277,8 +277,8 @@ func initSystemInfo() {
 	// Check (no longer needed as lsb-release is now included in Pi-Apps Go)
 	// TODO: Remove this completely in the future
 	if !CommandExists("lsb_release") {
-		Status("Installing lsb_release, please wait...")
-		runCommand("sudo", "apt", "install", "-y", "lsb-release")
+		//Status("Installing lsb_release, please wait...")
+		//runCommand("sudo", "apt", "install", "-y", "lsb-release")
 	}
 
 	// Check for upstream release first (Ubuntu derivatives)
