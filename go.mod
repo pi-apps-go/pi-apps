@@ -3,7 +3,7 @@ module github.com/pi-apps-go/pi-apps
 go 1.24.0
 
 require (
-	fyne.io/systray v1.11.0
+	fyne.io/systray v1.12.0
 	github.com/AllenDang/cimgui-go v1.4.0
 	github.com/ProtonMail/gopenpgp/v3 v3.3.0
 	github.com/charmbracelet/log v0.4.2
