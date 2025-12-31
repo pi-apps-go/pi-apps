@@ -11,6 +11,7 @@ LDFLAGS=-X main.BuildDate="$(BUILD_DATE)" -X main.GitCommit="$(GIT_COMMIT_HASH)"
 PKG_MGR := $(shell \
     if command -v apt >/dev/null 2>&1; then echo apt; \
     elif command -v apk >/dev/null 2>&1; then echo apk; \
+	elif command -v pacman >/dev/null 2>&1; then echo pacman; \
     else echo dummy; fi)
 
 ifeq ($(PKG_MGR),dummy)
@@ -97,7 +98,7 @@ install: build
 	install -m 755 bin/settings settings
 	install -m 755 bin/updater updater
 	install -m 755 bin/gui gui
-	install -m 755 bin/xpi-apps xpi-apps
+	#install -m 755 bin/xpi-apps xpi-apps
 	install -m 755 bin/xgotext xgotext
 	sudo install -m 755 bin/pi-apps $(BINDIR)/pi-apps
 	#sudo install -m 755 bin/xpi-apps $(BINDIR)/xpi-apps
@@ -109,7 +110,7 @@ install-debug: build-debug
 	install -m 755 bin/settings settings
 	install -m 755 bin/updater updater
 	install -m 755 bin/gui gui
-	install -m 755 bin/xpi-apps xpi-apps
+	#install -m 755 bin/xpi-apps xpi-apps
 	install -m 755 bin/xgotext xgotext
 	sudo install -m 755 bin/pi-apps $(BINDIR)/pi-apps
 	#sudo install -m 755 bin/xpi-apps $(BINDIR)/xpi-apps

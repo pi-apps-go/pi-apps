@@ -88,7 +88,7 @@ To give you an idea of the differences, here is a list of the differences:
 <tr>
 <td class="org-left">Package manager support</td>
 <td class="org-left">APT only</td>
-<td class="org-left">APT, APK, pacman*, dnf* and many more</td>
+<td class="org-left">APT, APK, pacman, dnf* and many more</td>
 </tr>
 
 
@@ -123,6 +123,7 @@ To give you an idea of the differences, here is a list of the differences:
 
 <a id="support"></a>
 
+**Note: A star near the package manager means that the package manager is not implemented yet.**
 
 ## Install Pi-Apps Go
 Open a terminal and run this command:

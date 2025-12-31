@@ -12,26 +12,28 @@ if [[ "$(id -u)" == 0 ]]; then
   error "Pi-Apps Go is not designed to be installed as root! Please try again as a regular user."
 fi
 
-#detect package manager based on distro (is in beta, so only apt is supported for now)
+#detect package manager based on distro (is in beta)
 if command -v apt >/dev/null; then
   PKG_MANAGER="apt"
   PKG_UPDATE="sudo apt update"
-  PKG_INSTALL="sudo apt install"
+  PKG_INSTALL="sudo apt-get -o DPkg::Lock::Timeout=-1 install"
   PKG_INSTALL_FLAGS="-y -f --no-install-recommends"
+  GO_ROLLING_RELEASE="false"
+  PKG_DEPENDENCIES="libgtk-3-dev gcc make curl wget aria2 lsb-release software-properties-common apt-utils apt-transport-https gnupg libvips-dev bc librsvg2-bin locales shellcheck git wmctrl xdotool x11-utils rsync unzip debsums libgtk3-perl bzip2"
 elif command -v apk >/dev/null; then
-  #PKG_MANAGER="apk"
-  #PKG_UPDATE="sudo apk update"
-  #PKG_INSTALL="sudo apk add"
-  #PKG_INSTALL_FLAGS="--no-interactive"
-  # for now, throw error if not apt
-  error "While Pi-Apps Go supports Alpine Linux, currently the installer only supports APT-based package managers. This will change soon."
+  PKG_MANAGER="apk"
+  PKG_UPDATE="sudo apk update"
+  PKG_INSTALL="sudo apk add"
+  PKG_INSTALL_FLAGS="--no-interactive"
+  GO_ROLLING_RELEASE="true"
+  PKG_DEPENDENCIES="gtk+3.0-dev gcc make curl wget aria2 lsb-release gnupg vips-dev bc librsvg-dev locales shellcheck git wmctrl xdotool rsync unzip bzip2"
 elif command -v pacman >/dev/null; then
-  #PKG_MANAGER="pacman"
-  #PKG_UPDATE="sudo pacman -Sy"
-  #PKG_INSTALL="sudo pacman -S"
-  #PKG_INSTALL_FLAGS="--noconfirm"
-  # for now, throw error if not apt
-  error "Pi-Apps Go is currently not supported on Arch Linux. Please use a supported distribution."
+  PKG_MANAGER="pacman"
+  PKG_UPDATE="sudo pacman -Sy"
+  PKG_INSTALL="sudo pacman -S"
+  PKG_INSTALL_FLAGS="--noconfirm"
+  GO_ROLLING_RELEASE="true"
+  PKG_DEPENDENCIES="gtk3 gcc make curl wget aria2 lsb-release gnupg libvips bc librsvg locales shellcheck git wmctrl xdotool rsync unzip bzip2"
 elif command -v dnf >/dev/null; then
   #PKG_MANAGER="dnf"
   #PKG_UPDATE="sudo dnf check-update"
@@ -58,7 +60,7 @@ else
 fi
 
 #Ensure running supported processors
-if uname -m | grep -qi 'x86\|i686\|i386\|amd64\|armv6l\|armv7l\|aarch64\|riscv64' ;then
+if uname -m | grep -qi 'x86\|i686\|i386\|amd64\|x86_64\|armv6l\|armv7l\|aarch64\|riscv64' ;then
   error "Pi-Apps Go is not supported on your CPU architecture. Your architecture is $(uname -m). Please use a supported architecture."
 fi
 
@@ -69,35 +71,61 @@ fi
 
 $PKG_UPDATE || error "The command '$PKG_UPDATE' failed. Before Pi-Apps Go will work, you must fix your package-management system."
 
-package_available_installer() { #determine if the specified package-name exists in a local repository for the current dpkg architecture (simplified and renamed for installer use only)
+package_available_installer() {
+  # Determine if the specified package-name exists in a local repository for the current package manager.
   local package="$(awk -F: '{print $1}' <<<"$1")"
-  dpkg_arch="$(dpkg --print-architecture)"
-  [ -z "$package" ] && error "package_available(): no package name specified!"
-  local output="$(apt-cache policy "$package":"$dpkg_arch" | grep "Candidate:")"
-  if [ -z "$output" ]; then
-    return 1
-  elif echo "$output" | grep -q "Candidate: (none)"; then
-    return 1
+  [ -z "$package" ] && error "package_available_installer(): no package name specified!"
+
+  if command -v apt-cache >/dev/null 2>&1; then
+    dpkg_arch="$(dpkg --print-architecture)"
+    local output
+    output="$(apt-cache policy "$package":"$dpkg_arch" | grep "Candidate:")"
+    if [ -z "$output" ]; then
+      return 1
+    elif echo "$output" | grep -q "Candidate: (none)"; then
+      return 1
+    else
+      return 0
+    fi
+  elif command -v apk >/dev/null 2>&1; then
+    # apk search returns package name if available
+    if apk search -q "^$package$" >/dev/null 2>&1; then
+      return 0
+    else
+      return 1
+    fi
+  elif command -v pacman >/dev/null 2>&1; then
+    # pacman -Si returns exit 0 if package exists in repo
+    if pacman -Si "$package" >/dev/null 2>&1; then
+      return 0
+    else
+      return 1
+    fi
   else
-    return 0
+    error "package_available_installer(): No supported package manager found for package lookup."
+    return 1
   fi
 }
 
 if package_available_installer software-properties-common ; then
   dependencies='libgtk-3-dev gcc make curl wget aria2 lsb-release software-properties-common apt-utils apt-transport-https gnupg libvips-dev bc librsvg2-bin locales shellcheck git wmctrl xdotool x11-utils rsync unzip debsums libgtk3-perl bzip2'
 else
-  dependencies='libgtk-3-dev gcc make curl wget aria2 lsb-release apt-utils apt-transport-https gnupg libvips-dev bc librsvg2-bin locales shellcheck git wmctrl xdotool x11-utils rsync unzip debsums libgtk3-perl bzip2'
+  dependencies=$PKG_DEPENDENCIES
 fi
 
 if ! dpkg -s $dependencies &>/dev/null ;then
-  sudo apt-get -o DPkg::Lock::Timeout=-1 install $dependencies -y -f --no-install-recommends || error "Pi-Apps Go dependencies failed to install and so the Pi-Apps Go install has been aborted. Before Pi-Apps Go can be installed you must solve any errors above."
+  $PKG_INSTALL $dependencies $PKG_INSTALL_FLAGS || error "Pi-Apps Go dependencies failed to install and so the Pi-Apps Go install has been aborted. Before Pi-Apps Go can be installed you must solve any errors above."
 fi
 
 # Check if Go is installed and version is at least 1.24
 if ! command -v go &>/dev/null; then
   echo "Go is not installed. Installing Go..."
   # Download and install Go
-  GO_VERSION="1.25.3"
+  # check if GO_ROLLING_RELEASE is true, if so, download Go from the package repositories instead
+  if [ "$GO_ROLLING_RELEASE" = "true" ]; then
+    $PKG_INSTALL go $PKG_INSTALL_FLAGS || error "Go failed to install and so the Pi-Apps Go install has been aborted. Before Pi-Apps Go can be installed you must solve any errors above."
+  else
+  GO_VERSION="1.25.5"
   ARCH=$(uname -m)
   case $ARCH in
     x86_64) GO_ARCH="amd64" ;;
@@ -120,6 +148,7 @@ if ! command -v go &>/dev/null; then
   export PATH=$PATH:/usr/local/go/bin
   
   cd "$HOME"
+  fi
 else
   # Check Go version
   GO_VERSION_OUTPUT=$(go version 2>/dev/null)
@@ -130,8 +159,11 @@ else
     
     if [ "$MAJOR" -lt 1 ] || ([ "$MAJOR" -eq 1 ] && [ "$MINOR" -lt 24 ]); then
       echo "Go version $GO_VERSION_NUM is too old (need 1.24+). Updating Go..."
+      if [ "$GO_ROLLING_RELEASE" = "true" ]; then
+        $PKG_INSTALL go $PKG_INSTALL_FLAGS || error "Go failed to install and so the Pi-Apps Go install has been aborted. Before Pi-Apps Go can be installed you must solve any errors above."
+      else
       # Download and install newer Go
-      GO_VERSION="1.25.3"
+      GO_VERSION="1.25.5"
       ARCH=$(uname -m)
       case $ARCH in
         x86_64) GO_ARCH="amd64" ;;
@@ -154,6 +186,7 @@ else
       export PATH=$PATH:/usr/local/go/bin
       
       cd "$HOME"
+      fi
     else
       echo "Go version $GO_VERSION_NUM is sufficient (1.24+ required), but you should update to the latest version."
     fi
