@@ -14,7 +14,7 @@ require (
 	github.com/joho/godotenv v1.5.1
 	github.com/kbinani/screenshot v0.0.0-20250624051815-089614a94018
 	github.com/leonelquinteros/gotext v1.7.2
-	github.com/schollz/progressbar/v3 v3.18.0
+	github.com/schollz/progressbar/v3 v3.19.0
 	github.com/toqueteos/webbrowser v1.2.1
 	gitlab.alpinelinux.org/alpine/go v0.10.1
 	golang.org/x/term v0.38.0
