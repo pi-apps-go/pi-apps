@@ -19,7 +19,7 @@ if command -v apt >/dev/null; then
   PKG_INSTALL="sudo apt-get -o DPkg::Lock::Timeout=-1 install"
   PKG_INSTALL_FLAGS="-y -f --no-install-recommends"
   GO_ROLLING_RELEASE="false"
-  PKG_DEPENDENCIES="libgtk-3-dev gcc make curl wget aria2 lsb-release software-properties-common apt-utils apt-transport-https gnupg libvips-dev bc librsvg2-bin locales shellcheck git wmctrl xdotool x11-utils rsync unzip debsums libgtk3-perl bzip2"
+  PKG_DEPENDENCIES="libgtk-3-dev gcc make curl wget aria2 lsb-release apt-utils apt-transport-https gnupg libvips-dev bc librsvg2-bin locales shellcheck git wmctrl xdotool x11-utils rsync unzip debsums libgtk3-perl bzip2"
 elif command -v apk >/dev/null; then
   PKG_MANAGER="apk"
   PKG_UPDATE="sudo apk update"
@@ -60,8 +60,10 @@ else
 fi
 
 #Ensure running supported processors
-if uname -m | grep -qi 'x86\|i686\|i386\|amd64\|x86_64\|armv6l\|armv7l\|aarch64\|riscv64' ;then
-  error "Pi-Apps Go is not supported on your CPU architecture. Your architecture is $(uname -m). Please use a supported architecture."
+# Supported architectures: x86_64, i686, i386, amd64, armv6l, armv7l, aarch64, riscv64
+ARCH=$(uname -m)
+if ! echo "$ARCH" | grep -qiE '^(x86_64|i686|i386|amd64|armv6l|armv7l|aarch64|riscv64)$' ;then
+  error "Pi-Apps Go is not supported on your CPU architecture. Your architecture is $ARCH. Please use a supported architecture."
 fi
 
 # display warning if running on a RISC-V architecture since it is untested
@@ -215,74 +217,104 @@ if [ -d "$DIRECTORY" ];then
   echo "export PI_APPS_DIR=\"$PI_APPS_DIR\"" >> ~/.bashrc
 fi
 
-if [ -d "$PI_APPS_DIR" ] || [ -d "$DIRECTORY" ];then    
-  # Check if this is the original pi-apps (bash) or the rewrite (go)
-  if [ -d "${PI_APPS_DIR}/pkg" ] && [ -d "${PI_APPS_DIR}/cmd" ] && [ -d "${PI_APPS_DIR}/bin" ] && [ -f "${PI_APPS_DIR}/api-go" ] && [ -f "${PI_APPS_DIR}/go.mod" ] && [ -f "${PI_APPS_DIR}/go.sum" ]; then
-    # This is already the Go rewrite, just reinstall
-    rm -rf ~/pi-apps-forced-update
-    
-    echo "Reinstalling Pi-Apps..."
-    downloaded=1
-    output="$(git clone --depth 1 https://github.com/pi-apps-go/pi-apps ~/pi-apps-forced-update 2>&1)"
-    if [ $? != 0 ] || [ ! -d ~/pi-apps-forced-update ];then
-      error "Pi-Apps download failed!\ngit clone output was: $output"
-    fi
-    cp -af "${PI_APPS_DIR}/data" ~/pi-apps-forced-update
-    cp -af "${PI_APPS_DIR}/apps" ~/pi-apps-forced-update
+# Check if pi-apps folder exists and determine what to do
+if [ -d "$PI_APPS_DIR" ] || [ -d "$DIRECTORY" ];then
+  # First check if data folder exists and is not empty - if not, treat as fresh install
+  if [ ! -d "${PI_APPS_DIR}/data" ] || [ -z "$(ls -A "${PI_APPS_DIR}/data" 2>/dev/null)" ]; then
+    # No data folder or empty data folder - treat as fresh install
+    echo "Found empty or missing data folder. Treating as fresh installation..."
     rm -rf "$PI_APPS_DIR"
-    mv -f ~/pi-apps-forced-update "$PI_APPS_DIR"
-    cd "$PI_APPS_DIR"
-    echo "Compiling Pi-Apps Go..."
-    make install || error "Failed to compile Pi-Apps Go!"
+    PI_APPS_DIR="$HOME/pi-apps"
   else
-    # This is the original bash version, ask user about migration
-    echo "Found existing Pi-Apps installation (original bash version)."
-    echo "Would you like to migrate to the new Go rewrite? This will preserve your data and apps."
-    echo "Type 'yes' to migrate, or anything else to cancel:"
-    read -r response
+    # Data folder exists and is not empty - check which version this is
     
-    if [ "$response" = "yes" ]; then
-      echo "Migrating to Pi-Apps Go rewrite..."
+    # Check for files that only exist in original Bash Pi-Apps
+    # in Pi-Apps Go all these files are integrated into the api or the updater binary itself
+    # all except preload* (which is in the gui package) and runonce-entries (which is integrated in the updater package) are integrated into the api package
+    is_bash_version=false
+    if [ -f "${PI_APPS_DIR}/createapp" ] || [ -f "${PI_APPS_DIR}/preload" ] || [ -f "${PI_APPS_DIR}/etc/categoryedit" ] || [ -f "${PI_APPS_DIR}/etc/runonce-entries" ] || [ -f "${PI_APPS_DIR}/etc/preload-daemon" ] || [ -f "${PI_APPS_DIR}/etc/category-overrides-jetson-generic" ]; then
+      is_bash_version=true
+    fi
+    
+    # Check for files that only exist in Go rewrite
+    is_go_version=false
+    if [ -d "${PI_APPS_DIR}/pkg" ] && [ -d "${PI_APPS_DIR}/cmd" ] && [ -d "${PI_APPS_DIR}/bin" ] && [ -f "${PI_APPS_DIR}/api-go" ] && [ -f "${PI_APPS_DIR}/go.mod" ] && [ -f "${PI_APPS_DIR}/go.sum" ]; then
+      is_go_version=true
+    fi
+    
+    if [ "$is_go_version" = true ]; then
+      # This is already the Go rewrite, just reinstall
+      rm -rf ~/pi-apps-forced-update
+      
+      echo "Reinstalling Pi-Apps..."
       downloaded=1
-      migrated=1
-      
-      # Backup data folder
-      cp -af "${PI_APPS_DIR}/data" ~/pi-apps-migration-backup
-      
-      # Remove everything except data folder
-      find "$PI_APPS_DIR" -mindepth 1 -maxdepth 1 ! -name 'data' -exec rm -rf {} +
-      
-      # Clone new version
       output="$(git clone --depth 1 https://github.com/pi-apps-go/pi-apps ~/pi-apps-forced-update 2>&1)"
       if [ $? != 0 ] || [ ! -d ~/pi-apps-forced-update ];then
         error "Pi-Apps download failed!\ngit clone output was: $output"
       fi
-      
-      # Move new files to pi-apps directory
-      mv ~/pi-apps-forced-update/* "$PI_APPS_DIR/"
-      mv ~/pi-apps-forced-update/.* "$PI_APPS_DIR/" 2>/dev/null || true
-      rmdir ~/pi-apps-forced-update
-      
-      # Restore data if backup exists
-      if [ -d ~/pi-apps-migration-backup ]; then
-        cp -af ~/pi-apps-migration-backup/* "${PI_APPS_DIR}/data/"
-        rm -rf ~/pi-apps-migration-backup
-      fi
-      
+      cp -af "${PI_APPS_DIR}/data" ~/pi-apps-forced-update
+      cp -af "${PI_APPS_DIR}/apps" ~/pi-apps-forced-update
+      rm -rf "$PI_APPS_DIR"
+      mv -f ~/pi-apps-forced-update "$PI_APPS_DIR"
       cd "$PI_APPS_DIR"
       echo "Compiling Pi-Apps Go..."
-      echo "Note: please be patient as the first time compilation will take a while due to compiling cgo modules."
       make install || error "Failed to compile Pi-Apps Go!"
-      #click new installation analytics link
-      "${PI_APPS_DIR}/api" shlink_link script install
+    elif [ "$is_bash_version" = true ]; then
+      # This is the original bash version, ask user about migration
+      echo "Found existing Pi-Apps installation (original bash version)."
+      echo "Would you like to migrate to the new Go rewrite? This will preserve your data and apps."
+      echo "Type 'yes' to migrate, or anything else to cancel:"
+      read -r response
+      
+      if [ "$response" = "yes" ]; then
+        echo "Migrating to Pi-Apps Go rewrite..."
+        downloaded=1
+        migrated=1
+        
+        # Backup data folder
+        cp -af "${PI_APPS_DIR}/data" ~/pi-apps-migration-backup
+        
+        # Remove everything except data folder
+        find "$PI_APPS_DIR" -mindepth 1 -maxdepth 1 ! -name 'data' -exec rm -rf {} +
+        
+        # Clone new version
+        output="$(git clone --depth 1 https://github.com/pi-apps-go/pi-apps ~/pi-apps-forced-update 2>&1)"
+        if [ $? != 0 ] || [ ! -d ~/pi-apps-forced-update ];then
+          error "Pi-Apps download failed!\ngit clone output was: $output"
+        fi
+        
+        # Move new files to pi-apps directory
+        mv ~/pi-apps-forced-update/* "$PI_APPS_DIR/"
+        mv ~/pi-apps-forced-update/.* "$PI_APPS_DIR/" 2>/dev/null || true
+        rmdir ~/pi-apps-forced-update
+        
+        # Restore data if backup exists
+        if [ -d ~/pi-apps-migration-backup ]; then
+          cp -af ~/pi-apps-migration-backup/* "${PI_APPS_DIR}/data/"
+          rm -rf ~/pi-apps-migration-backup
+        fi
+        
+        cd "$PI_APPS_DIR"
+        echo "Compiling Pi-Apps Go..."
+        echo "Note: please be patient as the first time compilation will take a while due to compiling cgo modules."
+        make install || error "Failed to compile Pi-Apps Go!"
+        #click new installation analytics link
+        "${PI_APPS_DIR}/api" shlink_link script install
+      else
+        echo "Migration cancelled. Exiting."
+        exit 0
+      fi
     else
-      echo "Migration cancelled. Exiting."
-      exit 0
+      # Neither Bash nor Go version detected - treat as fresh install
+      echo "Could not determine Pi-Apps version. Treating as fresh installation..."
+      rm -rf "$PI_APPS_DIR"
+      PI_APPS_DIR="$HOME/pi-apps"
     fi
   fi
-  
+fi
+
 #if pi-apps folder does not exist, download it
-elif [ ! -d "$PI_APPS_DIR" ];then
+if [ ! -d "$PI_APPS_DIR" ];then
   echo "Downloading Pi-Apps..."
   downloaded=1
   output="$(git clone --depth 1 https://github.com/pi-apps-go/pi-apps "$PI_APPS_DIR" 2>&1)"
