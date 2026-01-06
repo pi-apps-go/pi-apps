@@ -600,6 +600,23 @@ func (u *Updater) recompile() error {
 		fmt.Println("Multi-call mode detected, using install-with-multi-call target")
 	}
 
+	// Check if pkexec is available; if so, use the -pkexec targets if they exist
+	usePkexec := false
+	if _, err := exec.LookPath("pkexec"); err == nil {
+		usePkexec = true
+	}
+
+	if usePkexec {
+		switch makeTarget {
+		case "install":
+			makeTarget = "install-pkexec"
+			fmt.Println("pkexec detected, using install-pkexec target")
+		case "install-with-multi-call":
+			makeTarget = "install-with-multi-call-pkexec"
+			fmt.Println("pkexec detected, using install-with-multi-call-pkexec target")
+		}
+	}
+
 	cmd := exec.Command("make", makeTarget)
 	cmd.Dir = u.directory
 	cmd.Stdout = os.Stdout

@@ -134,6 +134,47 @@ install-with-multi-call-debug: clean build-with-multi-call-debug build-pi-apps-d
 	ln -s multi-call-pi-apps updater
 	ln -s multi-call-pi-apps gui
 
+install-pkexec: build
+	install -m 755 bin/api api-go
+	install -m 755 bin/manage manage
+	install -m 755 bin/settings settings
+	install -m 755 bin/updater updater
+	install -m 755 bin/gui gui
+	#install -m 755 bin/xpi-apps xpi-apps
+	install -m 755 bin/xgotext xgotext
+	pkexec install -m 755 $(PWD)/bin/pi-apps $(BINDIR)/pi-apps
+	#pkexec install -m 755 $(PWD)/bin/xpi-apps $(BINDIR)/xpi-apps
+	#install -m 755 bash-go-api $(BINDIR)/api
+	
+install-pkexec-debug: build-debug
+	install -m 755 bin/api api-go
+	install -m 755 bin/manage manage
+	install -m 755 bin/settings settings
+	install -m 755 bin/updater updater
+	install -m 755 bin/gui gui
+	#install -m 755 bin/xpi-apps xpi-apps
+	install -m 755 bin/xgotext xgotext
+	pkexec install -m 755 $(PWD)/bin/pi-apps $(BINDIR)/pi-apps
+	#pkexec install -m 755 $(PWD)/bin/xpi-apps $(BINDIR)/xpi-apps
+	#install -m 755 bash-go-api $(BINDIR)/api
+
+install-with-multi-call-pkexec: clean build-with-multi-call build-pi-apps
+	install -m 755 bin/multi-call-pi-apps multi-call-pi-apps
+	pkexec install -m 755 $(PWD)/bin/pi-apps $(BINDIR)/pi-apps
+	ln -s multi-call-pi-apps api-go
+	ln -s multi-call-pi-apps manage
+	ln -s multi-call-pi-apps settings
+	ln -s multi-call-pi-apps updater
+	ln -s multi-call-pi-apps gui
+
+install-with-multi-call-pkexec-debug: clean build-with-multi-call-debug build-pi-apps-debug
+	install -m 755 bin/multi-call-pi-apps multi-call-pi-apps
+	pkexec install -m 755 $(PWD)/bin/pi-apps $(BINDIR)/pi-apps
+	ln -s multi-call-pi-apps api-go
+	ln -s multi-call-pi-apps manage
+	ln -s multi-call-pi-apps settings
+	ln -s multi-call-pi-apps updater
+	ln -s multi-call-pi-apps gui
 test:
 	go test -v ./...
 
