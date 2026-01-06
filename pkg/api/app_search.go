@@ -319,6 +319,8 @@ func listAppDirs(directory string) []string {
 //
 //	"" - no app selected
 //	error - error if GTK is not initialized
+//
+// Deprecated: This function has moved internally to the gui package for a better GUI main loop integration.
 func AppSearchGUI() (string, error) {
 	directory := GetPiAppsDir()
 	if directory == "" {

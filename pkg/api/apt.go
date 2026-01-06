@@ -1922,21 +1922,43 @@ func AddExternalRepo(reponame, pubkeyurl, uris, suites, components string, addit
 		return fmt.Errorf("add_external_repo: failed to dearmor key data: %w", err)
 	}
 
-	// Write the dearmored key data to the keyring file
-	keyringFileHandle, err := os.Create(keyringFile)
+	// Write the dearmored key data to a temporary file, then copy it to the keyring file using sudo
+	tempKeyFile, err := os.CreateTemp("", "keyring")
 	if err != nil {
 		// Clean up on failure
 		os.Remove(sourcesFile)
-		os.Remove(keyringFile)
-		return fmt.Errorf("add_external_repo: failed to create keyring file: %w", err)
+		return fmt.Errorf("add_external_repo: failed to create temporary keyring file: %w", err)
 	}
-	defer keyringFileHandle.Close()
+	tempKeyFilePath := tempKeyFile.Name()
+	defer func() {
+		tempKeyFile.Close()
+		os.Remove(tempKeyFilePath)
+	}()
 
-	if _, err := keyringFileHandle.Write(dearmoredKeyData); err != nil {
+	if _, err := tempKeyFile.Write(dearmoredKeyData); err != nil {
 		// Clean up on failure
 		os.Remove(sourcesFile)
-		os.Remove(keyringFile)
-		return fmt.Errorf("add_external_repo: failed to write keyring file: %w", err)
+		os.Remove(tempKeyFilePath)
+		return fmt.Errorf("add_external_repo: failed to write temporary keyring file: %w", err)
+	}
+	tempKeyFile.Close()
+
+	cpCmd := exec.Command("sudo", "cp", tempKeyFilePath, keyringFile)
+	if err := cpCmd.Run(); err != nil {
+		os.Remove(sourcesFile)
+		os.Remove(tempKeyFilePath)
+		return fmt.Errorf("add_external_repo: failed to copy temporary keyring file to final location: %w", err)
+	}
+
+	// don't forget to set the right permissions after the key is copied
+	chownCmdKeyring := exec.Command("sudo", "chown", "root:root", keyringFile)
+	if err := chownCmdKeyring.Run(); err != nil {
+		return fmt.Errorf("add_external_repo: failed to set ownership of keyring file: %w", err)
+	}
+
+	chmodCmdKeyring := exec.Command("sudo", "chmod", "644", keyringFile)
+	if err := chmodCmdKeyring.Run(); err != nil {
+		return fmt.Errorf("add_external_repo: failed to set permissions of keyring file: %w", err)
 	}
 
 	// Create the .sources file
