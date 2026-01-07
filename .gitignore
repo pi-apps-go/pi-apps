@@ -7,12 +7,21 @@ logs
 .vscode
 # skip pushing prebuilt binaries
 bin
-./api-go
-./manage
-./createapp
-./gui
-./preload
-./settings
-./updater
+/api-go
+/manage
+/createapp
+/gui
+/preload
+/settings
+/updater
+/xgotext
+/multi-call-pi-apps
+/xpi-apps
+/error-report-server
+/generator
+.cursor
+.env*
+*test*
+*tmp*
 # for the time being, exclude the apps folder until it's done
 apps
