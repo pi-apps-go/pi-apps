@@ -1,3 +1,4 @@
+// Copyright (C) 2026 pi-apps-go contributors
 // This file is part of Pi-Apps Go - a modern, cross-architecture/cross-platform, and modular Pi-Apps implementation in Go.
 //
 // This program is free software: you can redistribute it and/or modify
@@ -20,6 +21,7 @@
 // Unlike the original bash implementation that used YAD with theme prefixes,
 // this version uses direct GTK3 bindings and applies themes via the GTK_THEME
 // environment variable for better integration with the desktop environment.
+// SPDX-License-Identifier: GPL-3.0-or-later
 
 package settings
 

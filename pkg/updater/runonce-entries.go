@@ -1,3 +1,4 @@
+// Copyright (C) 2026 pi-apps-go contributors
 // This file is part of Pi-Apps Go - a modern, cross-architecture/cross-platform, and modular Pi-Apps implementation in Go.
 //
 // This program is free software: you can redistribute it and/or modify
@@ -15,6 +16,7 @@
 
 // Module: runonce-entries.go
 // Description: Embedded runonce entries used by the updater.
+// SPDX-License-Identifier: GPL-3.0-or-later
 
 // This file contains various dirty fixes to keep Pi-Apps Go running smoothly as it matures.
 // It repairs mistakes that some apps have made, as well as fixing other system issues. Some apps have been removed or renamed.

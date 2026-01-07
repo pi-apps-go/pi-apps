@@ -1,4 +1,4 @@
-// Copyright (C) 2025 pi-apps-go contributors
+// Copyright (C) 2026 pi-apps-go contributors
 // This file is part of Pi-Apps Go - a modern, cross-architecture/cross-platform, and modular Pi-Apps implementation in Go.
 //
 // This program is free software: you can redistribute it and/or modify
@@ -17,6 +17,7 @@
 // Module: log_diagnose_common.go
 // Description: Provides common functions for diagnosing log files.
 // Package manager specific errors are now split into separate files named log_diagnose_<package_manager>.go to only include code for the target package manager.
+// SPDX-License-Identifier: GPL-3.0-or-later
 
 package api
 

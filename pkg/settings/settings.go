@@ -1,3 +1,4 @@
+// Copyright (C) 2026 pi-apps-go contributors
 // This file is part of Pi-Apps Go - a modern, cross-architecture/cross-platform, and modular Pi-Apps implementation in Go.
 //
 // This program is free software: you can redistribute it and/or modify
@@ -15,6 +16,7 @@
 
 // Module: settings.go
 // Description: Provides a native GTK3 settings interface for Pi-Apps using GOTK3 bindings
+// SPDX-License-Identifier: GPL-3.0-or-later
 
 // general TODO: add plugin section as we are going to allow users to add plugins to Pi-Apps Go thanks to the plugin package
 

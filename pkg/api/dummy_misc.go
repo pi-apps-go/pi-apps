@@ -1,4 +1,4 @@
-// Copyright (C) 2025 pi-apps-go contributors
+// Copyright (C) 2026 pi-apps-go contributors
 // This file is part of Pi-Apps Go - a modern, cross-architecture/cross-platform, and modular Pi-Apps implementation in Go.
 //
 // This program is free software: you can redistribute it and/or modify
@@ -15,7 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 // Module: dummy_misc.go
 // Description: Provides dummy functions for miscellaneous operations that require a package manager if no package manager build tag is set. This also contains strings for dummy related messages.
-
+// SPDX-License-Identifier: GPL-3.0-or-later
 //go:build dummy
 
 package api

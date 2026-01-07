@@ -1,0 +1,50 @@
+version = 1
+
+[[annotations]]
+path = [
+    "Makefile",
+    "README.md",
+    "pkg/**",
+    "cmd/**",
+    "locales/**",
+    "SECURITY.md",
+    "CODE_OF_CONDUCT.md",
+    "etc/**",
+    "api",
+    "go.mod",
+    "go.sum",
+    ".gitignore",
+    "CHANGELOG.md",
+    "install",
+    "uninstall",
+    "examples/**",
+    "docs/**",
+    ".github/CODEOWNERS",
+    ".github/FUNDING.yml",
+    ".github/dependabot.yml",
+]
+precedence = "override"
+SPDX-FileCopyrightText = "pi-apps-go contributors"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = [
+    "icons/**",
+    ".github/ISSUE_TEMPLATE/**",
+    ".github/workflows.disabled/**",
+    ".github/update_apps_issue_template.md"
+]
+precedence = "aggregate"
+SPDX-FileCopyrightText = [
+    "2025 Botspot",
+    "2025 theofficialgman"
+]
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = [
+    "apps/**",
+]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "Pi-Apps contributors"
+SPDX-License-Identifier = "GPL-3.0-or-later"

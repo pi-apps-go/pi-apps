@@ -1,3 +1,4 @@
+// Copyright (C) 2026 pi-apps-go contributors
 // This file is part of Pi-Apps Go - a modern, cross-architecture/cross-platform, and modular Pi-Apps implementation in Go.
 //
 // This program is free software: you can redistribute it and/or modify
@@ -15,6 +16,7 @@
 
 // Module: main.go
 // Description: Multi-call binary that provides all Pi-Apps functionality in one executable
+// SPDX-License-Identifier: GPL-3.0-or-later
 
 package main
 

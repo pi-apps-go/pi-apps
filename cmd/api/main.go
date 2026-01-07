@@ -1,3 +1,4 @@
+// Copyright (C) 2026 pi-apps-go contributors
 // This file is part of Pi-Apps Go - a modern, cross-architecture/cross-platform, and modular Pi-Apps implementation in Go.
 //
 // This program is free software: you can redistribute it and/or modify
@@ -15,6 +16,8 @@
 
 // Module: main.go
 // Description: Provides a user interactible way of communicating with the Pi-Apps Go API functions.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 package main
 
 import (
@@ -1591,6 +1594,7 @@ func main() {
 		if err != nil {
 			api.ErrorT(api.Tf("Error: %v", err))
 		}
+
 	// Plugin system commands have been removed - plugins are now build-time only
 
 	// All plugin commands have been removed - plugins are now build-time only

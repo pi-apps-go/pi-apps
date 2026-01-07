@@ -1,4 +1,4 @@
-// Copyright (C) 2025 pi-apps-go contributors
+// Copyright (C) 2026 pi-apps-go contributors
 // This file is part of Pi-Apps Go - a modern, cross-architecture/cross-platform, and modular Pi-Apps implementation in Go.
 //
 // This program is free software: you can redistribute it and/or modify
@@ -14,7 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// Demo program for testing the Pi-Apps GUI implementation
+// Description: Main entry point for the Pi-Apps GUI implementation
+// SPDX-License-Identifier: GPL-3.0-or-later
 
 package main
 

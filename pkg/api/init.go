@@ -1,4 +1,4 @@
-// Copyright (C) 2025 pi-apps-go contributors
+// Copyright (C) 2026 pi-apps-go contributors
 // This file is part of Pi-Apps Go - a modern, cross-architecture/cross-platform, and modular Pi-Apps implementation in Go.
 //
 // This program is free software: you can redistribute it and/or modify
@@ -16,6 +16,7 @@
 
 // Module: init.go
 // Description: Provides functions for initializing the API.
+// SPDX-License-Identifier: GPL-3.0-or-later
 
 package api
 
@@ -112,6 +113,10 @@ func init() {
 }
 
 // initPiAppsDir determines and sets the Pi-Apps directory location
+// This function implements the same safety checks as the original Bash install script
+// to prevent users from accidentally installing Pi-Apps into their HOME directory
+// or other user directories (like Downloads), which could lead to data loss.
+// See: https://github.com/Botspot/pi-apps/issues/2137
 func initPiAppsDir() {
 	// Check if PI_APPS_DIR environment variable is already set
 	piappsDir := GetPiAppsDir()
@@ -121,7 +126,7 @@ func initPiAppsDir() {
 	}
 
 	// Try to determine the directory based on the executable location
-	// This approach mimics the bash script behavior
+	// This approach mimics the bash script behavior: DIRECTORY="$(readlink -f "$(dirname "$0")")"
 	exePath, err := os.Executable()
 	if err == nil {
 		exeDir := filepath.Dir(exePath)
@@ -137,6 +142,8 @@ func initPiAppsDir() {
 	}
 
 	// If we still don't have a valid directory, use the default
+	// The isValidPiAppsDir check will reject HOME and common user directories,
+	// ensuring we fall back to $HOME/pi-apps instead of using a dangerous location
 	if PIAppsDir == "" || !isValidPiAppsDir(PIAppsDir) {
 		homeDir, _ := os.UserHomeDir()
 		PIAppsDir = filepath.Join(homeDir, "pi-apps")
@@ -147,15 +154,67 @@ func initPiAppsDir() {
 }
 
 // isValidPiAppsDir checks if a directory is a valid Pi-Apps directory
+// This function implements the same safety checks as the original Bash install script
+// to prevent users from accidentally installing Pi-Apps into their HOME directory
+// or other user directories (like Downloads), which could lead to data loss.
 func isValidPiAppsDir(dir string) bool {
 	if dir == "" {
 		return false
 	}
 
+	// Get the absolute path to avoid issues with symlinks and relative paths
+	absDir, err := filepath.Abs(dir)
+	if err != nil {
+		return false
+	}
+
+	// Get HOME directory for comparison
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		// If we can't get HOME, we can't validate, so reject for safety
+		return false
+	}
+	absHomeDir, err := filepath.Abs(homeDir)
+	if err != nil {
+		return false
+	}
+
+	// CRITICAL SAFETY CHECK: Reject if the directory is exactly the HOME directory
+	// This prevents the issue described in https://github.com/Botspot/pi-apps/issues/2137
+	// where users accidentally installed Pi-Apps into their Downloads folder
+	if absDir == absHomeDir {
+		return false
+	}
+
+	// Reject common user directories that should never be used as Pi-Apps directory
+	// These are directories where users typically store personal files
+	// NOTE: This only rejects the directories themselves (e.g., /home/user/Videos),
+	// NOT subdirectories within them (e.g., /home/user/Videos/pi-apps is allowed).
+	// This matches the original Bash script's behavior of only rejecting $HOME itself.
+	commonUserDirs := []string{
+		"Downloads",
+		"Documents",
+		"Desktop",
+		"Pictures",
+		"Videos",
+		"Music",
+		"Public",
+		"Templates",
+	}
+	for _, userDir := range commonUserDirs {
+		userDirPath := filepath.Join(absHomeDir, userDir)
+		// Only reject if the directory is exactly one of these user directories
+		// Subdirectories (like /home/user/Videos/pi-apps) are allowed
+		if absDir == userDirPath {
+			return false
+		}
+	}
+
 	// Check if the directory exists and has the expected files
-	apiFile := filepath.Join(dir, "api")
-	guiFile := filepath.Join(dir, "gui")
-	return DirExists(dir) && FileExists(apiFile) && FileExists(guiFile)
+	// This matches the original Bash script's check: [ ! -f "${DIRECTORY}/api" ] || [ ! -f "${DIRECTORY}/gui" ]
+	apiFile := filepath.Join(absDir, "api")
+	guiFile := filepath.Join(absDir, "gui")
+	return DirExists(absDir) && FileExists(apiFile) && FileExists(guiFile)
 }
 
 // initGUITheme sets the GTK theme for GUI components based on the App List Style setting

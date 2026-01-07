@@ -1,3 +1,4 @@
+// Copyright (C) 2026 pi-apps-go contributors
 // This file is part of Pi-Apps Go - a modern, cross-architecture/cross-platform, and modular Pi-Apps implementation in Go.
 //
 // This program is free software: you can redistribute it and/or modify
@@ -13,7 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// Package builder provides build-time plugin system for Pi-Apps Go
+// Module: builder.go
+// Description: Provides build-time plugin system for Pi-Apps Go
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // This is a work in progress, things must be adapted to keep the same functionality
 package builder
 

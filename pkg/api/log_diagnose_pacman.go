@@ -1,3 +1,4 @@
+// Copyright (C) 2026 pi-apps-go contributors
 // This file is part of Pi-Apps Go - a modern, cross-architecture/cross-platform, and modular Pi-Apps implementation in Go.
 //
 // This program is free software: you can redistribute it and/or modify
@@ -15,6 +16,7 @@
 
 // Module: log_diagnose_pacman.go
 // Description: Provides functions for diagnosing errors when using the Pacman package manager.
+// SPDX-License-Identifier: GPL-3.0-or-later
 
 //go:build pacman
 
@@ -177,7 +179,7 @@ func LogDiagnose(logfilePath string, allowWrite bool) (*ErrorDiagnosis, error) {
 					aurPackageName = missingPkg + "-dkms or " + missingPkg + "-xx-dkms"
 					exampleInstall = "yay -S <aur-package-name>"
 				}
-				
+
 				suggestion = "\n\nNote: NVIDIA driver packages (especially older series like 580, 390, 340) have been moved to AUR with different names.\n\n" +
 					"Important: According to Arch Linux news, you MUST uninstall the old package before installing the AUR replacement!\n\n" +
 					"Steps:\n" +

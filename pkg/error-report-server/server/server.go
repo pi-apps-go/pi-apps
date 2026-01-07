@@ -1,3 +1,4 @@
+// Copyright (C) 2026 pi-apps-go contributors
 // This file is part of Pi-Apps Go - a modern, cross-architecture/cross-platform, and modular Pi-Apps implementation in Go.
 //
 // This program is free software: you can redistribute it and/or modify
@@ -15,6 +16,7 @@
 
 // Module: server.go
 // Description: Provides a server for sending error reports to a Discord webhook.
+// SPDX-License-Identifier: GPL-3.0-or-later
 
 // Notes: This module requires a webhook URL to be provided to the server, which is not provided in the Pi-Apps Go project if you were to self host it.
 // To use this module, you will need to provide your own webhook URL as a .env file in the root of the project.

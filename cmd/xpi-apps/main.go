@@ -1,3 +1,4 @@
+// Copyright (C) 2026 pi-apps-go contributors
 // This file is part of Pi-Apps Go - a modern, cross-architecture/cross-platform, and modular Pi-Apps implementation in Go.
 //
 // This program is free software: you can redistribute it and/or modify
@@ -13,7 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// xpi-apps - Custom Pi-Apps Builder (similar to xcaddy)
+// Description: Custom Pi-Apps Builder (similar to xcaddy)
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+// Note: This is a work in progress, don't use it yet as a general utility to add plugins into Pi-Apps Go.
+
 package main
 
 import (

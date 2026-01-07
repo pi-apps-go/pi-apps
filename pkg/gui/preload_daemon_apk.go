@@ -1,4 +1,4 @@
-// Copyright (C) 2025 pi-apps-go contributors
+// Copyright (C) 2026 pi-apps-go contributors
 // This file is part of Pi-Apps Go - a modern, cross-architecture/cross-platform, and modular Pi-Apps implementation in Go.
 //
 // This program is free software: you can redistribute it and/or modify
@@ -17,6 +17,7 @@
 // Module: preload_daemon_apk.go
 // Description: Background daemon for refreshing app list files for APK package manager.
 // This replaces the bash preload-daemon script functionality for the Go rewrite.
+// SPDX-License-Identifier: GPL-3.0-or-later
 
 //go:build apk
 

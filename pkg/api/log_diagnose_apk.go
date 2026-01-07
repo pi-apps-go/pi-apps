@@ -1,3 +1,4 @@
+// Copyright (C) 2026 pi-apps-go contributors
 // This file is part of Pi-Apps Go - a modern, cross-architecture/cross-platform, and modular Pi-Apps implementation in Go.
 //
 // This program is free software: you can redistribute it and/or modify
@@ -15,6 +16,7 @@
 
 // Module: log_diagnose_apk.go
 // Description: Provides functions for diagnosing APK (Alpine Package Keeper) specific errors.
+// SPDX-License-Identifier: GPL-3.0-or-later
 
 //go:build apk
 
@@ -807,5 +809,3 @@ func LogDiagnose(logfilePath string, allowWrite bool) (*ErrorDiagnosis, error) {
 	// Always return nil error (equivalent to bash's "return 0") for consistent behavior
 	return diagnosis, nil
 }
-
-

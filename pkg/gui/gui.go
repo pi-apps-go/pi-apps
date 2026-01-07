@@ -1,4 +1,4 @@
-// Copyright (C) 2025 pi-apps-go contributors
+// Copyright (C) 2026 pi-apps-go contributors
 // This file is part of Pi-Apps Go - a modern, cross-architecture/cross-platform, and modular Pi-Apps implementation in Go.
 //
 // This program is free software: you can redistribute it and/or modify
@@ -17,6 +17,7 @@
 // Module: gui.go
 // Description: Main GUI implementation for Pi-Apps Go.
 // This replaces the bash gui script functionality with native Go and GTK3.
+// SPDX-License-Identifier: GPL-3.0-or-later
 
 package gui
 
