@@ -24,7 +24,7 @@ path = [
     ".github/dependabot.yml",
 ]
 precedence = "override"
-SPDX-FileCopyrightText = "pi-apps-go contributors"
+SPDX-FileCopyrightText = "Pi-Apps Go contributors"
 SPDX-License-Identifier = "GPL-3.0-or-later"
 
 [[annotations]]
@@ -48,3 +48,11 @@ path = [
 precedence = "aggregate"
 SPDX-FileCopyrightText = "Pi-Apps contributors"
 SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = [
+    "icons/updater/**",
+]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2018, Sam Hewitt <sam@snwh.org>"
+SPDX-License-Identifier = "CC-BY-SA-4.0"
