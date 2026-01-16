@@ -18,7 +18,7 @@ require (
 	github.com/toqueteos/webbrowser v1.2.1
 	gitlab.alpinelinux.org/alpine/go v0.10.1
 	golang.org/x/term v0.38.0
-	golang.org/x/text v0.32.0
+	golang.org/x/text v0.33.0
 	golang.org/x/time v0.14.0
 )
 
