@@ -27,6 +27,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -1330,10 +1331,5 @@ func AppPrefixCategory(directory, category string) ([]string, error) {
 
 // Helper function to check if a string is in a slice
 func containsApp(slice []string, item string) bool {
-	for _, s := range slice {
-		if s == item {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(slice, item)
 }

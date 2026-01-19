@@ -29,6 +29,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -62,6 +63,79 @@ func LogDiagnose(logfilePath string, allowWrite bool) (*ErrorDiagnosis, error) {
 	}
 
 	// Check for various error patterns
+
+	//------------------------------------------
+	// Operating System Release checks (should be checked early)
+	//------------------------------------------
+
+	// Check for Debian Trixie (VERSION_ID >= 13) - this should take precedence over generic errors
+	// This check should happen early to prevent generic error messages from being shown
+	// Get OS info dynamically (don't rely on global variables which may not be initialized)
+	osID, _, versionID := getOSInfoWithVersion()
+
+	// ALWAYS try to parse OS info from log file first (not just as fallback)
+	// When analyzing a log file, the OS info in the log is authoritative
+	// Log files contain "OS: Debian GNU/Linux 13 (trixie)" on the first line
+	if strings.HasPrefix(errors, "OS:") {
+		scanner := bufio.NewScanner(strings.NewReader(errors))
+		if scanner.Scan() {
+			firstLine := scanner.Text()
+			// Parse "OS: Debian GNU/Linux 13 (trixie)" format
+			// Check for Trixie explicitly in the log
+			if strings.Contains(strings.ToLower(firstLine), "trixie") {
+				if strings.Contains(firstLine, "Raspbian") {
+					osID = "Raspbian"
+				} else if strings.Contains(firstLine, "Debian") {
+					osID = "Debian"
+				}
+				// Extract version number after "GNU/Linux" or just look for "13"
+				// Pattern: "GNU/Linux 13" or just "13" followed by "(trixie)"
+				versionRegex := regexp.MustCompile(`GNU/Linux\s+(\d+)`)
+				matches := versionRegex.FindStringSubmatch(firstLine)
+				if len(matches) > 1 {
+					versionID = matches[1]
+				} else {
+					// Fallback: look for "13" before "(trixie)"
+					versionRegex2 := regexp.MustCompile(`(\d+)\s*\(trixie\)`)
+					matches2 := versionRegex2.FindStringSubmatch(firstLine)
+					if len(matches2) > 1 {
+						versionID = matches2[1]
+					}
+				}
+			}
+		}
+	}
+
+	// Parse version ID as number for comparison (matches original bash: [ "$__os_release" -ge 13 ])
+	versionNum := 0
+	if versionID != "" {
+		// Extract just the numeric part (handle cases like "13.0" or "13")
+		parts := strings.Split(versionID, ".")
+		if len(parts) > 0 {
+			if parsed, err := strconv.Atoi(parts[0]); err == nil {
+				versionNum = parsed
+			}
+		}
+	}
+
+	if (osID == "Debian" || osID == "Raspbian") && versionNum >= 13 {
+		// Only show Trixie message if we have unmet dependencies or other errors
+		// This prevents showing the message on successful installs
+		if strings.Contains(errors, "The following packages have unmet dependencies:") ||
+			strings.Contains(errors, "E:") ||
+			strings.Contains(errors, "error:") {
+			diagnosis.Captions = append(diagnosis.Captions,
+				"All the Pi-Apps Go apps are not yet supported in Trixie.\n\n"+
+					"We are tracking all apps that fail to install on PiOS Trixie from upstream issue https://github.com/Botspot/pi-apps/issues/2829\n"+
+					"Each comment contains a link to the offending actions run showing the install failure. Please check your app that you tried to install that failed to see if it is already reported.\n\n"+
+					"Now would be a great time for Beta Testers to get involved with debugging and triaging these issues.\n"+
+					"In a lot of cases these are issues with the upstream projects (not pi-apps).\n"+
+					"Please open a bug report at the upstream project for the failure and link back to the pi-apps issue if this is the case.\n\n"+
+					"We will make an announcement via our Sharkey server/Github issue when most of these compatibility issues have been resolved.\n"+
+					"Most users should please continue to use PiOS Bookworm for the best Pi-Apps Go compatibility for the time being.")
+			diagnosis.ErrorType = "Operating_System_Release"
+		}
+	}
 
 	//------------------------------------------
 	// Repo issues
@@ -711,7 +785,7 @@ func LogDiagnose(logfilePath string, allowWrite bool) (*ErrorDiagnosis, error) {
 		}
 
 		// If no specific error type was set but we have unmet dependencies,
-		// use a generic message
+		// use a generic message (but only if Trixie check didn't already set an error type)
 		if diagnosis.ErrorType == "" {
 			diagnosis.Captions = append(diagnosis.Captions,
 				"APT reported unmet dependencies. This could be caused by:\n\n"+
@@ -842,11 +916,14 @@ func LogDiagnose(logfilePath string, allowWrite bool) (*ErrorDiagnosis, error) {
 	}
 
 	// Check for Raspberry Pi OS with missing or altered raspi.list/raspi.sources
+	// Note: In Debian Trixie (VERSION_ID >= 13), raspi.list is deprecated and replaced by raspi.sources
 	rpiIssueExists := fileExists("/etc/rpi-issue")
 	raspiListExists := fileExists("/etc/apt/sources.list.d/raspi.list")
 	raspiSourcesExists := fileExists("/etc/apt/sources.list.d/raspi.sources")
 
-	if rpiIssueExists && (!raspiListExists || !containsRaspiRepo("/etc/apt/sources.list.d/raspi.list")) {
+	// Only check for raspi.list on versions before Trixie (< 13)
+	// On Trixie and newer, raspi.list is deprecated and should not exist
+	if rpiIssueExists && VERSION_ID < "13" && (!raspiListExists || !containsRaspiRepo("/etc/apt/sources.list.d/raspi.list")) {
 		diagnosis.Captions = append(diagnosis.Captions,
 			"Packages failed to install because you seem to have deleted or altered an important repository file in /etc/apt/sources.list.d\n\n"+
 				"This error-dialog appeared because /etc/apt/sources.list.d/raspi.list is missing or altered, but you may have deleted other files as well.\n"+
@@ -857,18 +934,9 @@ func LogDiagnose(logfilePath string, allowWrite bool) (*ErrorDiagnosis, error) {
 		diagnosis.ErrorType = "system"
 	}
 
-	if rpiIssueExists && (!raspiListExists || VERSION_ID >= "13") {
-		diagnosis.Captions = append(diagnosis.Captions,
-			"Packages failed to install because you seem to have deleted or altered an important repository file in /etc/apt/sources.list.d\n\n"+
-				"This error-dialog appeared because /etc/apt/sources.list.d/raspi.list is missing or altered, but you may have deleted other files as well.\n"+
-				"The raspi.list file should contain this:\n\n"+
-				"deb http://archive.raspberrypi.com/debian/ "+getCodename()+" main\n"+
-				"# Uncomment line below then 'apt-get update' to enable 'apt-get source'\n"+
-				"#deb-src http://archive.raspberrypi.com/debian/ "+getCodename()+" main")
-		diagnosis.ErrorType = "system"
-	}
-
-	if rpiIssueExists && (!raspiSourcesExists || !containsRaspiRepo("/etc/apt/sources.list.d/raspi.sources")) {
+	// Only check for raspi.sources on Trixie and newer (>= 13)
+	// On older versions, raspi.sources may not exist (raspi.list is used instead)
+	if rpiIssueExists && VERSION_ID >= "13" && (!raspiSourcesExists || !containsRaspiRepoSources("/etc/apt/sources.list.d/raspi.sources")) {
 		diagnosis.Captions = append(diagnosis.Captions,
 			"Packages failed to install because you seem to have deleted or altered an important repository file in /etc/apt/sources.list.d\n\n"+
 				"This error-dialog appeared because /etc/apt/sources.list.d/raspi.sources is missing or altered, but you may have deleted other files as well.\n"+
@@ -1905,20 +1973,7 @@ func LogDiagnose(logfilePath string, allowWrite bool) (*ErrorDiagnosis, error) {
 		diagnosis.ErrorType = "system"
 	}
 
-	// temporary debian trixie error diagnosis (doesn't block sending error reports but does show info to users if there is no other automatic diagnosis)
-
-	if NAME == "Debian" || NAME == "Raspbian" && VERSION_ID == "13" {
-		diagnosis.Captions = append(diagnosis.Captions,
-			"All the Pi-Apps Go apps are not yet supported in Trixie.\n\n"+
-				"We are tracking all apps that fail to install on PiOS Trixie from upstream issue https://github.com/Botspot/pi-apps/issues/2829\n"+
-				"Each comment contains a link to the offending actions run showing the install failure. Please check your app that you tried to install that failed to see if it is already reported.\n\n"+
-				"Now would be a great time for Beta Testers to get involved with debugging and triaging these issues.\n"+
-				"In a lot of cases these are issues with the upstream projects (not pi-apps).\n"+
-				"Please open a bug report at the upstream project for the failure and link back to the pi-apps issue if this is the case.\n\n"+
-				"We will make an announcement via our Sharkey server/Github issue when most of these compatibility issues have been resolved.\n"+
-				"Most users should please continue to use PiOS Bookworm for the best Pi-Apps Go compatibility for the time being.")
-		diagnosis.ErrorType = "Operating_System_Release"
-	}
+	// Note: Trixie check moved earlier in the function to take precedence over generic error messages
 
 	// Check for user errors - these are errors that scripts deliberately output to diagnose issues
 
@@ -1983,7 +2038,10 @@ func LogDiagnose(logfilePath string, allowWrite bool) (*ErrorDiagnosis, error) {
 		// Remove trailing newline
 		errorMessage = strings.TrimSuffix(errorMessage, "\n")
 		diagnosis.Captions = append(diagnosis.Captions, errorMessage)
-		diagnosis.ErrorType = "unknown" // Allows error reporting
+		// Only set to "unknown" if no error type was already set (preserves earlier detections like Trixie)
+		if diagnosis.ErrorType == "" {
+			diagnosis.ErrorType = "unknown" // Allows error reporting
+		}
 	}
 
 	// If no error type was set, default to "unknown" (allows error reporting)
@@ -2020,15 +2078,56 @@ func containsRaspiRepo(path string) bool {
 	return false
 }
 
+// Helper function to check if raspi.sources contains the required repository entries
+func containsRaspiRepoSources(path string) bool {
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return false
+	}
+
+	contentStr := string(content)
+
+	// Check for the required .sources file patterns
+	// Must have URIs pointing to raspberrypi archive
+	uriPatterns := []string{
+		"URIs:\\s+http://archive\\.raspberrypi\\.com/debian/",
+		"URIs:\\s+https://archive\\.raspberrypi\\.com/debian/",
+		"URIs:\\s+http://archive\\.raspberrypi\\.org/debian/",
+		"URIs:\\s+https://archive\\.raspberrypi\\.org/debian/",
+	}
+
+	hasValidURI := false
+	for _, pattern := range uriPatterns {
+		re := regexp.MustCompile(pattern)
+		if re.MatchString(contentStr) {
+			hasValidURI = true
+			break
+		}
+	}
+
+	if !hasValidURI {
+		return false
+	}
+
+	// Also check for required fields: Types, Suites, Components
+	hasTypes := regexp.MustCompile(`Types:\s+deb`).MatchString(contentStr)
+	hasSuites := regexp.MustCompile(`Suites:`).MatchString(contentStr)
+	hasComponents := regexp.MustCompile(`Components:\s+main`).MatchString(contentStr)
+
+	return hasTypes && hasSuites && hasComponents
+}
+
 // getCodename returns the OS codename
 func getCodename() string {
-	// Try to get codename from /etc/os-release
-	if _, err := os.Stat("/etc/os-release"); err == nil {
-		output, err := runCommand("grep", "VERSION_CODENAME", "/etc/os-release")
-		if err == nil && output != "" {
-			parts := strings.Split(output, "=")
-			if len(parts) >= 2 {
-				return strings.TrimSpace(parts[1])
+	// Try to get codename from /etc/os-release using Go file reading
+	if data, err := os.ReadFile("/etc/os-release"); err == nil {
+		lines := strings.Split(string(data), "\n")
+		for _, line := range lines {
+			if strings.HasPrefix(line, "VERSION_CODENAME=") {
+				parts := strings.SplitN(line, "=", 2)
+				if len(parts) == 2 {
+					return strings.TrimSpace(parts[1])
+				}
 			}
 		}
 	}
@@ -2054,26 +2153,40 @@ func getCodename() string {
 
 // getOSInfo returns the OS ID and codename
 func getOSInfo() (string, string) {
+	osID, osCodename, _ := getOSInfoWithVersion()
+	return osID, osCodename
+}
+
+// getOSInfoWithVersion returns the OS ID, codename, and version ID
+func getOSInfoWithVersion() (string, string, string) {
 	osID := "Unknown"
 	osCodename := "Unknown"
+	versionID := ""
 
 	// Check if /etc/os-release exists
 	if _, err := os.Stat("/etc/os-release"); err == nil {
-		// Get OS ID
-		idOutput, err := runCommand("grep", "^ID=", "/etc/os-release")
-		if err == nil && idOutput != "" {
-			parts := strings.Split(idOutput, "=")
-			if len(parts) >= 2 {
-				osID = strings.Trim(strings.TrimSpace(parts[1]), "\"'")
-			}
-		}
-
-		// Get OS codename
-		codenameOutput, err := runCommand("grep", "^VERSION_CODENAME=", "/etc/os-release")
-		if err == nil && codenameOutput != "" {
-			parts := strings.Split(codenameOutput, "=")
-			if len(parts) >= 2 {
-				osCodename = strings.Trim(strings.TrimSpace(parts[1]), "\"'")
+		// Get OS ID, codename, and version ID from /etc/os-release
+		content, err := os.ReadFile("/etc/os-release")
+		if err == nil {
+			lines := strings.Split(string(content), "\n")
+			for _, line := range lines {
+				line = strings.TrimSpace(line)
+				if strings.HasPrefix(line, "ID=") && len(line) > 3 {
+					parts := strings.SplitN(line, "=", 2)
+					if len(parts) == 2 {
+						osID = strings.Trim(strings.TrimSpace(parts[1]), "\"'")
+					}
+				} else if strings.HasPrefix(line, "VERSION_CODENAME=") && len(line) > 17 {
+					parts := strings.SplitN(line, "=", 2)
+					if len(parts) == 2 {
+						osCodename = strings.Trim(strings.TrimSpace(parts[1]), "\"'")
+					}
+				} else if strings.HasPrefix(line, "VERSION_ID=") && len(line) > 11 {
+					parts := strings.SplitN(line, "=", 2)
+					if len(parts) == 2 {
+						versionID = strings.Trim(strings.TrimSpace(parts[1]), "\"'")
+					}
+				}
 			}
 		}
 	}
@@ -2083,7 +2196,7 @@ func getOSInfo() (string, string) {
 		osID = "Raspbian"
 	}
 
-	return osID, osCodename
+	return osID, osCodename, versionID
 }
 
 // checkBackportsRepo checks if the Debian backports repository is enabled
@@ -2181,10 +2294,15 @@ func findBackportsConflicts(errors string) ([]string, error) {
 	cleanCandidates = uniqueStrings(cleanCandidates)
 
 	// For each candidate, check if it's installed from backports
+	// Use apt list -a (not apt-get) to match the original bash script behavior
 	for _, pkg := range cleanCandidates {
-		output, err := runCommand("apt-get", "list", "--installed", pkg)
-		if err == nil && strings.Contains(output, "-backports,now") {
-			conflicts = append(conflicts, pkg)
+		output, err := runCommand("apt", "list", "-a", pkg)
+		if err == nil && strings.Contains(output, "[installed") && strings.Contains(output, "-backports,now") {
+			// Extract package name (before the /)
+			parts := strings.Split(output, "/")
+			if len(parts) > 0 {
+				conflicts = append(conflicts, strings.TrimSpace(parts[0]))
+			}
 		}
 	}
 

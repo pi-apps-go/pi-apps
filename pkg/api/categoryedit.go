@@ -117,6 +117,7 @@ var (
 		{AppName: "Gnome Software", Category: "hidden"},
 		{AppName: "Gnumeric", Category: "Office"},
 		{AppName: "Godot", Category: "Games"},
+		{AppName: "Go", Category: "Programming"},
 		{AppName: "GParted", Category: "System Management"},
 		{AppName: "Guake Terminal", Category: "Terminals"},
 		{AppName: "Hangover", Category: "Tools/Emulation"},

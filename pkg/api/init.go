@@ -60,6 +60,7 @@ var (
 	PRETTY_NAME      string
 	VERSION_ID       string
 	VERSION_CODENAME string
+	LibcType         string
 )
 
 // Init intializes enviroment variables required for Pi-Apps Go to function.
@@ -104,6 +105,9 @@ func Init() {
 	PRETTY_NAME = lsb.PRETTY_NAME
 	VERSION_ID = lsb.VERSION_ID
 	VERSION_CODENAME = lsb.VERSION_CODENAME
+
+	// Initialize libc type
+	initLibcType()
 
 }
 
@@ -287,7 +291,7 @@ func initSystemArch() {
 		}
 
 		// Set environment variables for architecture
-		os.Setenv("HOST_ARCH", HostSystemArch)
+		os.Setenv("__host_arch", HostSystemArch)
 		return
 	}
 
@@ -499,6 +503,33 @@ func initCPUOpModes() {
 	}
 	if CPUOpMode64 {
 		os.Setenv("__cpu_op_mode_64", "true")
+	}
+}
+
+// initLibcType determines the type of libc the system is using
+func initLibcType() {
+	if CommandExists("ldd") {
+		cmd := exec.Command("ldd", "--version")
+		var outBuf, errBuf bytes.Buffer
+		cmd.Stdout = &outBuf
+		cmd.Stderr = &errBuf
+		err := cmd.Run()
+		if err == nil {
+			libcTypeOutput := strings.TrimSpace(outBuf.String() + "\n" + errBuf.String())
+			if strings.Contains(strings.ToLower(libcTypeOutput), "musl") {
+				LibcType = "musl"
+				os.Setenv("__libc_type", "musl")
+			} else if strings.Contains(strings.ToLower(libcTypeOutput), "glibc") ||
+				strings.Contains(strings.ToLower(libcTypeOutput), "gnu libc") ||
+				strings.Contains(strings.ToLower(libcTypeOutput), "gnu c library") {
+				LibcType = "glibc"
+				os.Setenv("__libc_type", "glibc")
+			} else {
+				// assume glibc by default
+				LibcType = "glibc"
+				os.Setenv("__libc_type", "glibc")
+			}
+		}
 	}
 }
 
