@@ -27,13 +27,13 @@ build-with-multi-call: build-multi-call-pi-apps
 build-with-multi-call-debug: build-multi-call-pi-apps-debug
 
 build-api:
-	go build -o bin/api -ldflags "$(LDFLAGS) -w -s" -trimpath -tags=$(PKG_MGR) ./cmd/api
+	go build -o bin/api -ldflags "$(LDFLAGS) -w -s" -trimpath -tags="$(PKG_MGR) vips libicu" ./cmd/api
 
 build-pi-apps:
 	go build -o bin/pi-apps -ldflags "$(LDFLAGS) -w -s" -trimpath -tags=$(PKG_MGR) ./cmd/pi-apps
 
 build-api-debug:
-	go build -o bin/api -ldflags "$(LDFLAGS)" -tags=$(PKG_MGR) ./cmd/api
+	go build -o bin/api -ldflags "$(LDFLAGS)" -tags="$(PKG_MGR) vips libicu" ./cmd/api
 
 build-pi-apps-debug:
 	go build -o bin/pi-apps -ldflags "$(LDFLAGS)" -tags=$(PKG_MGR) ./cmd/pi-apps
@@ -45,10 +45,10 @@ build-manage-debug:
 	go build -o bin/manage -ldflags "$(LDFLAGS)" -tags=$(PKG_MGR) ./cmd/manage/main.go
 
 build-gui:
-	go build -o bin/gui -ldflags "$(LDFLAGS) -w -s" -trimpath -tags=$(PKG_MGR) ./cmd/gui/main.go
+	go build -o bin/gui -ldflags "$(LDFLAGS) -w -s" -trimpath -tags="$(PKG_MGR) libicu" ./cmd/gui/main.go
 
 build-gui-debug:
-	go build -o bin/gui -ldflags "$(LDFLAGS)" -tags=$(PKG_MGR) ./cmd/gui/main.go
+	go build -o bin/gui -ldflags "$(LDFLAGS)" -tags="$(PKG_MGR) libicu" ./cmd/gui/main.go
 
 build-settings:
 	go build -o bin/settings -ldflags "$(LDFLAGS) -w -s" -trimpath -tags=$(PKG_MGR) ./cmd/settings
@@ -84,10 +84,10 @@ build-error-report-server-debug:
 
 # If multi-call-pi-apps is used, the normal pi-apps-go seperated binaries cannot be used at the same time..
 build-multi-call-pi-apps:
-	go build -o bin/multi-call-pi-apps -ldflags "$(LDFLAGS) -w -s" -trimpath -tags=$(PKG_MGR) ./cmd/multi-call-pi-apps
+	go build -o bin/multi-call-pi-apps -ldflags "$(LDFLAGS) -w -s" -trimpath -tags="$(PKG_MGR) vips libicu" ./cmd/multi-call-pi-apps
 
 build-multi-call-pi-apps-debug:
-	go build -o bin/multi-call-pi-apps -ldflags "$(LDFLAGS)" -tags=$(PKG_MGR) ./cmd/multi-call-pi-apps
+	go build -o bin/multi-call-pi-apps -ldflags "$(LDFLAGS)" -tags="$(PKG_MGR) vips libicu" ./cmd/multi-call-pi-apps
 
 clean:
 	rm -rf bin/ api-go manage pi-apps settings updater gui error-report-server multi-call-pi-apps xpi-apps

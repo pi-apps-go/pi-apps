@@ -14,32 +14,22 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// Module: icu.go
-// Description: Provides functions for getting the ICU version via the C API.
+// Module: app_maint_novips.go
+// Description: Provides stub functions for manipulating images for slimmer builds.
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-//go:build libicu
+//go:build !vips
 
 package api
 
-/*
-#cgo LDFLAGS: -licuuc
-#include <stdio.h>
-#include <unicode/utypes.h>
-#include <unicode/uversion.h>
+import (
+	"fmt"
+)
 
-void getICUVersion(char *buffer) {
-    UVersionInfo versionArray;
-    u_getVersion(versionArray);
-    sprintf(buffer, "%d.%d.%d.%d", versionArray[0], versionArray[1], versionArray[2], versionArray[3]);
-}
-*/
-import "C"
-import "unsafe"
-
-// Version returns the ICU version as a string, e.g. "73.1.0.0"
-func GetICUVersion() string {
-	var buffer [20]C.char
-	C.getICUVersion((*C.char)(unsafe.Pointer(&buffer[0])))
-	return C.GoString(&buffer[0])
+// GenerateAppIcons converts the given image into icon-24.png and icon-64.png files for the specified app
+//
+// This implementation uses the govips library for image processing and preserves the original aspect ratio
+// of the image when resizing, similar to how ImageMagick would handle it in the bash implementation
+func GenerateAppIcons(iconPath, appName string) error {
+	return fmt.Errorf("GenerateAppIcons is stubbed out via the !vips build tag")
 }

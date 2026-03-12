@@ -18,6 +18,7 @@
 // Description: Provides functions for initializing the API.
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+// Package API implements the core Pi-Apps Go API used by other Pi-Apps Go apps (like gui) or app scripts from the app catalog to install a given app.
 package api
 
 import (

@@ -14,32 +14,15 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// Module: icu.go
-// Description: Provides functions for getting the ICU version via the C API.
+// Module: icu_stub.go
+// Description: Provides stub functions for getting the ICU version for slimmer builds.
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-//go:build libicu
+//go:build !libicu
 
 package api
 
-/*
-#cgo LDFLAGS: -licuuc
-#include <stdio.h>
-#include <unicode/utypes.h>
-#include <unicode/uversion.h>
-
-void getICUVersion(char *buffer) {
-    UVersionInfo versionArray;
-    u_getVersion(versionArray);
-    sprintf(buffer, "%d.%d.%d.%d", versionArray[0], versionArray[1], versionArray[2], versionArray[3]);
-}
-*/
-import "C"
-import "unsafe"
-
 // Version returns the ICU version as a string, e.g. "73.1.0.0"
 func GetICUVersion() string {
-	var buffer [20]C.char
-	C.getICUVersion((*C.char)(unsafe.Pointer(&buffer[0])))
-	return C.GoString(&buffer[0])
+	return "0.0.0.0"
 }
