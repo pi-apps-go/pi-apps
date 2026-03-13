@@ -6,7 +6,7 @@ require (
 	fyne.io/systray v1.12.0
 	github.com/AllenDang/cimgui-go v1.4.0
 	github.com/ProtonMail/gopenpgp/v3 v3.3.0
-	github.com/charmbracelet/log v0.4.2
+	github.com/charmbracelet/log v1.0.0
 	github.com/davidbyttow/govips/v2 v2.17.0
 	github.com/gen2brain/beeep v0.11.2
 	github.com/gorilla/mux v1.8.1
@@ -35,7 +35,7 @@ require (
 	github.com/cloudflare/circl v1.6.0 // indirect
 	github.com/esiqveland/notify v0.13.3 // indirect
 	github.com/gen2brain/shm v0.1.1 // indirect
-	github.com/go-logfmt/logfmt v0.6.0 // indirect
+	github.com/go-logfmt/logfmt v0.6.1 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect
 	github.com/godbus/dbus/v5 v5.1.0 // indirect
 	github.com/jackmordaunt/icns/v3 v3.0.1 // indirect
