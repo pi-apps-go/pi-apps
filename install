@@ -127,7 +127,7 @@ if ! command -v go &>/dev/null; then
   if [ "$GO_ROLLING_RELEASE" = "true" ]; then
     $PKG_INSTALL go $PKG_INSTALL_FLAGS || error "Go failed to install and so the Pi-Apps Go install has been aborted. Before Pi-Apps Go can be installed you must solve any errors above."
   else
-  GO_VERSION="1.25.5"
+  GO_VERSION="1.26.1"
   ARCH=$(uname -m)
   case $ARCH in
     x86_64) GO_ARCH="amd64" ;;
@@ -165,7 +165,7 @@ else
         $PKG_INSTALL go $PKG_INSTALL_FLAGS || error "Go failed to install and so the Pi-Apps Go install has been aborted. Before Pi-Apps Go can be installed you must solve any errors above."
       else
       # Download and install newer Go
-      GO_VERSION="1.25.5"
+      GO_VERSION="1.26.1"
       ARCH=$(uname -m)
       case $ARCH in
         x86_64) GO_ARCH="amd64" ;;

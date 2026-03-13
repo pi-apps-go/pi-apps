@@ -26,7 +26,7 @@ import (
 	"runtime/debug"
 	"time"
 
-	"github.com/charmbracelet/log"
+	"charm.land/log/v2"
 	"github.com/gotk3/gotk3/gtk"
 	"github.com/pi-apps-go/pi-apps/pkg/api"
 	"github.com/pi-apps-go/pi-apps/pkg/gui"
