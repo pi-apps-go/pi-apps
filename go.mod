@@ -1,6 +1,6 @@
 module github.com/pi-apps-go/pi-apps
 
-go 1.24.0
+go 1.25.0
 
 require (
 	fyne.io/systray v1.12.0
@@ -19,7 +19,7 @@ require (
 	gitlab.alpinelinux.org/alpine/go v0.10.1
 	golang.org/x/term v0.40.0
 	golang.org/x/text v0.34.0
-	golang.org/x/time v0.14.0
+	golang.org/x/time v0.15.0
 )
 
 require (
