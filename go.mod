@@ -7,7 +7,7 @@ require (
 	github.com/AllenDang/cimgui-go v1.4.0
 	github.com/ProtonMail/gopenpgp/v3 v3.3.0
 	github.com/charmbracelet/log v0.4.2
-	github.com/davidbyttow/govips/v2 v2.16.0
+	github.com/davidbyttow/govips/v2 v2.17.0
 	github.com/gen2brain/beeep v0.11.2
 	github.com/gorilla/mux v1.8.1
 	github.com/gotk3/gotk3 v0.6.5-0.20240618185848-ff349ae13f56
