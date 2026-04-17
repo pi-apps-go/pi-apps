@@ -17,7 +17,7 @@ require (
 	github.com/schollz/progressbar/v3 v3.19.0
 	github.com/toqueteos/webbrowser v1.2.1
 	gitlab.alpinelinux.org/alpine/go v0.10.1
-	golang.org/x/term v0.41.0
+	golang.org/x/term v0.42.0
 	golang.org/x/text v0.35.0
 	golang.org/x/time v0.15.0
 )
@@ -59,6 +59,6 @@ require (
 	golang.org/x/image v0.38.0 // indirect
 	golang.org/x/net v0.52.0 // indirect
 	golang.org/x/sync v0.20.0 // indirect
-	golang.org/x/sys v0.42.0 // indirect
+	golang.org/x/sys v0.43.0 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 )
