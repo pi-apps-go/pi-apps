@@ -6,7 +6,7 @@ require (
 	charm.land/log/v2 v2.0.0
 	fyne.io/systray v1.12.0
 	github.com/AllenDang/cimgui-go v1.4.0
-	github.com/ProtonMail/gopenpgp/v3 v3.4.0
+	github.com/ProtonMail/gopenpgp/v3 v3.4.1
 	github.com/davidbyttow/govips/v2 v2.18.0
 	github.com/gen2brain/beeep v0.11.2
 	github.com/gorilla/mux v1.8.1
