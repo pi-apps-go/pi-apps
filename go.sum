@@ -12,8 +12,8 @@ github.com/MakeNowJust/heredoc/v2 v2.0.1 h1:rlCHh70XXXv7toz95ajQWOWQnN4WNLt0TdpZ
 github.com/MakeNowJust/heredoc/v2 v2.0.1/go.mod h1:6/2Abh5s+hc3g9nbWLe9ObDIOhaRrqsyY9MWy+4JdRM=
 github.com/ProtonMail/go-crypto v1.4.1 h1:9RfcZHqEQUvP8RzecWEUafnZVtEvrBVL9BiF67IQOfM=
 github.com/ProtonMail/go-crypto v1.4.1/go.mod h1:e1OaTyu5SYVrO9gKOEhTc+5UcXtTUa+P3uLudwcgPqo=
-github.com/ProtonMail/gopenpgp/v3 v3.4.0 h1:WW0VK+mZjbu5SqhWNm58TYKFxyvduiUHTfyIKs60dgY=
-github.com/ProtonMail/gopenpgp/v3 v3.4.0/go.mod h1:bGdV9f6edhmd581wzXsQCTKdH8bXBbyhkgDKPjwPc6U=
+github.com/ProtonMail/gopenpgp/v3 v3.4.1 h1:K7uUhSHSJxORZ+RuHpilTT6S4MA2whCRlXNwLqd0+ys=
+github.com/ProtonMail/gopenpgp/v3 v3.4.1/go.mod h1:bGdV9f6edhmd581wzXsQCTKdH8bXBbyhkgDKPjwPc6U=
 github.com/charmbracelet/colorprofile v0.4.2 h1:BdSNuMjRbotnxHSfxy+PCSa4xAmz7szw70ktAtWRYrY=
 github.com/charmbracelet/colorprofile v0.4.2/go.mod h1:0rTi81QpwDElInthtrQ6Ni7cG0sDtwAd4C4le060fT8=
 github.com/charmbracelet/ultraviolet v0.0.0-20251205161215-1948445e3318 h1:OqDqxQZliC7C8adA7KjelW3OjtAxREfeHkNcd66wpeI=
