@@ -4,7 +4,7 @@ go 1.25.8
 
 require (
 	charm.land/log/v2 v2.0.0
-	fyne.io/systray v1.12.0
+	fyne.io/systray v1.12.1
 	github.com/AllenDang/cimgui-go v1.4.0
 	github.com/ProtonMail/gopenpgp/v3 v3.4.0
 	github.com/davidbyttow/govips/v2 v2.18.0
