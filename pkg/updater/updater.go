@@ -18,6 +18,7 @@
 // Description: Entrypoint for the updater.
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+// Updater app entrypoint for Pi-Apps Go
 package updater
 
 import (

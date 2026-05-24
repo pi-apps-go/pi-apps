@@ -45,6 +45,7 @@ var (
 	AptLockWaitMessage         = T("Wait for pacman lock")
 	UbuntuPPAInstallerMessage  = T("Install AUR package (equivalent to Ubuntu PPA)")
 	DebianPPAInstallerMessage  = T("Install AUR package (equivalent to Debian PPA, arguments beyond the package name are ignored)")
+	PatchDebSedMessage         = T("Modify the control file of a deb file to fix the dependencies following a sed pattern - ignored, not supported by pacman")
 )
 
 // checkShellcheck checks if shellcheck is installed and installs it if it isn't
@@ -631,4 +632,9 @@ func uninstallPackageAppDependencies(dependencies ...string) error {
 	}
 
 	return nil
+}
+
+// PatchDebSed modifies the control file of a deb file to fix the dependencies following a sed pattern
+func PatchDebSed(debFile, sedString string) error {
+	return fmt.Errorf("only supported on Debian-based systems")
 }

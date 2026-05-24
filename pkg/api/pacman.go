@@ -42,7 +42,7 @@ import (
 	"github.com/ProtonMail/gopenpgp/v3/crypto"
 )
 
-// RepoAdd adds local package files to the /tmp/pi-apps-local-packages repository
+// RepoAdd adds local package files to the /var/cache/pi-apps/pi-apps-local-packages repository
 func RepoAdd(files ...string) error {
 	if len(files) == 0 {
 		return fmt.Errorf("no files specified")
@@ -55,10 +55,17 @@ func RepoAdd(files ...string) error {
 	}
 
 	// Create architecture-specific subdirectory
-	// Pacman will look for files in /tmp/pi-apps-local-packages/{arch}/
-	repoDir := filepath.Join("/tmp/pi-apps-local-packages", arch)
-	if err := os.MkdirAll(repoDir, 0755); err != nil {
+	// Pacman will look for files in /var/cache/pi-apps/pi-apps-local-packages/{arch}/
+	repoDir := filepath.Join("/var/cache/pi-apps/pi-apps-local-packages", arch)
+	cmd := exec.Command("sudo", "mkdir", "-p", repoDir)
+	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("failed to create folder %s: %w", repoDir, err)
+	}
+
+	// permission change to allow writing to the folder as non-root
+	chmodChange := exec.Command("sudo", "chmod", "-R", "1777", "/var/cache/pi-apps/pi-apps-local-packages")
+	if err := chmodChange.Run(); err != nil {
+		return fmt.Errorf("failed to change permissions of folder %s: %w", repoDir, err)
 	}
 
 	// Move every mentioned package file to the repository
@@ -99,7 +106,7 @@ func RepoRefresh() error {
 	}
 
 	// Use architecture-specific subdirectory
-	repoDir := filepath.Join("/tmp/pi-apps-local-packages", arch)
+	repoDir := filepath.Join("/var/cache/pi-apps/pi-apps-local-packages", arch)
 
 	// Check if the repository directory exists
 	if _, err := os.Stat(repoDir); os.IsNotExist(err) {
@@ -124,14 +131,17 @@ func RepoRefresh() error {
 
 	// Create a temporary database directory
 	dbDir := filepath.Join(repoDir, "pi-apps-local.db")
-	os.RemoveAll(dbDir)
-	if err := os.MkdirAll(dbDir, 0755); err != nil {
+	cmdDbRm := exec.Command("sudo", "rm", "-r", dbDir)
+	if err := cmdDbRm.Run(); err != nil {
+		return fmt.Errorf("failed to delete database directory: %w", err)
+	}
+	cmdDbMkdir := exec.Command("sudo", "mkdir", "-p", dbDir)
+	if err := cmdDbMkdir.Run(); err != nil {
 		return fmt.Errorf("failed to create database directory: %w", err)
 	}
-
 	// Use repo-add to create the repository database
 	// repo-add creates a database file in the same directory as the packages
-	cmd := exec.Command("repo-add", filepath.Join(repoDir, "pi-apps-local.db.tar.gz"))
+	cmd := exec.Command("sudo", "repo-add", filepath.Join(repoDir, "pi-apps-local.db.tar.gz"))
 	cmd.Dir = repoDir
 	cmd.Env = append(os.Environ(), "LANG=en_US.UTF-8", "LC_ALL=en_US.UTF-8")
 
@@ -522,7 +532,7 @@ func RepoRm() error {
 		return fmt.Errorf("failed to wait for pacman locks: %w", err)
 	}
 
-	repoPath := "/tmp/pi-apps-local-packages"
+	repoPath := "/var/cache/pi-apps/pi-apps-local-packages"
 
 	// Try to remove as current user first
 	err := os.RemoveAll(repoPath)

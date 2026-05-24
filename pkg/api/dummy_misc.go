@@ -41,6 +41,7 @@ var (
 	AptLockWaitMessage         = T("Wait for <package manager> lock")
 	UbuntuPPAInstallerMessage  = T("Install Ubuntu PPA - ignored, not supported by dummy")
 	DebianPPAInstallerMessage  = T("Install Debian PPA - ignored, not supported by dummy")
+	PatchDebSedMessage         = T("Modify the control file of a deb file to fix the dependencies following a sed pattern - ignored, not supported by dummy")
 )
 
 // checkShellcheck checks if shellcheck is installed and installs it if it isn't
@@ -312,4 +313,9 @@ func installPackageAppDependencies(dependencies ...string) error {
 func uninstallPackageAppDependencies(dependencies ...string) error {
 	// return error if no package manager build tag is set
 	return fmt.Errorf("failed to uninstall dependencies: no package manager build tag is set")
+}
+
+// PatchDebSed modifies the control file of a deb file to fix the dependencies following a sed pattern
+func PatchDebSed(debFile, sedString string) error {
+	return fmt.Errorf("only supported on Debian-based systems")
 }

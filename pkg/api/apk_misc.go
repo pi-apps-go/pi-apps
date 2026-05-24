@@ -46,6 +46,7 @@ var (
 	AptLockWaitMessage         = T("Wait for APK lock")
 	UbuntuPPAInstallerMessage  = T("Install Ubuntu PPA - ignored, not supported by APK")
 	DebianPPAInstallerMessage  = T("Install Debian PPA - ignored, not supported by APK")
+	PatchDebSedMessage         = T("Modify the control file of a deb file to fix the dependencies following a sed pattern - ignored, not supported by APK")
 )
 
 // checkShellcheck checks if shellcheck is installed and installs it if it isn't
@@ -145,7 +146,6 @@ func getIconFromPackage(packageName, piAppsDir string) string {
 	return ""
 }
 
-// PipxInstall installs packages using pipx
 func PipxInstall(packages ...string) error {
 	if len(packages) == 0 {
 		return fmt.Errorf("%s", T("no packages specified for pipx installation"))
@@ -761,4 +761,9 @@ func uninstallPackageAppDependencies(dependencies ...string) error {
 	}
 
 	return nil
+}
+
+// PatchDebSed modifies the control file of a deb file to fix the dependencies following a sed pattern
+func PatchDebSed(debFile, sedString string) error {
+	return fmt.Errorf("only supported on Debian-based systems")
 }

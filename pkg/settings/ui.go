@@ -18,6 +18,8 @@
 // Description: UI components and tab creation for the settings window
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+//go:build cgo
+
 package settings
 
 import (
@@ -360,11 +362,20 @@ func (sw *SettingsWindow) createButtons(buttonBox *gtk.Box) error {
 	return nil
 }
 
-// runAction executes an action using the api-go binary via shell command
-// This avoids GTK threading issues and memory corruption
+// runAction executes an action using the api-go binary via shell command.
+// This avoids GTK threading issues and memory corruption.
 func (sw *SettingsWindow) runAction(action string) {
+	var theme string
+	if appListSetting, exists := sw.settings["App List Style"]; exists {
+		theme = appListSetting.Current
+	}
+	runSettingsAction(sw.directory, action, theme)
+}
+
+// runSettingsAction launches an api-go subcommand with the App List Style theme environment.
+func runSettingsAction(directory, action, appListTheme string) {
 	var cmd *exec.Cmd
-	apiPath := filepath.Join(sw.directory, "api-go")
+	apiPath := filepath.Join(directory, "api-go")
 
 	switch action {
 	case "category_editor":
@@ -384,14 +395,8 @@ func (sw *SettingsWindow) runAction(action string) {
 		return
 	}
 
-	// Apply current theme environment for launched applications
-	var currentTheme string
-	if appListSetting, exists := sw.settings["App List Style"]; exists {
-		currentTheme = appListSetting.Current
-	}
-	cmd.Env = GetThemeEnvironmentForLaunch(currentTheme)
+	cmd.Env = GetThemeEnvironmentForLaunch(appListTheme)
 
-	// Run in background
 	go func() {
 		if err := cmd.Start(); err != nil {
 			fmt.Println(Tf("Failed to start %s: %v", action, err))
@@ -432,7 +437,7 @@ func (sw *SettingsWindow) resetSettings() {
 	}
 }
 
-// saveSettings saves current settings to files
+// saveSettings saves current settings to files using canonical values (not translated labels).
 func (sw *SettingsWindow) saveSettings() {
 	for settingName, combo := range sw.comboBoxes {
 		activeText := combo.GetActiveText()
@@ -440,14 +445,16 @@ func (sw *SettingsWindow) saveSettings() {
 			continue
 		}
 
-		// Update internal state
-		if setting, exists := sw.settings[settingName]; exists {
-			setting.Current = activeText
+		setting, exists := sw.settings[settingName]
+		if !exists {
+			continue
 		}
 
-		// Save to file
+		canonical := canonicalValueFromTranslatedSelect(setting, activeText)
+		setting.Current = canonical
+
 		settingPath := filepath.Join(sw.directory, "data", "settings", settingName)
-		if err := os.WriteFile(settingPath, []byte(activeText), 0644); err != nil {
+		if err := os.WriteFile(settingPath, []byte(canonical), 0644); err != nil {
 			fmt.Println(Tf("Failed to save setting %s: %v", settingName, err))
 		}
 	}

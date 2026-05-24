@@ -60,7 +60,7 @@ func UserCount(app string) (string, error) {
 
 	// Download fresh clicklist if needed
 	if needsUpdate {
-		Status("Downloading latest clicklist data...")
+		StatusT("Downloading latest clicklist data...")
 
 		// Ensure the data directory exists
 		dataDir := filepath.Join(directory, "data")

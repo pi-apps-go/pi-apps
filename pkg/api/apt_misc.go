@@ -29,6 +29,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -49,6 +50,7 @@ var (
 	AptLockWaitMessage         = T("Wait for APT lock")
 	UbuntuPPAInstallerMessage  = T("Install Ubuntu PPA")
 	DebianPPAInstallerMessage  = T("Install Debian PPA")
+	PatchDebSedMessage         = T("Modify the control file of a deb file to fix the dependencies following a sed pattern")
 )
 
 // checkShellcheck checks if shellcheck is installed and installs it if it isn't
@@ -523,8 +525,13 @@ func checkMissingRepositories(osInfo *SystemOSInfo) (string, error) {
 	return "", nil
 }
 
-// checkBrokenPackages checks if there are broken packages in the system
+// checkBrokenPackages checks if there are broken packages in the system (checks also if dpkg status files are missing)
 func checkBrokenPackages() (string, error) {
+	if !FileExists("/var/lib/dpkg/status") {
+		return "Congratulations, Linux tinkerer, you broke your system. The /var/lib/dpkg folder is either missing, or missing essential files such as /var/lib/dpkg/status.\n\n " +
+			"All apt based application installs will fail. Unless you have a backup of your /etc/apt/sources.list /etc/apt/sources.list.d you will need to reinstall your OS.", nil
+	}
+
 	cmd := exec.Command("apt-get", "--dry-run", "check")
 	err := cmd.Run()
 	if err != nil {
@@ -620,6 +627,14 @@ func EnableModule(moduleName string) error {
 	if err == nil && strings.TrimSpace(string(output)) == "(builtin)" {
 		// Module is built into the kernel, nothing more to do
 		return nil
+	}
+
+	// workaround for binder_linux now showing up as "(builtin)" on Linux 6.18+
+	if moduleName == "binder_linux" {
+		procDevices, err := os.ReadFile("/proc/devices")
+		if err == nil && strings.Contains(string(procDevices), "binder_linux") {
+			return nil
+		}
 	}
 
 	// Check if module is already loaded by checking /sys/module/{module} directory
@@ -924,4 +939,54 @@ func uninstallPackageAppDependencies(dependencies ...string) error {
 	}
 
 	return nil
+}
+
+// PatchDebSed modifies the control file of a deb file to fix the dependencies following a sed pattern
+func PatchDebSed(debFile, sedString string) error {
+	parts := regexp.MustCompile(`^s/(.*)/(.*)/g$`).FindStringSubmatch(sedString)
+	if parts == nil {
+		return fmt.Errorf("invalid sed pattern: %s", sedString)
+	}
+	StatusTf("Patching control file in %s", debFile)
+	base := filepath.Base(debFile)
+	name := strings.TrimSuffix(base, ".deb")
+	localdir := os.TempDir() + fmt.Sprintf("/patch-%s", name)
+	err := os.RemoveAll(localdir)
+	if err != nil {
+		fmt.Printf("Directory does not exist: %v, skipping\n", err)
+	}
+	err = os.MkdirAll(localdir, 0755)
+	if err != nil {
+		return fmt.Errorf("failed to create temporary directory: %v", err)
+	}
+	_, err = runCommand("dpkg-deb", "-R", debFile, localdir)
+	if err != nil {
+		return fmt.Errorf("failed to create extract deb file: %v", err)
+	}
+	// patch here
+	controlFile := filepath.Join(localdir, "DEBIAN", "control")
+	controlContent, err := os.ReadFile(controlFile)
+	if err != nil {
+		return fmt.Errorf("failed to read control file: %v", err)
+	}
+
+	re := regexp.MustCompile(parts[1])
+	controlContent = []byte(re.ReplaceAllString(string(controlContent), parts[2]))
+	err = os.WriteFile(controlFile, []byte(controlContent), 0644)
+	if err != nil {
+		return fmt.Errorf("failed to write control file: %v", err)
+	}
+
+	_, err = runCommand("dpkg-deb", "--root-owner-group", "-b", localdir, debFile)
+	if err != nil {
+		return fmt.Errorf("failed to create repackage deb file: %v", err)
+	}
+
+	err = os.RemoveAll(localdir)
+	if err != nil {
+		return fmt.Errorf("failed to remove temporary directory: %v", err)
+	}
+	StatusGreen("Done")
+	return nil
+
 }

@@ -534,11 +534,25 @@ func initLibcType() {
 	}
 }
 
-// addUsrLocalBinToPath adds /usr/local/bin to PATH if not already present
+// addUsrLocalBinToPath adds /usr/local/bin and /usr/sbin to PATH if not already present
 func addUsrLocalBinToPath() {
 	currentPath := os.Getenv("PATH")
+	pathParts := []string{}
+
+	// Prepend /usr/local/bin if not present
 	if !strings.Contains(currentPath, "/usr/local/bin") {
-		newPath := "/usr/local/bin:" + currentPath
+		pathParts = append(pathParts, "/usr/local/bin")
+	}
+	// Prepend /usr/sbin if not present
+	if !strings.Contains(currentPath, "/usr/sbin") {
+		pathParts = append(pathParts, "/usr/sbin")
+	}
+	// Always append the current PATH last
+	pathParts = append(pathParts, currentPath)
+
+	// If /usr/local/bin and/or /usr/sbin were missing, set the new PATH
+	if len(pathParts) > 1 {
+		newPath := strings.Join(pathParts, ":")
 		os.Setenv("PATH", newPath)
 	}
 }

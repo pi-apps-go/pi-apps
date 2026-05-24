@@ -76,7 +76,7 @@ func main() {
 	}
 	var (
 		directory      = flag.String("directory", "", "Pi-Apps directory (defaults to PI_APPS_DIR env var)")
-		mode           = flag.String("mode", "", "GUI mode: gtk, yad-default, xlunch-dark, etc.")
+		mode           = flag.String("mode", "", "GUI mode: gtk, xlunch-dark, etc.")
 		help           = flag.Bool("help", false, "Show help message")
 		version        = flag.Bool("version", false, "Show version information")
 		showAppDetails = flag.Bool("show-app-details", false, "Show app details dialog (internal use)")
@@ -131,10 +131,9 @@ func main() {
 		fmt.Println("  PI_APPS_DIR  Path to Pi-Apps directory")
 		fmt.Println()
 		fmt.Println("GUI Modes:")
-		fmt.Println("  default      Auto-detect best interface (GTK3 if available, fallback to bash)")
+		fmt.Println("  default      Auto-detect best interface (GTK3 if available, fallback to Gio or TUI mode)")
 		fmt.Println("  gtk          Native GTK3 interface")
 		fmt.Println("  native       Same as gtk")
-		fmt.Println("  yad-default  YAD-based interface (compatibility, deprecated)")
 		fmt.Println("  xlunch-dark  XLunch dark theme")
 		fmt.Println("  preload-daemon       Start the preload daemon to refresh the app list and continue running")
 		fmt.Println("  preload-daemon-once  Start the preload daemon to refresh the app list only once")

@@ -14,8 +14,10 @@ This package provides a native GTK3 reimplementation of the Pi-Apps settings int
 The package is organized into several modules:
 
 - `settings.go`: Core settings window and data structures
+- `state.go`: Shared load/save helpers for GTK and TUI (canonical on-disk values)
 - `ui.go`: UI components and tab creation
 - `themes.go`: Theme detection and App List Style handling
+- `tui.go`: Experimental terminal UI (Bubble Tea, Lip Gloss, bubbles list; Yes/No as checkboxes)
 - `cmd.go`: Command-line interface and entry points
 - `main.go`: Standalone executable entry point
 
@@ -46,6 +48,9 @@ window.Run()
 
 # Revert all settings to defaults
 ./settings revert
+
+# Experimental terminal UI (Bubble Tea, Lip Gloss; tab: F1/F2 or alt+1/2)
+./settings tui
 ```
 
 ### Building

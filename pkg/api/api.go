@@ -78,14 +78,19 @@ func StatusGreen(msg string) {
 
 // Debug outputs debug information when debug mode is enabled
 func Debug(msg string) {
-	if piAppsDebug {
+	if piAppsDebug || os.Getenv("pi_apps_debug") == "true" {
 		// The original bash script just does a simple echo without any color
 		fmt.Println(msg)
 	}
 }
 
+func GetDebugMode() bool {
+	return piAppsDebug || os.Getenv("pi_apps_debug") == "true"
+}
+
 // SetDebugMode enables or disables debug mode
 func SetDebugMode(enabled bool) {
+	os.Setenv("pi_apps_debug", strconv.FormatBool(enabled))
 	piAppsDebug = enabled
 }
 
@@ -95,8 +100,8 @@ func SetDebugMode(enabled bool) {
 //
 //	fmt.Println(api.GenerateLogo())
 func GenerateLogo() string {
-	// Check if Unicode 13 is supported (libicu66+)
-	unicodeSupported := checkUnicodeSupport()
+	// Check if old logo should be forced
+	forceOldLogo := os.Getenv("PI-APPS_FORCE_OLD_LOGO") == "true"
 
 	// Exact ANSI color codes from the original bash script
 	// Foreground colors
@@ -115,13 +120,23 @@ func GenerateLogo() string {
 	// Background colors
 	bg_default := "\033[49m"
 	bg_black := "\033[40m"
-	// bg_white := "\033[107m" // Unused in this implementation
 
 	var logoStr string
 
-	if unicodeSupported {
+	if forceOldLogo {
+		// Simple logo if environment variable is set
+		logoStr = white + bg_default + "    " + green + "▅" + darkgreen + "▅▅▅" + green + "▅" + default_ + "                                          " + darkgreen + "                " + default_ + "\n" +
+			" " + blue1 + "▂▂▂" + green + "\033[48;5;26m\033[7m▂\033[27m" + bg_default + blue2 + "▂▂▂" + blue3 + green + "\033[48;5;26m\033[7m▂\033[27m" + bg_default + blue3 + "▂▂▂" + white + default_ + "                                       " + darkgreen + "                " + default_ + "\n" +
+			" " + bg_black + blue1 + "▌  " + red + "▄ ▄ ▄" + blue3 + "  ▐" + bg_default + default_ + "   █▀▀◣ ▄    ◢▀▀◣                      " + darkgreen + "  " + black + "    " + darkgreen + "    " + black + "    " + darkgreen + "  " + default_ + "\n" +
+			" " + bg_black + blue2 + "▌  " + red + "▄ ▄ ▄" + blue3 + "  ▐" + bg_default + default_ + "   █▄▄◤ ▄ " + blue3 + "▄▄" + default_ + " █▄▄█ █▀▀◣ █▀▀◣ ◢\033[7m━━━\033[27m       " + darkgreen + "  " + black + "    " + darkgreen + "    " + black + "    " + darkgreen + "  " + default_ + "\n" +
+			" " + bg_black + blue2 + "▌  " + red + "▄ ▄ ▄" + blue4 + "  ▐" + bg_default + default_ + "   █    █    █  █ █▄▄◤ █▄▄◤ ▄▄▄◤       " + darkgreen + "      " + black + "    " + darkgreen + "      " + default_ + "\n" +
+			" " + blue3 + "◥" + bg_black + "▃▃▃▃" + blue4 + "▃▃▃▃▃" + bg_default + "◤" + default_ + "                  █    █               " + darkgreen + "    " + black + "        " + darkgreen + "    " + default_ + "\n" +
+			"\033[0m                                                   " + darkgreen + "    " + black + "        " + darkgreen + "    " + default_ + "\n" +
+			"                                                   " + darkgreen + "    " + black + "  " + darkgreen + "    " + black + "  " + darkgreen + "    " + default_
+
+	} else {
 		// Complex logo requires Unicode 13 support (libicu66+)
-		// This matches the original bash implementation character-for-character
+		// This does not matter as Pi-Apps Go only supports systems with atleast libicu66+
 		bg_black = "\033[48;2;10;10;10m"
 
 		logoStr = bg_default + "    \033[38;2;5;220;75m🭊\033[38;2;4;150;29m🬹🬹🬹\033[38;2;6;188;64m🬿" + default_ + "                                          " + darkgreen + "                " + default_ + "\n" +
@@ -132,39 +147,9 @@ func GenerateLogo() string {
 			" \033[38;2;87;137;232m🭕" + bg_black + "🭏\033[38;2;89;111;224m🬭\033[38;2;89;100;220m🬭\033[38;2;90;89;217m🬭\033[38;2;91;76;213m🬭\033[38;2;92;68;211m🬭\033[38;2;92;59;208m🬭\033[38;2;92;56;207m🬭🭄" + bg_default + "🭠" + default_ + "                  █    █               " + darkgreen + "    " + black + "        " + darkgreen + "    " + default_ + "\n" +
 			"\033[0m                                                   " + darkgreen + "    " + black + "        " + darkgreen + "    " + default_ + "\n" +
 			"                                                   " + darkgreen + "    " + black + "  " + darkgreen + "    " + black + "  " + darkgreen + "    " + default_
-	} else {
-		// Simple logo for systems without Unicode 13 support
-		// This matches the original bash implementation character-for-character
-		logoStr = white + bg_default + "    " + green + "▅" + darkgreen + "▅▅▅" + green + "▅" + default_ + "                                          " + darkgreen + "                " + default_ + "\n" +
-			" " + blue1 + "▂▂▂" + green + "\033[48;5;26m\033[7m▂\033[27m" + bg_default + blue2 + "▂▂▂" + blue3 + green + "\033[48;5;26m\033[7m▂\033[27m" + bg_default + blue3 + "▂▂▂" + white + default_ + "                                       " + darkgreen + "                " + default_ + "\n" +
-			" " + bg_black + blue1 + "▌  " + red + "▄ ▄ ▄" + blue3 + "  ▐" + bg_default + default_ + "   █▀▀◣ ▄    ◢▀▀◣                      " + darkgreen + "  " + black + "    " + darkgreen + "    " + black + "    " + darkgreen + "  " + default_ + "\n" +
-			" " + bg_black + blue2 + "▌  " + red + "▄ ▄ ▄" + blue3 + "  ▐" + bg_default + default_ + "   █▄▄◤ ▄ " + blue3 + "▄▄" + default_ + " █▄▄█ █▀▀◣ █▀▀◣ ◢\033[7m━━━\033[27m       " + darkgreen + "  " + black + "    " + darkgreen + "    " + black + "    " + darkgreen + "  " + default_ + "\n" +
-			" " + bg_black + blue2 + "▌  " + red + "▄ ▄ ▄" + blue4 + "  ▐" + bg_default + default_ + "   █    █    █  █ █▄▄◤ █▄▄◤ ▄▄▄◤       " + darkgreen + "      " + black + "    " + darkgreen + "      " + default_ + "\n" +
-			" " + blue3 + "◥" + bg_black + "▃▃▃▃" + blue4 + "▃▃▃▃▃" + bg_default + "◤" + default_ + "                  █    █               " + darkgreen + "    " + black + "        " + darkgreen + "    " + default_ + "\n" +
-			"\033[0m                                                   " + darkgreen + "    " + black + "        " + darkgreen + "    " + default_ + "\n" +
-			"                                                   " + darkgreen + "    " + black + "  " + darkgreen + "    " + black + "  " + darkgreen + "    " + default_
 	}
 
 	return logoStr + "\n"
-}
-
-// checkUnicodeSupport checks if the system supports Unicode 13 (libicu66+)
-//
-//	false - no Unicode 13 support
-//	true - Unicode 13 support
-func checkUnicodeSupport() bool {
-	version := GetICUVersion()
-	parts := strings.Split(version, ".")
-	if len(parts) < 1 {
-		return false
-	}
-
-	majorVersion, err := strconv.Atoi(parts[0])
-	if err != nil {
-		return false
-	}
-
-	return majorVersion >= 66
 }
 
 // AddEnglish adds en_US locale or fixes the locale to prevent application crashes

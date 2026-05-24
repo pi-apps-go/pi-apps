@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# update whenever a new Go version is released
+GO_VERSION="1.26.3"
+
 function error {
   echo -e "\e[91m$1\e[39m"
   exit 1
@@ -127,7 +130,6 @@ if ! command -v go &>/dev/null; then
   if [ "$GO_ROLLING_RELEASE" = "true" ]; then
     $PKG_INSTALL go $PKG_INSTALL_FLAGS || error "Go failed to install and so the Pi-Apps Go install has been aborted. Before Pi-Apps Go can be installed you must solve any errors above."
   else
-  GO_VERSION="1.26.1"
   ARCH=$(uname -m)
   case $ARCH in
     x86_64) GO_ARCH="amd64" ;;
@@ -159,13 +161,12 @@ else
     MAJOR=$(echo "$GO_VERSION_NUM" | cut -d. -f1)
     MINOR=$(echo "$GO_VERSION_NUM" | cut -d. -f2)
     
-    if [ "$MAJOR" -lt 1 ] || ([ "$MAJOR" -eq 1 ] && [ "$MINOR" -lt 24 ]); then
-      echo "Go version $GO_VERSION_NUM is too old (need 1.24+). Updating Go..."
+    if [ "$MAJOR" -lt 1 ] || ([ "$MAJOR" -eq 1 ] && [ "$MINOR" -lt 25 ]); then
+      echo "Go version $GO_VERSION_NUM is too old (need 1.25+). Updating Go..."
       if [ "$GO_ROLLING_RELEASE" = "true" ]; then
         $PKG_INSTALL go $PKG_INSTALL_FLAGS || error "Go failed to install and so the Pi-Apps Go install has been aborted. Before Pi-Apps Go can be installed you must solve any errors above."
       else
       # Download and install newer Go
-      GO_VERSION="1.26.1"
       ARCH=$(uname -m)
       case $ARCH in
         x86_64) GO_ARCH="amd64" ;;
@@ -190,7 +191,7 @@ else
       cd "$HOME"
       fi
     else
-      echo "Go version $GO_VERSION_NUM is sufficient (1.24+ required), but you should update to the latest version."
+      echo "Go version $GO_VERSION_NUM is sufficient (1.25+ required), but you should update to the latest version."
     fi
   else
     error "Go is installed but 'go version' command failed, before Pi-Apps Go can be installed you must fix your Go installation."
@@ -344,7 +345,7 @@ if [ ! -f ~/.local/share/applications/pi-apps-go.desktop ];then
   echo "Creating menu button..."
 fi
 mkdir -p ~/.local/share/applications
-if [ -f /etc/xdg/menus/lxde-pi-applications.menu ];then #If on PiOS, place launcher in Accessories as it has always been there and is more intuitive there
+if [ -f /etc/xdg/menus/lxde-pi-applications.menu ] || [ -f /etc/xdg/menus/rpd-applications.menu ];then #If on PiOS, place launcher in Accessories as it has always been there and is more intuitive there
 echo "[Desktop Entry]
 Name=Pi-Apps Go
 Comment=Raspberry Pi App Store for open source projects
@@ -368,14 +369,14 @@ Categories=Utility;System;PackageManager;
 StartupNotify=true" > ~/.local/share/applications/pi-apps-go.desktop
 fi
 chmod 755 ~/.local/share/applications/pi-apps-go.desktop
-gio set ~/.local/share/applications/pi-apps-go.desktop "metadata::trusted" yes
+gio set ~/.local/share/applications/pi-apps-go.desktop "metadata::trusted" true
 
 #copy menu button to Desktop
 mkdir -p ~/Desktop
 cp -f ~/.local/share/applications/pi-apps-go.desktop ~/Desktop/
 
 chmod 755 ~/Desktop/pi-apps-go.desktop
-gio set ~/Desktop/pi-apps-go.desktop "metadata::trusted" yes
+gio set ~/Desktop/pi-apps-go.desktop "metadata::trusted" true
 
 #copy icon to local icons directory (necessary on some wayland DEs like on PiOS Wayfire)
 mkdir -p ~/.local/share/icons

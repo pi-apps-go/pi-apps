@@ -151,7 +151,7 @@ func ManageApp(action Action, appName string, isUpdate bool) error {
 		// Also format the message in yellow like in the original
 		formattedMessage := "\033[93m" + supportMessage + "\033[0m\n"
 		disabledMsg := "\033[103m\033[30mThe ability to send error reports has been disabled.\033[39m\033[49m\n"
-		waitingMsg := "\033[103m\033[30mWaiting 10 seconds... (To cancel, press Ctrl+C or close this terminal)\033[39m\033[49m\n"
+		waitingMsg := "\033[103m\033[30mWaiting 5 seconds... (To cancel, press Ctrl+C or close this terminal)\033[39m\033[49m\n"
 
 		// Write colored messages to stdout (terminal)
 		Warning(fmt.Sprintf("%s%s%s%s", warningPrefix, formattedMessage, disabledMsg, waitingMsg))
@@ -162,7 +162,7 @@ func ManageApp(action Action, appName string, isUpdate bool) error {
 		fmt.Fprintf(logFile, "Waiting 10 seconds... (To cancel, press Ctrl+C or close this terminal)\n")
 
 		// We don't show a GUI dialog here - that's handled by the CLI tools with the -gui flag
-		time.Sleep(10 * time.Second)
+		time.Sleep(5 * time.Second)
 	}
 
 	// Determine script to run or package to install/uninstall
@@ -865,9 +865,6 @@ func runAppScript(appName, scriptName string) error {
 				// 64-bit architecture
 				if _, err := os.Stat(install64Path); err == nil {
 					scriptPath = install64Path
-				} else if _, err := os.Stat(install32Path); err == nil {
-					// Fallback to 32-bit if 64-bit specific script doesn't exist
-					scriptPath = install32Path
 				} else {
 					return fmt.Errorf("install script does not exist for app '%s' on 64-bit architecture", appName)
 				}

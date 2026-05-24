@@ -346,19 +346,7 @@ func setSystemLocale(locale string) error {
 		} else if strings.Contains(locale, "_") {
 			locale = locale + ".UTF-8"
 		} else {
-			// For language-only codes, try common country mappings
-			switch locale {
-			case "es":
-				locale = "es_ES.UTF-8"
-			case "pl":
-				locale = "pl_PL.UTF-8"
-			case "fr":
-				locale = "fr_FR.UTF-8"
-			case "de":
-				locale = "de_DE.UTF-8"
-			default:
-				locale = locale + "_" + strings.ToUpper(locale) + ".UTF-8"
-			}
+			locale = locale + "_" + strings.ToUpper(locale) + ".UTF-8"
 		}
 	}
 

@@ -18,6 +18,7 @@
 // Description: Command-line interface and entry points for the settings package
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+// Settings app entrypoint for Pi-Apps Go
 package settings
 
 import (
@@ -25,16 +26,14 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-
-	"github.com/pi-apps-go/pi-apps/pkg/api"
 )
 
 // Main entry point for settings, equivalent to the original bash script
 func Main() error {
 	// Get PI_APPS_DIR environment variable
-	directory := api.GetPiAppsDir()
+	directory := GetPiAppsDir()
 	if directory == "" {
-		api.ErrorNoExit("PI_APPS_DIR environment variable not set")
+		ErrorNoExit("PI_APPS_DIR environment variable not set")
 		return nil
 	}
 
@@ -54,6 +53,8 @@ func Main() error {
 			return RefreshSettings()
 		case "revert":
 			return RevertSettings()
+		case "tui":
+			return RunSettingsTUI()
 		default:
 			return fmt.Errorf("unknown command: %s", args[0])
 		}
@@ -79,9 +80,9 @@ func Main() error {
 // RefreshSettings creates default settings files if they don't exist
 // Uses embedded setting-params data instead of reading from files
 func RefreshSettings() error {
-	directory := api.GetPiAppsDir()
+	directory := GetPiAppsDir()
 	if directory == "" {
-		api.ErrorNoExit(T("PI_APPS_DIR environment variable not set"))
+		ErrorNoExit(T("PI_APPS_DIR environment variable not set"))
 		return nil
 	}
 
@@ -111,9 +112,9 @@ func RefreshSettings() error {
 // RevertSettings overwrites all settings with defaults
 // Uses embedded setting-params data instead of reading from files
 func RevertSettings() error {
-	directory := api.GetPiAppsDir()
+	directory := GetPiAppsDir()
 	if directory == "" {
-		api.ErrorNoExit(T("PI_APPS_DIR environment variable not set"))
+		ErrorNoExit(T("PI_APPS_DIR environment variable not set"))
 		return nil
 	}
 
@@ -139,15 +140,15 @@ func RevertSettings() error {
 
 // createDesktopEntry creates the desktop entry for Pi-Apps Settings
 func createDesktopEntry() error {
-	directory := api.GetPiAppsDir()
+	directory := GetPiAppsDir()
 	if directory == "" {
-		api.ErrorNoExit(T("PI_APPS_DIR environment variable not set"))
+		ErrorNoExit(T("PI_APPS_DIR environment variable not set"))
 		return nil
 	}
 
 	home := os.Getenv("HOME")
 	if home == "" {
-		api.ErrorNoExit(T("HOME environment variable not set"))
+		ErrorNoExit(T("HOME environment variable not set"))
 		return nil
 	}
 

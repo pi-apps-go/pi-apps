@@ -543,6 +543,16 @@ func LogDiagnose(logfilePath string, allowWrite bool) (*ErrorDiagnosis, error) {
 		diagnosis.ErrorType = "system"
 	}
 
+	// check for "/usr/bin/sudo: Operation not permitted"
+	regexSudoOperationNotPermitted := regexp.MustCompile(`/usr/bin/sudo: Operation not permitted`)
+	if regexSudoOperationNotPermitted.MatchString(errors) {
+		diagnosis.Captions = append(diagnosis.Captions,
+			"Process could not complete because your sudo command is incorrectly set up. \n"+
+				"The error was: /usr/bin/sudo: Operation not permitted \n"+
+				"Most likely you messed up the file permissions of this file. Good luck fixing that.")
+		diagnosis.ErrorType = "system"
+	}
+
 	// check for "cpp.o: file not recognized: file truncated"
 	regexCpp := regexp.MustCompile(`cpp\.o: file not recognized: file truncated`)
 	if regexCpp.MatchString(errors) {
@@ -675,6 +685,16 @@ func LogDiagnose(logfilePath string, allowWrite bool) (*ErrorDiagnosis, error) {
 			"Compiling failed because cc1plus was killed due to insufficient RAM.\n\n"+
 				"Please try installing the application again, but this time keep all other programs closed to preserve more free RAM.\n"+
 				"If this error persists, try installing the More RAM app from Pi-Apps. Find it in the Tools category.")
+		diagnosis.ErrorType = "system"
+	}
+
+	// check for "process didn't exit successfully: .*/rustc .* (signal: 9, SIGKILL: kill)"
+	regexRustKilled := regexp.MustCompile(`process didn't exit successfully: .*/rustc .* (signal: 9, SIGKILL: kill)`)
+	if regexRustKilled.MatchString(errors) {
+		diagnosis.Captions = append(diagnosis.Captions,
+			"Compiling failed because rustc was killed due to insufficient RAM.\n"+
+				"Please install the application again, but this time keep all other programs closed to keep more free RAM available.\n"+
+				"If this error keeps happening, try installing the More RAM app from the Pi-Apps Tools category.")
 		diagnosis.ErrorType = "system"
 	}
 

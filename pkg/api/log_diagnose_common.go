@@ -292,15 +292,28 @@ func GetDeviceInfo() (string, error) {
 	// Get Go runtime information, including experiments if present
 	goVersion := runtime.Version()
 	info.WriteString("Go runtime used: " + goVersion + "\n")
-	// Look for experiments of the form "X:<experiment1>,<experiment2>" in runtime.Version() output
-	parts := strings.Fields(goVersion)
-	for _, part := range parts {
-		if strings.HasPrefix(part, "X:") {
-			expNames := strings.TrimPrefix(part, "X:")
-			if expNames != "" {
-				expList := strings.Split(expNames, ",")
-				info.WriteString("Go experiments enabled in this build: " + strings.Join(expList, ", ") + "\n")
-				WarningT("Go experiments may be unstable and may cause issues with Pi-Apps Go. If you encounter any issues, please report them to the Pi-Apps Go team or disable them.")
+
+	// Handle both old ("gox.xx.x X:experiment") and new ("gox.xx.x-X:experiment") experiment formats
+	// The new format is since Go 1.26
+	// Check for the new format first: gox.xx.x-X:experiment
+	if idx := strings.Index(goVersion, "-X:"); idx != -1 {
+		expNames := goVersion[idx+3:] // after "-X:"
+		if expNames != "" {
+			expList := strings.Split(expNames, ",")
+			info.WriteString("Go experiments enabled in this build: " + strings.Join(expList, ", ") + "\n")
+			WarningT("Go experiments may be unstable and may cause issues with Pi-Apps Go. If you encounter any issues, please report them to the Pi-Apps Go team or disable them.")
+		}
+	} else {
+		// Look for the old format: field "X:<experiments>"
+		parts := strings.Fields(goVersion)
+		for _, part := range parts {
+			if strings.HasPrefix(part, "X:") {
+				expNames := strings.TrimPrefix(part, "X:")
+				if expNames != "" {
+					expList := strings.Split(expNames, ",")
+					info.WriteString("Go experiments enabled in this build: " + strings.Join(expList, ", ") + "\n")
+					WarningT("Go experiments may be unstable and may cause issues with Pi-Apps Go. If you encounter any issues, please report them to the Pi-Apps Go team or disable them.")
+				}
 			}
 		}
 	}

@@ -319,18 +319,6 @@ func LogDiagnose(logfilePath string, allowWrite bool) (*ErrorDiagnosis, error) {
 		diagnosis.ErrorType = "system"
 	}
 
-	// check for "Command line option --allow-releaseinfo-change is not understood"
-	regexAllow := regexp.MustCompile(`Command line option --allow-releaseinfo-change is not understood`)
-	if regexAllow.MatchString(errors) {
-		diagnosis.Captions = append(diagnosis.Captions,
-			"The Debian Project recently upgraded from Buster to version Bullseye. As a result, all Raspberry Pi OS Buster users will receive APT errors saying the repositories changed from 'stable' to 'oldstable'. \n\n"+
-				"This error broke pi-apps. To fix it, the Pi-Apps developers added something to the 'sudo apt update' command: --allow-releaseinfo-change. \n\n"+
-				"This flag allows the repository migration to succeed, thereby allowing Pi-Apps to work again.\n\n"+
-				"Unfortunately for you, your operating system is too old for apt to understand this flag we added. Please upgrade your operating system for a better experience. Raspbian Stretch is unsupported and many apps will not install.\n\n"+
-				"Please flash your SD card with the latest release of Raspberry Pi OS: https://www.raspberrypi.org/software")
-		diagnosis.ErrorType = "system"
-	}
-
 	// check for "lzma error: compressed data is corrupt"
 	regexLzma := regexp.MustCompile(`lzma error: compressed data is corrupt`)
 	if regexLzma.MatchString(errors) {
@@ -1030,7 +1018,7 @@ func LogDiagnose(logfilePath string, allowWrite bool) (*ErrorDiagnosis, error) {
 	if regexBadMessage.MatchString(errors) {
 		diagnosis.Captions = append(diagnosis.Captions,
 			"Got a 'Bad message' error when trying to remove a file in an unrelated package. This is not a Pi-Apps issue, but it may indicate hardware failure or disk corruption on your computer.\n\n"+
-				"Please click the retry button to see if this keeps occuring, and if it does, try searching the internet for your specific error message.\n\n"+
+				"Please click the retry button to see if this keeps occurring, and if it does, try searching the internet for your specific error message.\n\n"+
 				"Also it is advisable to run fsck on your root partition to try to work around disk corruption.\n\n"+
 				"Open an issue on Pi-Apps if all else fails, but we will probably tell you the same things as are written here.")
 		diagnosis.ErrorType = "system"
@@ -1303,15 +1291,6 @@ func LogDiagnose(logfilePath string, allowWrite bool) (*ErrorDiagnosis, error) {
 		diagnosis.ErrorType = "package"
 	}
 
-	// check for "ffmpeg : Depends: libsdl2-2.0-0 (>= 2.0.12) but 2.0.10+5rpi is installed"
-	regexFfmpeg := regexp.MustCompile(`ffmpeg : Depends: libsdl2-2.0-0 (>= 2.0.12) but 2.0.10+5rpi is installed`)
-	if regexFfmpeg.MatchString(errors) {
-		diagnosis.Captions = append(diagnosis.Captions,
-			"The ffmpeg package on your system is causing problems. \n\n"+
-				"Maybe reinstalling this package would help?")
-		diagnosis.ErrorType = "package"
-	}
-
 	// check for "freedm : Depends: prboom-plus but it is not going to be installed"
 	regexFreedm := regexp.MustCompile(`freedm : Depends: prboom-plus but it is not going to be installed`)
 	if regexFreedm.MatchString(errors) {
@@ -1505,14 +1484,6 @@ func LogDiagnose(logfilePath string, allowWrite bool) (*ErrorDiagnosis, error) {
 		diagnosis.ErrorType = "internet"
 	}
 
-	// check for SSL/TLS handshake failure, total length mismatch, failed to establish connection, timeout, connection reset by peer, name resolution failed, temporary failure in name resolution, unable to establish SSL connection, connection closed at byte, read error at byte, failed: No route to host, invalid range header, curl error, response status not successful, download snap, dial tcp, lookup api.snapcraft.io, fatal: unable to access 'https://github.com.*': Failed to connect to github.com port 443 after .* ms: Couldn't connect to server, RPC failed; curl .* transfer closed with outstanding read data remaining, RPC failed; curl .* GnuTLS recv error (-9): A TLS packet with unexpected length was received., SSL error, failure when receiving data from the peer, java.net.SocketTimeoutException: Read timed out which include git errors
-	regexSslError := regexp.MustCompile(`SSL/TLS handshake failure\|total length mismatch\|failed to establish connection\|timeout\|connection reset by peer\|name resolution failed\|temporary failure in name resolution\|unable to establish SSL connection\|connection closed at byte\|read error at byte\|failed: No route to host\|invalid range header\|curl error\|response status not successful\|download snap\|dial tcp\|lookup api\.snapcraft\.io\|fatal: unable to access 'https://github.com.*': Failed to connect to github.com port 443 after .* ms: Couldn't connect to server\|RPC failed; curl .* transfer closed with outstanding read data remaining\|RPC failed; curl .* GnuTLS recv error (-9): A TLS packet with unexpected length was received.\|SSL error\|failure when receiving data from the peer\|java\.net\.SocketTimeoutException: Read timed out`)
-	if regexSslError.MatchString(errors) {
-		diagnosis.Captions = append(diagnosis.Captions,
-			"The git command encountered this error: \"SSL/TLS handshake failure\" Check the stability of your Internet connection and try again.")
-		diagnosis.ErrorType = "internet"
-	}
-
 	// check for "curl: (.*) HTTP/2 stream .* was not closed cleanly: INTERNAL_ERROR (err .*)"
 	regexCurlError := regexp.MustCompile(`curl: (.*) HTTP/2 stream .* was not closed cleanly: INTERNAL_ERROR (err .*)`)
 	if regexCurlError.MatchString(errors) {
@@ -1556,8 +1527,17 @@ func LogDiagnose(logfilePath string, allowWrite bool) (*ErrorDiagnosis, error) {
 		diagnosis.ErrorType = "internet"
 	}
 
-	// check for "java.net.ConnectException: Connection refused"
-	regexConnectException := regexp.MustCompile(`java\.net\.ConnectException: Connection refused`)
+	// check for waydroid errors failing to bind ports
+	addressAlreadyInUse := regexp.MustCompile(`dnsmasq: failed to create listening socket for .*: Address already in use`)
+	if addressAlreadyInUse.MatchString(errors) {
+		diagnosis.Captions = append(diagnosis.Captions,
+			"It seems some other service on your system is binding ports 53 or 67. This could be some other Docker or PiHole service running on your device.\n"+
+				"If you are reading this, WE WANT YOUR HELP. Reach out on Github or Sharkey. We believe Waydroid can be patched to avoid this issue, but we need someone who has encountered this issue first-hand.")
+		diagnosis.ErrorType = "unknown"
+	}
+
+	// check for miscellaneous internet errors
+	regexConnectException := regexp.MustCompile(`errorCode=1 SSL/TLS handshake failure\|errorCode=1 total length mismatch.\|errorCode=1 Failed to establish connection, cause: Connection refused\|errorCode=1 Failed to connect to the host .*, cause: Network is unreachable\|Connecting to .* failed: Network is unreachable\|errorCode=2 Timeout\.\|abort: Connection reset by peer\|104: Connection reset by peer\|read: connection reset by peer\|errorCode=19.*Name resolution for.*failed\|failed: Temporary failure in name resolution.\|Unable to establish SSL connection.\|Connection closed at byte \|Read error at byte \|failed: No route to host\.\|errorCode=8 Invalid range header\.\|curl: .* transfer closed with .* bytes remaining to read\|errorCode=29 The response status is not successful\. status=503\|errorCode=22 The response status is not successful\. status=525\|Download snap .* from channel .* dial tcp: lookup api.snapcraft.io on .* read udp .* i/o timeout\|npm ERR\! code ERR_SOCKET_TIMEOUT\|dial tcp: lookup api.snapcraft.io on .*: no such host\|fatal: unable to access 'https://github.com.*': Failed to connect to github.com port 443 after .* ms: Couldn't connect to server\|RPC failed; curl .* transfer closed with outstanding read data remaining\|RPC failed; curl .* GnuTLS recv error (-9): A TLS packet with unexpected length was received.\|SSL error: .* - SSL - The peer notified us that the connection is going to be closed\|Failure when receiving data from the peer\|java\.net\.SocketTimeoutException: Read timed out\|Downloading .* failed, invalid checksum`)
 	if regexConnectException.MatchString(errors) {
 		diagnosis.Captions = append(diagnosis.Captions,
 			"Download failed. Check your internet connection and firewall, then try again.")
@@ -1591,6 +1571,14 @@ func LogDiagnose(logfilePath string, allowWrite bool) (*ErrorDiagnosis, error) {
 	if regexHashDoesNotMatch.MatchString(errors) {
 		diagnosis.Captions = append(diagnosis.Captions,
 			"Waydroid OS image download failed. Check your internet connection and firewall, then try again.")
+		diagnosis.ErrorType = "internet"
+	}
+
+	// Check for general errors related to when Flatpak servers are down
+	flatpakDownErrors := regexp.MustCompile(`Can't load uri https://flathub\.org/repo/flathub\.flatpakrepo: Server returned status 503\|error: Unable to load summary from remote flathub: `)
+	if flatpakDownErrors.MatchString(errors) {
+		diagnosis.Captions = append(diagnosis.Captions,
+			"Flatpak servers seem to be down right now. Please wait a few minutes, then click the Retry button.")
 		diagnosis.ErrorType = "internet"
 	}
 
@@ -1661,7 +1649,7 @@ func LogDiagnose(logfilePath string, allowWrite bool) (*ErrorDiagnosis, error) {
 		}
 		diagnosis.Captions = append(diagnosis.Captions,
 			"Unable to use the sudo command - the current user "+currentUser+" is not allowed to use it. \n\n"+
-				"Please enable passwordless sudo or switch to a more privelaged user-account. \n\n"+
+				"Please enable passwordless sudo or switch to a more privileged user-account. \n\n"+
 				"See: https://www.tecmint.com/fix-user-is-not-in-the-sudoers-file-the-incident-will-be-reported-ubuntu/")
 		diagnosis.ErrorType = "system"
 	}
@@ -1684,6 +1672,16 @@ func LogDiagnose(logfilePath string, allowWrite bool) (*ErrorDiagnosis, error) {
 		diagnosis.ErrorType = "system"
 	}
 
+	// check for "/usr/bin/sudo: Operation not permitted"
+	regexSudoOperationNotPermitted := regexp.MustCompile(`/usr/bin/sudo: Operation not permitted`)
+	if regexSudoOperationNotPermitted.MatchString(errors) {
+		diagnosis.Captions = append(diagnosis.Captions,
+			"Process could not complete because your sudo command is incorrectly set up. \n"+
+				"The error was: /usr/bin/sudo: Operation not permitted \n"+
+				"Most likely you messed up the file permissions of this file. Good luck fixing that.")
+		diagnosis.ErrorType = "system"
+	}
+
 	// check for "cpp.o: file not recognized: file truncated"
 	regexCpp := regexp.MustCompile(`cpp.o: file not recognized: file truncated`)
 	if regexCpp.MatchString(errors) {
@@ -1693,7 +1691,7 @@ func LogDiagnose(logfilePath string, allowWrite bool) (*ErrorDiagnosis, error) {
 	}
 
 	// check for "tar: Unexpected EOF in archive\|xz: (stdin): Unexpected end of input\|xz: (stdin): Compressed data is corrupt\|xz: (stdin): File format not recognized\|gzip: stdin: invalid compressed data\-\-length error\|gzip: stdin: invalid compressed data\-\-crc error\|corrupted filesystem tarfile in package archive: invalid tar header size field (Invalid argument)\|member 'data.tar': internal gzip read error: '<fd:4>: incorrect data check\|error inflating zlib stream;"
-	regexTar := regexp.MustCompile(`tar: Unexpected EOF in archive\|xz: (stdin): Unexpected end of input\|xz: (stdin): Compressed data is corrupt\|xz: (stdin): File format not recognized\|gzip: stdin: invalid compressed data\-\-length error\|gzip: stdin: invalid compressed data\-\-crc error\|corrupted filesystem tarfile in package archive: invalid tar header size field (Invalid argument)\|member 'data.tar': internal gzip read error: '<fd:4>: incorrect data check\|error inflating zlib stream;`)
+	regexTar := regexp.MustCompile(`tar: .* Wrote only .* of .* bytes\|tar: Unexpected EOF in archive\|xz: (stdin): Unexpected end of input\|xz: (stdin): Compressed data is corrupt\|xz: (stdin): File format not recognized\|gzip: stdin: invalid compressed data\-\-length error\|gzip: stdin: invalid compressed data\-\-crc error\|corrupted filesystem tarfile in package archive: invalid tar header size field (Invalid argument)\|member 'data.tar': internal gzip read error: '<fd:4>: incorrect data check\|error inflating zlib stream;`)
 	if regexTar.MatchString(errors) {
 		diagnosis.Captions = append(diagnosis.Captions,
 			"Extraction failed. Most likely this was a corrupted download, so please try again. \n\n"+
@@ -1757,6 +1755,18 @@ func LogDiagnose(logfilePath string, allowWrite bool) (*ErrorDiagnosis, error) {
 		diagnosis.ErrorType = "system"
 	}
 
+	// check for "LZ4F: /var/lib/apt/lists/* Unexpected end of file"
+	regexLZ4FUnexpectedEOF := regexp.MustCompile(`E: LZ4F: /var/lib/apt/lists/.*\.lz4 Unexpected end of file'`)
+	if regexLZ4FUnexpectedEOF.MatchString(errors) {
+		diagnosis.Captions = append(diagnosis.Captions,
+			"APT reported a corrupted repo list file.\n"+
+				"This was most likely caused by an unexpected power loss, poor quality Internet connection, or other rare glitch.\n\n"+
+				"You can try resolving it by running these 2 commands:\n"+
+				"sudo rm -rf /var/lib/apt\n"+
+				"sudo apt update")
+		diagnosis.ErrorType = "system"
+	}
+
 	// check for "Structure needs cleaning"
 	regexStructureNeedsCleaning := regexp.MustCompile(`Structure needs cleaning`)
 	if regexStructureNeedsCleaning.MatchString(errors) {
@@ -1797,7 +1807,7 @@ func LogDiagnose(logfilePath string, allowWrite bool) (*ErrorDiagnosis, error) {
 	}
 
 	// check for "No space left on device"
-	regexSpace := regexp.MustCompile(`No space left on device\|Not enough disk space to complete this operation\|You don't have enough free space in\|Cannot write to .* (Success)\.`)
+	regexSpace := regexp.MustCompile(`You don't have enough free space in\|No space left on device\|Not enough disk space to complete this operation\|Out of diskspace\|Cannot write to .* (Success)\.\|Delta requires .* GB free space, but only .* available\|err:setupapi:install_fake_dll failed to write to .* (error=0)\|fatal: sha1 file '.*' write error\. Out of diskspace`)
 	if regexSpace.MatchString(errors) {
 		diagnosis.Captions = append(diagnosis.Captions,
 			"Your system has insufficient disk space.\n\n"+
@@ -1890,6 +1900,16 @@ func LogDiagnose(logfilePath string, allowWrite bool) (*ErrorDiagnosis, error) {
 		diagnosis.ErrorType = "system"
 	}
 
+	// check for "process didn't exit successfully: .*/rustc .* (signal: 9, SIGKILL: kill)"
+	regexRustKilled := regexp.MustCompile(`process didn't exit successfully: .*/rustc .* (signal: 9, SIGKILL: kill)`)
+	if regexRustKilled.MatchString(errors) {
+		diagnosis.Captions = append(diagnosis.Captions,
+			"Compiling failed because rustc was killed due to insufficient RAM.\n"+
+				"Please install the application again, but this time keep all other programs closed to keep more free RAM available.\n"+
+				"If this error keeps happening, try installing the More RAM app from the Pi-Apps Tools category.")
+		diagnosis.ErrorType = "system"
+	}
+
 	// check for error: system does not fully support snapd: cannot mount squashfs image
 	regexSnapd := regexp.MustCompile(`error: system does not fully support snapd: cannot mount squashfs image`)
 	if regexSnapd.MatchString(errors) {
@@ -1905,6 +1925,22 @@ func LogDiagnose(logfilePath string, allowWrite bool) (*ErrorDiagnosis, error) {
 		diagnosis.Captions = append(diagnosis.Captions,
 			"Error encountered: 'Error: All VeraCrypt volumes must be dismounted first.'\n\n"+
 				"You need to do as it says and unmount any VeraCrypt volumes first. Rebooting might help.")
+		diagnosis.ErrorType = "system"
+	}
+
+	// check for "$USER/bin/dpkg-deb: cannot execute binary file: Exec format error"
+	regexDpkgDeb := regexp.MustCompile(fmt.Sprintf(`%s/bin/dpkg-deb: cannot execute binary file: Exec format error`, os.Getenv("USER")))
+	if regexDpkgDeb.MatchString(errors) {
+		fileOutput, err := runCommand("file", fmt.Sprintf("%s/bin/dpkg-deb", os.Getenv("USER")))
+		if err != nil {
+			fileOutput = fmt.Sprintf("Could not determine the file type: %s", err)
+		}
+		diagnosis.Captions = append(diagnosis.Captions,
+			fmt.Sprintf("Error encountered: '%s/bin/dpkg-deb: cannot execute binary file: Exec format error'\n", os.Getenv("USER"))+
+				"You need to delete whatever sort of dpkg-deb binary you added to ~/bin before apt or pi-apps will work correctly.\n"+
+				"Right now the file type is:\n"+
+				fileOutput+
+				"\nFrom the output above, most likely this file is not compatible with your architecture.")
 		diagnosis.ErrorType = "system"
 	}
 

@@ -42,12 +42,19 @@ import (
 	"github.com/ProtonMail/gopenpgp/v3/crypto"
 )
 
-// RepoAdd adds local package files to the /tmp/pi-apps-local-packages repository
+// RepoAdd adds local package files to the /var/cache/pi-apps/pi-apps-local-packages repository
 func RepoAdd(files ...string) error {
 	// Ensure the repo folder exists
-	repoDir := "/tmp/pi-apps-local-packages"
-	if err := os.MkdirAll(repoDir, 0755); err != nil {
+	repoDir := "/var/cache/pi-apps/pi-apps-local-packages"
+	cmd := exec.Command("sudo", "mkdir", "-p", repoDir)
+	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("failed to create folder %s: %w", repoDir, err)
+	}
+
+	// permission change to allow writing to the folder as non-root
+	chmodChange := exec.Command("sudo", "chmod", "-R", "1777", "/var/cache/pi-apps/pi-apps-local-packages")
+	if err := chmodChange.Run(); err != nil {
+		return fmt.Errorf("failed to change permissions of folder %s: %w", repoDir, err)
 	}
 
 	// Move every mentioned deb file to the repository
@@ -81,7 +88,7 @@ func RepoAdd(files ...string) error {
 
 // RepoRefresh indexes the Pi-Apps local apt repository by creating a Packages file
 func RepoRefresh() error {
-	repoDir := "/tmp/pi-apps-local-packages"
+	repoDir := "/var/cache/pi-apps/pi-apps-local-packages"
 
 	// Check if the repository directory exists
 	if _, err := os.Stat(repoDir); os.IsNotExist(err) {
@@ -136,7 +143,7 @@ Origin "pi-apps-local-packages";
 	os.Remove(sourceListPath)
 
 	// Create the source.list file with the local repository entry
-	sourceListContent := "deb [trusted=yes] file:/tmp/pi-apps-local-packages/ ./\n"
+	sourceListContent := "deb [trusted=yes] file:/var/cache/pi-apps/pi-apps-local-packages/ ./\n"
 
 	// Read the system sources.list and append it
 	systemSourcesList, err := os.ReadFile("/etc/apt/sources.list")
@@ -572,7 +579,7 @@ func RepoRm() error {
 		return fmt.Errorf("failed to wait for APT locks: %w", err)
 	}
 
-	repoPath := "/tmp/pi-apps-local-packages"
+	repoPath := "/var/cache/pi-apps/pi-apps-local-packages"
 
 	// Try to remove as current user first
 	err := os.RemoveAll(repoPath)
@@ -584,8 +591,8 @@ func RepoRm() error {
 		}
 	}
 
-	// Also remove broken symbolic link to /tmp/pi-apps-local-packages/./Packages
-	cmd := exec.Command("sudo", "rm", "-f", "/var/lib/apt/lists/_tmp_pi-apps-local-packages_._Packages")
+	// Also remove broken symbolic link to /var/cache/pi-apps/pi-apps-local-packages/./Packages
+	cmd := exec.Command("sudo", "rm", "-f", "/var/lib/apt/lists/_var_cache_pi-apps_pi-apps-local-packages_._Packages")
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("failed to remove broken symbolic link: %w", err)
 	}
@@ -852,7 +859,7 @@ func InstallPackages(app string, args ...string) error {
 		}
 
 		// Add source list to apt flags
-		aptFlags = append(aptFlags, "-o", "Dir::Etc::SourceList=/tmp/pi-apps-local-packages/source.list")
+		aptFlags = append(aptFlags, "-o", "Dir::Etc::SourceList=/var/cache/pi-apps/pi-apps-local-packages/source.list")
 	}
 
 	// Create a unique package name using app_to_pkgname
@@ -978,8 +985,8 @@ Package: %s
 	}
 
 	// Check if local repo still exists
-	if usingLocalPackages && !FileExists("/tmp/pi-apps-local-packages/Packages") {
-		return fmt.Errorf("%s", T("user error: the /tmp/pi-apps-local-packages folder went missing while installing packages - this usually happens if you try to install several apps at the same time in multiple terminals"))
+	if usingLocalPackages && !FileExists("/var/cache/pi-apps/pi-apps-local-packages/Packages") {
+		return fmt.Errorf("%s", T("user error: the /var/cache/pi-apps/pi-apps-local-packages folder went missing while installing packages - this usually happens if you try to install several apps at the same time in multiple terminals"))
 	}
 
 	// Run apt update and install with retry loop
@@ -1079,7 +1086,7 @@ Package: %s
 		combinedOutput := outputBuffer.String()
 
 		// Check if local repo was lost
-		if usingLocalPackages && !FileExists("/var/lib/apt/lists/_tmp_pi-apps-local-packages_._Packages") && i < 4 {
+		if usingLocalPackages && !FileExists("/var/lib/apt/lists/_var_cache_pi-apps_pi-apps-local-packages_._Packages") && i < 4 {
 			WarningTf("Local packages failed to install because another apt update process erased apt's knowledge of the pi-apps local repository.\nTrying again... (attempt %d of 5)", i+1)
 			continue
 		}
@@ -1108,15 +1115,15 @@ Package: %s
 				fmt.Printf("%s\n\033[91m%s\033[39m\n", T("The APT reported these errors:"), errorStr)
 
 				// Debug output for local repository issues
-				if usingLocalPackages && !FileExists("/tmp/pi-apps-local-packages/Packages") {
-					fmt.Println("User error: Uh-oh, the /tmp/pi-apps-local-packages folder went missing while installing packages." +
+				if usingLocalPackages && !FileExists("/var/cache/pi-apps/pi-apps-local-packages/Packages") {
+					fmt.Println("User error: Uh-oh, the /var/cache/pi-apps/pi-apps-local-packages folder went missing while installing packages." +
 						"\nThis usually happens if you try to install several apps at the same time in multiple terminals.")
 				} else if usingLocalPackages && (strings.Contains(combinedOutput, "but it is not installable") ||
 					strings.Contains(combinedOutput, "but it is not going to be installed") ||
 					strings.Contains(combinedOutput, "but .* is to be installed")) {
 
 					fmt.Printf("\033[91m%s\033[39m", T("The Pi-Apps Local Repository was being used, and a package seemed to not be available. Here's the Packages file:"))
-					packagesContent, _ := os.ReadFile("/tmp/pi-apps-local-packages/Packages")
+					packagesContent, _ := os.ReadFile("/var/cache/pi-apps/pi-apps-local-packages/Packages")
 					fmt.Println(string(packagesContent))
 
 					fmt.Println(T("Attempting apt --dry-run installation of the problematic package(s) for debugging purposes:"))

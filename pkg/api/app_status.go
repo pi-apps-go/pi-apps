@@ -17,6 +17,7 @@
 // Module: app_status.go
 // Description: Provides functions for getting the status of an app.
 // SPDX-License-Identifier: GPL-3.0-or-later
+
 package api
 
 import (

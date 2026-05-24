@@ -14,32 +14,27 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// Module: settings.go
-// Description: Provides a native GTK3 settings interface for Pi-Apps using GOTK3 bindings
+// Module: settings_nocgo.go
+// Description: Provides a TUI settings interface for Pi-Apps using Charm stack terminal UI if cgo is disabled
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 // general TODO: add plugin section as we are going to allow users to add plugins to Pi-Apps Go thanks to the plugin package
 
-//go:build cgo
+//go:build !cgo
 
 package settings
 
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
-
-	"github.com/gotk3/gotk3/glib"
-	"github.com/gotk3/gotk3/gtk"
 )
 
 // SettingsWindow represents the main settings window
 type SettingsWindow struct {
-	window     *gtk.Window
-	notebook   *gtk.Notebook
-	directory  string
-	settings   map[string]*Setting
-	comboBoxes map[string]*gtk.ComboBoxText
+	directory string
+	settings  map[string]*Setting
 }
 
 // Setting represents a configuration setting
@@ -107,142 +102,56 @@ var (
 	}
 )
 
-// getSettingDefinition returns the setting definition for a given name
-func getSettingDefinition(name string) *SettingDefinition {
-	for i := range embeddedSettingDefinitions {
-		if embeddedSettingDefinitions[i].Name == name {
-			return &embeddedSettingDefinitions[i]
-		}
-	}
-	return nil
-}
-
-// NewSettingsWindow creates and initializes a new settings window
-func NewSettingsWindow() (*SettingsWindow, error) {
-
-	// Set approprative name
-	glib.SetPrgname("Pi-Apps Settings")
-
-	// Initialize GTK
-	gtk.Init(nil)
-
-	// Get PI_APPS_DIR environment variable
-	directory := GetPiAppsDir()
-	if directory == "" {
-		return nil, fmt.Errorf("PI_APPS_DIR environment variable not set")
-	}
-
-	sw := &SettingsWindow{
-		directory:  directory,
-		comboBoxes: make(map[string]*gtk.ComboBoxText),
-	}
-
-	// Load settings from embedded data and data/settings files
-	settings, err := loadSettingsState(directory)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load settings: %w", err)
-	}
-	sw.settings = settings
-
-	// Apply current App List Style theme if available
-	if appListSetting, exists := sw.settings["App List Style"]; exists {
-		sw.applyThemeToCurrentWindow(appListSetting.Current)
-	}
-
-	// Create the main window
-	if err := sw.createWindow(); err != nil {
-		return nil, fmt.Errorf("failed to create window: %w", err)
-	}
-
-	return sw, nil
-}
-
-// Show displays the settings window
-func (sw *SettingsWindow) Show() {
-	sw.window.ShowAll()
-}
-
-// Run starts the GTK main loop
-func (sw *SettingsWindow) Run() {
-	gtk.Main()
-}
-
 // fileExists checks if a file exists
 func fileExists(path string) bool {
 	_, err := os.Stat(path)
 	return !os.IsNotExist(err)
 }
 
-// createWindow creates and configures the main settings window
-func (sw *SettingsWindow) createWindow() error {
-	var err error
+// runSettingsAction launches an api-go subcommand with the App List Style theme environment.
+func runSettingsAction(directory, action, appListTheme string) {
+	var cmd *exec.Cmd
+	apiPath := filepath.Join(directory, "api-go")
 
-	// Create main window
-	sw.window, err = gtk.WindowNew(gtk.WINDOW_TOPLEVEL)
-	if err != nil {
-		return fmt.Errorf("failed to create window: %w", err)
+	switch action {
+	case "category_editor":
+		cmd = exec.Command(apiPath, "categoryedit")
+	case "log_viewer":
+		cmd = exec.Command(apiPath, "logviewer")
+	case "multi_install":
+		cmd = exec.Command(apiPath, "multi_install_gui")
+	case "create_app":
+		cmd = exec.Command(apiPath, "createapp")
+	case "import_app":
+		cmd = exec.Command(apiPath, "importapp")
+	case "multi_uninstall":
+		cmd = exec.Command(apiPath, "multi_uninstall_gui")
+	default:
+		fmt.Println(Tf("Unknown action: %s", action))
+		return
 	}
 
-	// Configure window
-	sw.window.SetTitle(T("Pi-Apps Settings"))
-	sw.window.SetDefaultSize(600, 550)
-	sw.window.SetPosition(gtk.WIN_POS_CENTER)
-	sw.window.SetResizable(true)
+	cmd.Env = GetThemeEnvironmentForLaunch(appListTheme)
 
-	// Set window icon
-	iconPath := filepath.Join(sw.directory, "icons", "settings.png")
-	if fileExists(iconPath) {
-		sw.window.SetIconFromFile(iconPath)
-	}
+	go func() {
+		if err := cmd.Start(); err != nil {
+			fmt.Println(Tf("Failed to start %s: %v", action, err))
+		}
+	}()
+}
 
-	// Connect close signal
-	sw.window.Connect("destroy", func() {
-		gtk.MainQuit()
-	})
+// NewSettingsWindow creates and initializes a new settings window
+func NewSettingsWindow() (*SettingsWindow, error) {
+	return nil, nil
+}
 
-	// Create main container
-	mainBox, err := gtk.BoxNew(gtk.ORIENTATION_VERTICAL, 10)
-	if err != nil {
-		return fmt.Errorf("failed to create main box: %w", err)
-	}
-	mainBox.SetMarginTop(15)
-	mainBox.SetMarginBottom(15)
-	mainBox.SetMarginStart(15)
-	mainBox.SetMarginEnd(15)
+// Show displays the settings window
+func (sw *SettingsWindow) Show() {
+	return
+}
 
-	// Create notebook for tabbed interface
-	sw.notebook, err = gtk.NotebookNew()
-	if err != nil {
-		return fmt.Errorf("failed to create notebook: %w", err)
-	}
-
-	// Add settings tab
-	if err := sw.createSettingsTab(); err != nil {
-		return fmt.Errorf("failed to create settings tab: %w", err)
-	}
-
-	// Add actions tab
-	if err := sw.createActionsTab(); err != nil {
-		return fmt.Errorf("failed to create actions tab: %w", err)
-	}
-
-	// Create button box with better alignment
-	buttonBox, err := gtk.BoxNew(gtk.ORIENTATION_HORIZONTAL, 10)
-	if err != nil {
-		return fmt.Errorf("failed to create button box: %w", err)
-	}
-	buttonBox.SetHAlign(gtk.ALIGN_END)
-	buttonBox.SetMarginTop(10)
-
-	// Add buttons
-	if err := sw.createButtons(buttonBox); err != nil {
-		return fmt.Errorf("failed to create buttons: %w", err)
-	}
-
-	// Pack everything
-	mainBox.PackStart(sw.notebook, true, true, 0)
-	mainBox.PackStart(buttonBox, false, false, 0)
-	sw.window.Add(mainBox)
-
-	return nil
+// Run starts the TUI main loop
+func (sw *SettingsWindow) Run() {
+	_ = RunSettingsTUI()
+	return
 }

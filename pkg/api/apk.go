@@ -68,10 +68,17 @@ func RepoAdd(files ...string) error {
 	}
 
 	// Create architecture-specific subdirectory
-	// APK will look for files in /tmp/pi-apps-local-packages/{arch}/
-	repoDir := filepath.Join("/tmp/pi-apps-local-packages", arch)
-	if err := os.MkdirAll(repoDir, 0755); err != nil {
+	// APK will look for files in /var/cache/pi-apps/pi-apps-local-packages/{arch}/
+	repoDir := filepath.Join("/var/cache/pi-apps/pi-apps-local-packages", arch)
+	cmd := exec.Command("sudo", "mkdir", "-p", repoDir)
+	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("failed to create folder %s: %w", repoDir, err)
+	}
+
+	// permission change to allow writing to the folder as non-root
+	chmodChange := exec.Command("sudo", "chmod", "-R", "1777", "/var/cache/pi-apps/pi-apps-local-packages")
+	if err := chmodChange.Run(); err != nil {
+		return fmt.Errorf("failed to change permissions of folder %s: %w", repoDir, err)
 	}
 
 	// Move every mentioned apk file to the repository
@@ -112,7 +119,7 @@ func RepoRefresh() error {
 	}
 
 	// Use architecture-specific subdirectory
-	repoDir := filepath.Join("/tmp/pi-apps-local-packages", arch)
+	repoDir := filepath.Join("/var/cache/pi-apps/pi-apps-local-packages", arch)
 
 	// Check if the repository directory exists
 	if _, err := os.Stat(repoDir); os.IsNotExist(err) {
@@ -223,7 +230,7 @@ func RepoRefresh() error {
 
 	// Add the repository to /etc/apk/repositories if not already present
 	// Use the parent directory - APK will automatically append the architecture
-	repoLine := "file:///tmp/pi-apps-local-packages"
+	repoLine := "file:///var/cache/pi-apps/pi-apps-local-packages"
 	reposContent, err := os.ReadFile("/etc/apk/repositories")
 	if err != nil {
 		// If we can't read it, we'll try to add anyway
@@ -406,7 +413,7 @@ func RepoRm() error {
 		return fmt.Errorf("failed to wait for APK locks: %w", err)
 	}
 
-	repoPath := "/tmp/pi-apps-local-packages"
+	repoPath := "/var/cache/pi-apps/pi-apps-local-packages"
 
 	// Try to remove as current user first
 	err := os.RemoveAll(repoPath)

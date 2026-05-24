@@ -80,7 +80,7 @@ func main() {
 	}
 
 	// Define flags
-	// compatability layer to allow the use of the same flags as the original Pi-Apps manage script (either without a dash or with a dash)
+	// compatibility layer to allow the use of the same flags as the original Pi-Apps manage script (either without a dash or with a dash)
 
 	installFlag := flag.Bool("install", false, "Install the specified apps")
 	uninstallFlag := flag.Bool("uninstall", false, "Uninstall the specified apps")

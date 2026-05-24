@@ -26,6 +26,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -53,6 +54,7 @@ func ShlinkLink(app, trigger string) error {
 
 		// Get device information
 		model, socID := getModel()
+		kernelVersion := getKernelVersion()
 		machineID := getHashedFileContent("/etc/machine-id")
 		serialNumber := getHashedFileContent("/sys/firmware/devicetree/base/serial-number")
 		osName := getOSName()
@@ -65,8 +67,8 @@ func ShlinkLink(app, trigger string) error {
 		url := fmt.Sprintf("https://analytics.pi-apps.io/pi-apps-%s-%s/track", trigger, sanitizedApp)
 
 		// Create the user agent string
-		userAgent := fmt.Sprintf("Pi-Apps Go Raspberry Pi app store; %s; %s; %s; %s; %s; %s",
-			model, socID, machineID, serialNumber, osName, arch)
+		userAgent := fmt.Sprintf("Pi-Apps Go Raspberry Pi app store; %s; %s; %s; %s; %s; %s; %s",
+			model, socID, machineID, serialNumber, osName, arch, kernelVersion)
 
 		// Make the request
 		client := &http.Client{
@@ -129,6 +131,23 @@ func getModel() (string, string) {
 	}
 
 	return model, socID
+}
+
+// getKernelVersion returns the kernel version
+func getKernelVersion() string {
+	cmd := exec.Command("uname", "-r")
+	output, err := cmd.Output()
+	if err != nil {
+		return ""
+	}
+
+	// Remove unwanted characters: double quotes and semicolons
+	cleaned := strings.ReplaceAll(string(output), `"`, "")
+	cleaned = strings.ReplaceAll(cleaned, ";", "")
+
+	// Split by lines and grab the first line, trim whitespace
+	lines := strings.SplitN(cleaned, "\n", 2)
+	return strings.TrimSpace(lines[0])
 }
 
 // getHashedFileContent reads a file and returns its SHA1 hash if the file exists and has content

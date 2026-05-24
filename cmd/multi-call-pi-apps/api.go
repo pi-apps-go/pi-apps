@@ -1589,6 +1589,18 @@ func runAPI() {
 			api.ErrorT(api.Tf("Error: %v", err))
 		}
 
+	case "patch_deb_sed":
+		if len(args) < 2 {
+			api.ErrorNoExitT("Error: Missing required arguments")
+			api.StatusT("Usage: api patch_deb_sed <deb-file> <sed-pattern>")
+			os.Exit(1)
+		}
+
+		err := api.PatchDebSed(args[0], args[1])
+		if err != nil {
+			api.ErrorT(api.Tf("Error: %v", err))
+		}
+
 	// Plugin system commands have been removed - plugins are now build-time only
 
 	// All plugin commands have been removed - plugins are now build-time only

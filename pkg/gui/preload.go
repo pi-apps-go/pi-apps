@@ -198,7 +198,7 @@ func PreloadAppList(directory, prefix string) (*PreloadedList, error) {
 	if !needsReload {
 		cached, err := loadCachedList(config)
 		if err == nil {
-			logger.Info(api.Tf("Reading cached list for '%s'...\n", prefix))
+			logger.Debug(api.Tf("Reading cached list for '%s'...\n", prefix))
 			return cached, nil
 		}
 		// If loading cached fails, fall through to regenerate
@@ -206,7 +206,7 @@ func PreloadAppList(directory, prefix string) (*PreloadedList, error) {
 	}
 
 	// Generate new list
-	logger.Info(api.Tf("Generating list for '%s'...\n", prefix))
+	logger.Debug(api.Tf("Generating list for '%s'...\n", prefix))
 
 	// Load API functions
 	os.Setenv("PI_APPS_DIR", directory)
@@ -226,7 +226,7 @@ func PreloadAppList(directory, prefix string) (*PreloadedList, error) {
 		logger.Warn(api.Tf("failed to save timestamps: %v\n", err))
 	}
 
-	logger.Info(api.Tf("Finished preload for '%s'\n", prefix))
+	logger.Debug(api.Tf("Finished preload for '%s'\n", prefix))
 	return list, nil
 }
 
@@ -239,7 +239,7 @@ func shouldReloadList(config *AppListConfig, tc *TimeStampChecker) (bool, error)
 	}
 
 	if changed {
-		logger.Info("Timestamps don't match")
+		logger.Debug("Timestamps don't match")
 		return true, nil
 	}
 
@@ -257,7 +257,7 @@ func shouldReloadList(config *AppListConfig, tc *TimeStampChecker) (bool, error)
 		return true, nil
 	}
 
-	logger.Info("Timestamps match.")
+	logger.Debug("Timestamps match.")
 	return false, nil
 }
 
@@ -358,7 +358,7 @@ func generateAppList(config *AppListConfig) (*PreloadedList, error) {
 func getVirtualFileSystem(config *AppListConfig) ([]string, error) {
 	if config.Prefix != "" {
 		// Show apps within specific prefix
-		logger.Info(api.Tf("Showing apps within %s/\n", config.Prefix))
+		logger.Debug(api.Tf("Showing apps within %s/\n", config.Prefix))
 		vfiles, err := api.AppPrefixCategory(config.Directory, config.Prefix)
 		if err != nil {
 			return nil, err

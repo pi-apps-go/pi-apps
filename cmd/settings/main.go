@@ -26,7 +26,6 @@ import (
 	"os"
 	"runtime"
 
-	"github.com/pi-apps-go/pi-apps/pkg/api"
 	"github.com/pi-apps-go/pi-apps/pkg/settings"
 )
 
@@ -56,14 +55,13 @@ func main() {
 				)
 
 				// Display the error to the user
-				api.ErrorNoExit(crashReport)
+				settings.ErrorNoExit(crashReport)
 
 				// later put a function to write it to the log file in the logs folder
 				os.Exit(1)
 			}
 		}()
 	}
-	api.Init()
 	if err := settings.Main(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)

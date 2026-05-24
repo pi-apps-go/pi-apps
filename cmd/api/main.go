@@ -47,7 +47,6 @@ func main() {
 	// runtime crashes can happen (keep in mind Pi-Apps Go is ALPHA software)
 	// so add a handler to log those runtime errors to save them to a log file
 	// this option can be disabled by specifying DISABLE_ERROR_HANDLING to true
-
 	errorHandling := os.Getenv("DISABLE_ERROR_HANDLING")
 	if errorHandling != "true" {
 		defer func() {
@@ -1595,6 +1594,17 @@ func main() {
 			api.ErrorT(api.Tf("Error: %v", err))
 		}
 
+	case "patch_deb_sed":
+		if len(args) < 2 {
+			api.ErrorNoExitT("Error: Missing required arguments")
+			api.StatusT("Usage: api patch_deb_sed <deb-file> <sed-pattern>")
+			os.Exit(1)
+		}
+
+		err := api.PatchDebSed(args[0], args[1])
+		if err != nil {
+			api.ErrorT(api.Tf("Error: %v", err))
+		}
 	// Plugin system commands have been removed - plugins are now build-time only
 
 	// All plugin commands have been removed - plugins are now build-time only
@@ -1719,6 +1729,7 @@ func printUsage() {
 	fmt.Println("  runonce                                      - " + api.T("Run script only if it's never been run before"))
 	fmt.Println("  is_supported_system                          - " + api.T("Check if the current system is supported by Pi-Apps"))
 	fmt.Println("  sudo_popup <command> [args...]               - " + api.T("Run command with elevated privileges, using graphical auth if needed"))
+	fmt.Println("  patch_deb_sed <deb-file> <sed-pattern>       - " + api.PatchDebSedMessage)
 	fmt.Println("")
 	fmt.Println(api.T("System Operations:"))
 	fmt.Println("  process_exists <pid>                         - " + api.T("Check if a process with the given PID exists"))

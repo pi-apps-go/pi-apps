@@ -30,13 +30,11 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-
-	"github.com/pi-apps-go/pi-apps/pkg/api"
 )
 
-// generateThemeOptions generates the available theme options for App List Style
-// This mimics the theme detection logic from the original bash script
-func (sw *SettingsWindow) generateThemeOptions() []string {
+// generateThemeOptions generates the available theme options for App List Style.
+// This mimics the theme detection logic from the original bash script.
+func generateThemeOptions() []string {
 	var themes []string
 
 	// Start with default theme (no GTK_THEME override)
@@ -109,11 +107,11 @@ func hasGTK3Support(themePath string) bool {
 	return false
 }
 
-// processAppListStyleSetting handles special processing for the App List Style setting
-func (sw *SettingsWindow) processAppListStyleSetting(setting *Setting) {
+// processAppListStyleSetting handles special processing for the App List Style setting.
+func processAppListStyleSetting(setting *Setting) {
 	if setting.Name == "App List Style" {
 		// Replace the default values with dynamically generated theme options
-		setting.Values = sw.generateThemeOptions()
+		setting.Values = generateThemeOptions()
 
 		// Ensure current value is valid, if not set to first available
 		validCurrent := false
@@ -182,7 +180,7 @@ func isGTKTheme(themeName string) bool {
 
 // GetCurrentAppListStyle reads the current App List Style setting from disk
 func GetCurrentAppListStyle() (string, error) {
-	directory := api.GetPiAppsDir()
+	directory := GetPiAppsDir()
 	if directory == "" {
 		return "", fmt.Errorf("PI_APPS_DIR environment variable not set")
 	}

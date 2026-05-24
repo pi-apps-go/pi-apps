@@ -291,7 +291,7 @@ func LogDiagnose(logfilePath string, allowWrite bool) (*ErrorDiagnosis, error) {
 		}
 		diagnosis.Captions = append(diagnosis.Captions,
 			"Unable to use the sudo command - the current user "+currentUser+" is not allowed to use it. \n\n"+
-				"Please enable passwordless sudo or switch to a more privelaged user-account. \n\n"+
+				"Please enable passwordless sudo or switch to a more privileged user-account. \n\n"+
 				"See: https://www.tecmint.com/fix-user-is-not-in-the-sudoers-file-the-incident-will-be-reported-ubuntu/")
 		diagnosis.ErrorType = "system"
 	}
@@ -501,6 +501,16 @@ func LogDiagnose(logfilePath string, allowWrite bool) (*ErrorDiagnosis, error) {
 			"Compiling failed because cc1plus was killed due to insufficient RAM.\n\n"+
 				"Please try installing the application again, but this time keep all other programs closed to preserve more free RAM.\n"+
 				"If this error persists, try installing the More RAM app from Pi-Apps. Find it in the Tools category.")
+		diagnosis.ErrorType = "system"
+	}
+
+	// check for "process didn't exit successfully: .*/rustc .* (signal: 9, SIGKILL: kill)"
+	regexRustKilled := regexp.MustCompile(`process didn't exit successfully: .*/rustc .* (signal: 9, SIGKILL: kill)`)
+	if regexRustKilled.MatchString(errors) {
+		diagnosis.Captions = append(diagnosis.Captions,
+			"Compiling failed because rustc was killed due to insufficient RAM.\n"+
+				"Please install the application again, but this time keep all other programs closed to keep more free RAM available.\n"+
+				"If this error keeps happening, try installing the More RAM app from the Pi-Apps Tools category.")
 		diagnosis.ErrorType = "system"
 	}
 

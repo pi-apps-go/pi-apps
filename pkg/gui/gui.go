@@ -19,6 +19,7 @@
 // This replaces the bash gui script functionality with native Go and GTK3.
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+// GUI entrypoint for Pi-Apps Go
 package gui
 
 import (
@@ -79,6 +80,12 @@ var logger = log.NewWithOptions(os.Stderr, log.Options{
 	ReportCaller:    true,
 	ReportTimestamp: true,
 	TimeFormat:      time.Kitchen,
+	Level: func() log.Level {
+		if api.GetDebugMode() {
+			return log.DebugLevel
+		}
+		return log.Default().GetLevel()
+	}(),
 })
 
 // NewGUI creates a new GUI instance
@@ -119,15 +126,18 @@ func (g *GUI) Initialize() error {
 	os.Setenv("GUI_FORMAT_VERSION", "2")
 	os.Setenv("PI_APPS_DIR", g.directory)
 
-	// Initialize app name
-	glib.SetPrgname("Pi-Apps")
+	// Do not initialize GTK and app name for non-native modes
+	if g.guiMode == "native" || g.guiMode == "gtk" || g.guiMode == "default" || g.guiMode == "yad-default" {
+		// Initialize app name
+		glib.SetPrgname("Pi-Apps")
 
-	// Initialize GTK
-	gtk.Init(nil)
+		// Initialize GTK
+		gtk.Init(nil)
 
-	// Get screen dimensions
-	if err := g.getScreenDimensions(); err != nil {
-		return fmt.Errorf("failed to get screen dimensions: %w", err)
+		// Get screen dimensions
+		if err := g.getScreenDimensions(); err != nil {
+			logger.Error("failed to get screen dimensions: %w", err)
+		}
 	}
 
 	// Create necessary directories
@@ -151,13 +161,12 @@ func (g *GUI) Initialize() error {
 
 // Run starts the main GUI application
 func (g *GUI) Run() error {
-	logger.Info(fmt.Sprintf("GUI Run() called with mode: %s", g.guiMode))
+	logger.Debug(fmt.Sprintf("GUI Run() called with mode: %s", g.guiMode))
 
-	// Check for imgui modes first
-	if strings.HasPrefix(g.guiMode, "imgui") || strings.HasPrefix(g.guiMode, "xlunch") {
-		logger.Info("Using ImGui mode")
-		logger.Warn("ImGui mode is experimental and may not work properly/as expected. Please report any issues you encounter while running Pi-Apps Go in ImGui mode by reporting an issue on the Pi-Apps Go GitHub repository/Discord server.")
-		return g.runImGuiMode()
+	// Check for xlunch modes first
+	if strings.HasPrefix(g.guiMode, "xlunch") {
+		logger.Warn("Xlunch mode is currently a stub, falling back to native mode")
+		return g.runNativeMode()
 	}
 
 	if strings.HasPrefix(g.guiMode, "preload-daemon-once") {
@@ -168,7 +177,7 @@ func (g *GUI) Run() error {
 
 	if strings.HasPrefix(g.guiMode, "preload-daemon") {
 		logger.Info("Using preload daemon mode")
-		logger.Warn("Preload daemon mode does not launch a GUI, it is used to refresh the app list (you have selected to presist the daemon until you manually stop it).")
+		logger.Warn("Preload daemon mode does not launch a GUI, it is used to refresh the app list (you have selected to persist the daemon until you manually stop it).")
 		return g.runPreloadDaemonMode()
 	}
 
@@ -318,34 +327,6 @@ func (g *GUI) startBackgroundTasks() {
 	}()
 }
 
-// runImGuiMode runs the ImGui-based GUI implementation
-func (g *GUI) runImGuiMode() error {
-	logger.Info("Starting ImGui mode")
-
-	// Get theme from settings
-	theme := "dark" // default
-	if themeFile := filepath.Join(g.directory, "data", "settings", "App List Style"); api.FileExists(themeFile) {
-		if content, err := os.ReadFile(themeFile); err == nil {
-			style := strings.TrimSpace(string(content))
-			if strings.HasPrefix(style, "xlunch-") || strings.HasPrefix(style, "imgui-") {
-				theme = strings.TrimPrefix(strings.TrimPrefix(style, "xlunch-"), "imgui-")
-			}
-		}
-	}
-
-	// Create ImGui GUI instance
-	config := DefaultImGuiConfig()
-	config.Theme = theme
-	config.Width = 800
-	config.Height = 700
-
-	imguiGUI := NewImGuiGUI(g.directory, config)
-	defer imguiGUI.Close()
-
-	// Run the ImGui GUI
-	return imguiGUI.Run()
-}
-
 // runPreloadDaemonMode runs the preload daemon mode
 func (g *GUI) runPreloadDaemonMode() error {
 	logger.Info("Starting preload daemon mode")
@@ -383,7 +364,7 @@ func (g *GUI) runPreloadDaemonOnceMode() error {
 
 // runNativeMode runs the GUI in native GTK3 mode
 func (g *GUI) runNativeMode() error {
-	logger.Info("runNativeMode: Starting GTK3 interface")
+	logger.Debug("runNativeMode: Starting GTK3 interface")
 
 	// Create main window
 	window, err := gtk.WindowNew(gtk.WINDOW_TOPLEVEL)
@@ -392,7 +373,7 @@ func (g *GUI) runNativeMode() error {
 		return fmt.Errorf("failed to create window: %w", err)
 	}
 	g.window = window
-	logger.Info("runNativeMode: Window created successfully")
+	logger.Debug("runNativeMode: Window created successfully")
 
 	window.SetTitle("Pi-Apps")
 
@@ -417,7 +398,7 @@ func (g *GUI) runNativeMode() error {
 	window.SetDefaultSize(windowWidth, windowHeight)
 	window.SetPosition(gtk.WIN_POS_CENTER)
 	window.SetResizable(true)
-	logger.Info(fmt.Sprintf("runNativeMode: Window size set to %dx%d\n", windowWidth, windowHeight))
+	logger.Debug(fmt.Sprintf("runNativeMode: Window size set to %dx%d\n", windowWidth, windowHeight))
 
 	// Set window icon
 	iconPath := filepath.Join(g.directory, "icons", "logo.png")
@@ -433,14 +414,14 @@ func (g *GUI) runNativeMode() error {
 		logger.Fatal(fmt.Errorf("failed to create main box: %w", err))
 		return fmt.Errorf("failed to create main box: %w", err)
 	}
-	logger.Info("runNativeMode: Main layout created")
+	logger.Debug("runNativeMode: Main layout created")
 
 	// Create app info header (like the CloudBuddy/WiFi Hotspot area)
 	if err := g.createAppInfoHeader(vbox); err != nil {
 		logger.Fatal(fmt.Errorf("failed to create app info header: %w", err))
 		return fmt.Errorf("failed to create app info header: %w", err)
 	}
-	logger.Info("runNativeMode: App info header created")
+	logger.Debug("runNativeMode: App info header created")
 
 	// Create content container for switching between views
 	contentContainer, err := gtk.BoxNew(gtk.ORIENTATION_VERTICAL, 0)
@@ -450,40 +431,40 @@ func (g *GUI) runNativeMode() error {
 	}
 	g.contentContainer = contentContainer
 	vbox.PackStart(contentContainer, true, true, 0)
-	logger.Info("runNativeMode: Content container created")
+	logger.Debug("runNativeMode: Content container created")
 
 	// Create initial category list view
 	if err := g.showCategoryListView(); err != nil {
 		logger.Fatal(fmt.Errorf("failed to create category list: %w", err))
 		return fmt.Errorf("failed to create category list: %w", err)
 	}
-	logger.Info("runNativeMode: Category list created")
+	logger.Debug("runNativeMode: Category list created")
 
 	// Create bottom buttons
 	if err := g.createBottomButtons(vbox); err != nil {
 		logger.Fatal(fmt.Errorf("failed to create bottom buttons: %w", err))
 		return fmt.Errorf("failed to create bottom buttons: %w", err)
 	}
-	logger.Info("runNativeMode: Bottom buttons created")
+	logger.Debug("runNativeMode: Bottom buttons created")
 
 	window.Add(vbox)
 
 	// Connect signals
 	window.Connect("destroy", func() {
-		logger.Info("runNativeMode: Window destroy signal received")
+		logger.Debug("runNativeMode: Window destroy signal received")
 		g.Cleanup()
 		gtk.MainQuit()
 	})
 
 	// Show window
-	logger.Info("runNativeMode: Showing window...")
+	logger.Debug("runNativeMode: Showing window...")
 	window.ShowAll()
 
 	// Start GTK main loop
-	logger.Info("runNativeMode: Starting GTK main loop")
+	logger.Debug("runNativeMode: Starting GTK main loop")
 	gtk.Main()
 
-	logger.Info("runNativeMode: GTK main loop exited")
+	logger.Debug("runNativeMode: GTK main loop exited")
 	return nil
 }
 
@@ -879,9 +860,9 @@ func (g *GUI) showCategoryAppsView(category string) error {
 
 		// Connect app selection handler
 		listBox.Connect("row-activated", func(listBox *gtk.ListBox, row *gtk.ListBoxRow) {
-			logger.Info(fmt.Sprintf("App row activated in category: %s\n", category))
+			logger.Debug(fmt.Sprintf("App row activated in category: %s\n", category))
 			rowIndex := row.GetIndex()
-			logger.Info(fmt.Sprintf("Selected row index: %d\n", rowIndex))
+			logger.Debug(fmt.Sprintf("Selected row index: %d\n", rowIndex))
 
 			if appName := g.getAppNameFromRow(row); appName != "" {
 				appPath := appName
@@ -1111,11 +1092,11 @@ func (g *GUI) showAppDetails(appPath string) {
 		appName = appPath
 	}
 
-	logger.Info(fmt.Sprintf("Showing details for app: %s\n", appName))
+	logger.Debug(fmt.Sprintf("Showing details for app: %s\n", appName))
 
-	// For imgui mode, spawn a separate GTK process to avoid event loop conflicts
-	if strings.Contains(g.guiMode, "imgui") || strings.Contains(g.guiMode, "xlunch") {
-		logger.Info("Spawning app details dialog in separate process for imgui mode...")
+	// For xlunch mode, spawn a separate GTK process to avoid event loop conflicts
+	if strings.Contains(g.guiMode, "xlunch") {
+		logger.Info("Spawning app details dialog in separate process for xlunch mode...")
 
 		// Use Go itself to run the app details dialog in a separate process
 		// This is a hack to prevent the event loop from being blocked by the dialog
@@ -1130,24 +1111,24 @@ func (g *GUI) showAppDetails(appPath string) {
 		return
 	}
 
-	// Create details window (for non-imgui modes)
+	// Create details window (for non-xlunch modes)
 	window, err := gtk.WindowNew(gtk.WINDOW_TOPLEVEL)
 	if err != nil {
 		logger.Error(fmt.Sprintf("Error creating details window: %v\n", err))
 		return
 	}
 	g.detailsWindow = window
-	logger.Info("GTK details window created successfully")
+	logger.Debug("GTK details window created successfully")
 
 	window.SetTitle(fmt.Sprintf("Details of %s", appName))
 	window.SetDefaultSize(500, 400)
 
-	// Only set parent window if we're not in imgui mode
-	if g.window != nil && !strings.Contains(g.guiMode, "imgui") && !strings.Contains(g.guiMode, "xlunch") {
+	// Only set parent window if we're not in xlunch mode
+	if g.window != nil && !strings.Contains(g.guiMode, "xlunch") {
 		window.SetTransientFor(g.window)
 		window.SetPosition(gtk.WIN_POS_CENTER_ON_PARENT)
 	} else {
-		// In imgui mode or when no parent window, center on screen
+		// In xlunch mode or when no parent window, center on screen
 		window.SetPosition(gtk.WIN_POS_CENTER)
 	}
 
@@ -1644,24 +1625,24 @@ func (g *GUI) showAppDetails(appPath string) {
 	}
 
 	window.Add(vbox)
-	logger.Info("About to show GTK details window...")
+	logger.Debug("About to show GTK details window...")
 	window.ShowAll()
-	logger.Info("GTK details window ShowAll() called")
+	logger.Debug("GTK details window ShowAll() called")
 
 	// Ensure the window gets focus and is brought to front
 	window.Present()
-	logger.Info("GTK details window Present() called")
+	logger.Debug("GTK details window Present() called")
 
-	// For imgui mode, just ensure the window stays on top
-	if strings.Contains(g.guiMode, "imgui") || strings.Contains(g.guiMode, "xlunch") {
-		logger.Info("Setting up imgui mode window focus handling...")
+	// For xlunch mode, just ensure the window stays on top
+	if strings.Contains(g.guiMode, "xlunch") {
+		logger.Debug("Setting up xlunch mode window focus handling...")
 
 		// Set window to stay on top
 		window.SetKeepAbove(true)
 
 		// Give GTK a moment to create the window, then raise it
 		glib.TimeoutAdd(100, func() bool {
-			logger.Info("Timeout callback: Presenting window again...")
+			logger.Debug("Timeout callback: Presenting window again...")
 			window.Present()
 			return false // Don't repeat
 		})
@@ -2007,7 +1988,7 @@ func (g *GUI) populateAppsInCategory(listBox *gtk.ListBox, category string) {
 
 	// Store the current apps for index-based access
 	g.currentApps = apps
-	logger.Info(fmt.Sprintf("Stored %d apps for category %s\n", len(g.currentApps), category))
+	logger.Debug(fmt.Sprintf("Stored %d apps for category %s\n", len(g.currentApps), category))
 
 	// Add each app as a row
 	for _, app := range apps {
