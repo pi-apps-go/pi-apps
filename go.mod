@@ -4,7 +4,7 @@ go 1.25.8
 
 require (
 	charm.land/log/v2 v2.0.0
-	fyne.io/systray v1.12.1
+	fyne.io/systray v1.12.2
 	github.com/ProtonMail/gopenpgp/v3 v3.4.1
 	github.com/charmbracelet/bubbles v1.0.0
 	github.com/charmbracelet/bubbletea v1.3.10
