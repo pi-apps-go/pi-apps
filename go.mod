@@ -1,6 +1,6 @@
 module github.com/pi-apps-go/pi-apps
 
-go 1.25.8
+go 1.26.0
 
 require (
 	charm.land/log/v2 v2.0.0
@@ -21,7 +21,7 @@ require (
 	gitlab.alpinelinux.org/alpine/go v0.10.1
 	golang.org/x/term v0.45.0
 	golang.org/x/text v0.40.0
-	golang.org/x/time v0.15.0
+	golang.org/x/time v0.16.0
 )
 
 require (
