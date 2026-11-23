@@ -1,6 +1,6 @@
 module github.com/pi-apps-go/pi-apps
 
-go 1.26.0
+go 1.27
 
 require (
 	charm.land/log/v2 v2.0.1
@@ -15,7 +15,7 @@ require (
 	github.com/gotk3/gotk3 v0.6.5-0.20240618185848-ff349ae13f56
 	github.com/joho/godotenv v1.5.1
 	github.com/kbinani/screenshot v0.0.0-20250624051815-089614a94018
-	github.com/leonelquinteros/gotext v1.7.2
+	github.com/leonelquinteros/gotext v1.8.0
 	github.com/schollz/progressbar/v3 v3.19.1
 	github.com/toqueteos/webbrowser v1.2.1
 	gitlab.alpinelinux.org/alpine/go v0.10.1
